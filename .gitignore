@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.env
+.env.local
+.env.*.local
+.DS_Store
+npm-debug.log*
+.vite/
+
+# Unrelated vendored project (not part of BikeHeadz).
+TRELLIS-main/

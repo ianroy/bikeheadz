@@ -1,0 +1,123 @@
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --font-size: 16px;
+  --background: #09090f;
+  --foreground: #e0e0f0;
+  --card: #111120;
+  --card-foreground: #e0e0f0;
+  --popover: #111120;
+  --popover-foreground: #e0e0f0;
+  --primary: #b4ff45;
+  --primary-foreground: #000000;
+  --secondary: #1e1e35;
+  --secondary-foreground: #e0e0f0;
+  --muted: #1e1e35;
+  --muted-foreground: #9090b0;
+  --accent: #b4ff45;
+  --accent-foreground: #000000;
+  --destructive: #ff6b30;
+  --destructive-foreground: #ffffff;
+  --border: #1e1e35;
+  --input: #0d0d1e;
+  --input-background: #0d0d1e;
+  --switch-background: #252545;
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  --ring: #b4ff45;
+  --radius: 0.75rem;
+  --brand: #b4ff45;
+  --brand-dim: #7fc718;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-input-background: var(--input-background);
+  --color-switch-background: var(--switch-background);
+  --color-ring: var(--ring);
+  --color-brand: var(--brand);
+  --color-brand-dim: var(--brand-dim);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  html {
+    font-size: var(--font-size);
+  }
+
+  body {
+    background: var(--background);
+    color: var(--foreground);
+  }
+
+  input[type="range"] {
+    accent-color: var(--brand);
+  }
+}
+
+/* Slide-down panel used for collapsible settings. */
+.collapse-panel {
+  overflow: hidden;
+  transition: grid-template-rows 0.25s ease, opacity 0.2s ease;
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
+.collapse-panel.open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+.collapse-panel > * {
+  min-height: 0;
+}
+
+/* Subtle pulsing dot used on the processing badge. */
+.pulse-dot {
+  animation: pulse-dot 1.2s ease-in-out infinite;
+}
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.35; }
+}
+
+/* Spinner used by the Generate button during processing. */
+.spinner {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid rgba(0, 0, 0, 0.3);
+  border-top-color: #000;
+  border-radius: 9999px;
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Fade-in used for the "STL Ready" banner. */
+.fade-up {
+  animation: fade-up 0.25s ease both;
+}
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}

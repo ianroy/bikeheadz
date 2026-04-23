@@ -1,0 +1,7 @@
+@import "tailwindcss";
+
+/* Tailwind v4 discovers utilities from any file under the source directory,
+   but we make it explicit here so class strings inside our vanilla-JS modules
+   are always picked up. */
+@source "../../client/**/*.{js,html}";
+@source "../../index.html";
