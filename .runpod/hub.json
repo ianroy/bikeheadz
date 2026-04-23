@@ -3,26 +3,16 @@
   "description": "Serverless TRELLIS worker. Takes a base64-encoded portrait photo plus geometry settings, generates a 3D head mesh, merges it onto a fixed Presta valve cap STL, and returns the merged STL as base64 ASCII. Streams per-stage progress frames.",
   "type": "serverless",
   "category": "image",
-  "iconUrl": "https://raw.githubusercontent.com/ianroy/bikeheadz/main/.runpod/icon.png",
   "config": {
     "runsOn": "GPU",
     "containerDiskInGb": 20,
     "gpuCount": 1,
-    "gpuIds": "ADA_24_PRO,AMPERE_48,AMPERE_80",
     "allowedCudaVersions": ["12.8", "12.7", "12.6", "12.5", "12.4", "12.3", "12.2", "12.1"],
     "presets": [
       {
         "name": "Default",
         "defaults": {
-          "TRELLIS_MODEL": "microsoft/TRELLIS-image-large",
-          "SPCONV_ALGO": "native"
-        }
-      },
-      {
-        "name": "Fast (RTX 4090)",
-        "defaults": {
-          "TRELLIS_MODEL": "microsoft/TRELLIS-image-large",
-          "SPCONV_ALGO": "native"
+          "TRELLIS_MODEL": "microsoft/TRELLIS-image-large"
         }
       }
     ],
@@ -32,7 +22,7 @@
         "input": {
           "name": "TRELLIS model id",
           "type": "string",
-          "description": "Hugging Face model repo for the image-to-3D pipeline. Default is the official large image model.",
+          "description": "Hugging Face model repo for the image-to-3D pipeline.",
           "default": "microsoft/TRELLIS-image-large"
         }
       },

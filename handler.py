@@ -151,8 +151,10 @@ def handler(job):
         yield {"type": "error", "error": str(err)}
 
 
-if __name__ == "__main__":
-    runpod.serverless.start({
-        "handler": handler,
-        "return_aggregate_stream": True,
-    })
+# Register at module import time — RunPod Hub's handler detector scans for
+# a top-level `runpod.serverless.start(...)`, so keeping this inside an
+# `if __name__ == "__main__":` guard hides it and the Hub checklist stays red.
+runpod.serverless.start({
+    "handler": handler,
+    "return_aggregate_stream": True,
+})
