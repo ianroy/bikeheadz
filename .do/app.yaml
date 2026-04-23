@@ -53,6 +53,9 @@ services:
       - key: DATABASE_SSL
         scope: RUN_TIME
         value: "true"
+      - key: DATABASE_CA_CERT
+        scope: RUN_TIME
+        value: ${db.CA_CERT}
       - key: APP_URL
         scope: RUN_TIME
         value: ${APP_URL}
@@ -105,6 +108,9 @@ services:
       - key: DATABASE_SSL
         scope: RUN_TIME
         value: "true"
+      - key: DATABASE_CA_CERT
+        scope: RUN_TIME
+        value: ${db.CA_CERT}
 
 databases:
   - name: db

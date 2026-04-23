@@ -7,11 +7,18 @@ const { Pool } = pg;
 // 12-factor §4 — treat backing services as attached resources.
 const connectionString = process.env.DATABASE_URL;
 const sslDisabled = process.env.DATABASE_SSL === 'false';
+const caCert = process.env.DATABASE_CA_CERT;
+
+function buildSslConfig() {
+  if (sslDisabled) return false;
+  if (caCert) return { ca: caCert, rejectUnauthorized: true };
+  return { rejectUnauthorized: false };
+}
 
 export const db = connectionString
   ? new Pool({
       connectionString,
-      ssl: sslDisabled ? false : { rejectUnauthorized: false },
+      ssl: buildSslConfig(),
       max: Number(process.env.DB_POOL_MAX) || 10,
       idleTimeoutMillis: 30_000,
     })

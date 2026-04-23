@@ -5,7 +5,7 @@
   "description": "3D bike valve stem personalization app — SVG.js frontend, socket.io command-pattern backend, Postgres 18.",
   "type": "module",
   "engines": {
-    "node": ">=20.0.0"
+    "node": "22.x"
   },
   "scripts": {
     "dev": "concurrently -k -n client,server -c cyan,green \"npm:dev:client\" \"npm:dev:server\"",
