@@ -5,12 +5,30 @@ const { Pool } = pg;
 
 // 12-factor §3 — DATABASE_URL injected by the platform (DO Managed PostgreSQL).
 // 12-factor §4 — treat backing services as attached resources.
-const connectionString = process.env.DATABASE_URL;
+const rawUrl = process.env.DATABASE_URL;
 const sslDisabled = process.env.DATABASE_SSL === 'false';
 
-// DO Managed PostgreSQL serves a cert whose chain does not validate under
-// Node's default trust store. `rejectUnauthorized: false` keeps the channel
-// encrypted but skips verification — the pattern DO's Node guide recommends.
+// DO Managed PostgreSQL (including the dev tier) serves a cert chain that
+// does not validate under Node's default trust store. We force
+// `sslmode=no-verify` directly in the URL AND pass a matching `ssl` object:
+// pg honors whichever the current version prefers. Net effect: encrypted
+// channel, no cert verification — the recipe DO's Node guide documents.
+function prepareConnectionString(url) {
+  if (!url) return null;
+  try {
+    const u = new URL(url);
+    if (sslDisabled) {
+      u.searchParams.delete('sslmode');
+    } else {
+      u.searchParams.set('sslmode', 'no-verify');
+    }
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
+const connectionString = prepareConnectionString(rawUrl);
 const sslConfig = sslDisabled ? false : { rejectUnauthorized: false };
 
 export const db = connectionString
