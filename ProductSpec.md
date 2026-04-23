@@ -312,7 +312,7 @@ client/
 server/
  ├─ index.js                        Express, socket.io, /health, graceful shutdown
  ├─ logger.js                       JSON lines → stdout/stderr
- ├─ db.js                           pg Pool with CA-verified TLS
+ ├─ db.js                           pg Pool (encrypted, unverified SSL)
  ├─ design-store.js                 STL persistence + expiry job
  ├─ stripe-client.js                Stripe SDK lazy init + pricing catalogue
  ├─ migrate.js                      admin process
@@ -340,8 +340,10 @@ Everything is read from `process.env` at startup. Canonical list in
 
 - **`DATABASE_SSL=false`** is only for local plaintext Postgres. DO Managed
   DB requires TLS.
-- **`DATABASE_CA_CERT`** (PEM-encoded) triggers strict cert verification.
-  Without it, SSL is still enabled but with `rejectUnauthorized: false`.
+- **SSL posture**: production always runs with `rejectUnauthorized: false`
+  (encrypted channel, no cert verification). DO's managed PG cert chain
+  does not validate under Node's default trust store; this matches DO's
+  own Node.js connection recipe.
 - **`APP_URL`** is used to build Stripe success/cancel URLs. Set it to your
   production domain (e.g. `https://bikeheadz.ondigitalocean.app`).
 - **`TRELLIS_ENABLED=false`** toggles the procedural fallback head — useful
@@ -349,8 +351,7 @@ Everything is read from `process.env` at startup. Canonical list in
 - **`STRIPE_PRICE_STL_CENTS`** overrides the STL-download price without code changes.
 
 The DO `app.yaml` declares the same variables, promotes Stripe secrets to
-`SECRET` type, and injects `${db.DATABASE_URL}` / `${db.CA_CERT}` from the
-managed database.
+`SECRET` type, and injects `${db.DATABASE_URL}` from the managed database.
 
 ---
 
@@ -481,8 +482,9 @@ order, tracked by `schema_migrations`.
 - **Photo storage** is transient: images are written to a per-request
   tempdir under the OS temp directory and deleted in the `finally` block of
   `stl.generate`. Only the resulting STL is persisted.
-- **Database TLS** is mandatory in production; bind a `DATABASE_CA_CERT`
-  from DO's managed DB for strict verification.
+- **Database TLS** is mandatory in production (`DATABASE_SSL=true`). The
+  channel is encrypted but unverified (`rejectUnauthorized: false`), which
+  is what DO's managed PG + Node recipe requires.
 - **No cross-account authz yet.** Every request currently operates on a
   single hard-coded account id (`1`). Adding auth is a Phase 1 roadmap item.
 - **Rate limiting** is not yet implemented. See roadmap.
@@ -526,7 +528,7 @@ OpenTelemetry).
 | Client shows "Generating… 0%" forever                      | Python worker isn't installed / `PYTHON_BIN` wrong / `TRELLIS_PATH` invalid. Check `stderr` under `worker.stderr`. |
 | `payments.createCheckoutSession` errors `stripe_not_configured` | `STRIPE_SECRET_KEY` is empty. Set it in `.env` (dev) or DO dashboard (prod).                                   |
 | STL download returns `payment_required`                    | The purchase row isn't `status='paid'`. Usually means the user navigated away before `payments.verifySession` ran. |
-| pg error `self signed certificate in certificate chain`    | Bind `DATABASE_CA_CERT` or set `DATABASE_SSL=false` for local plaintext.                                           |
+| pg error `self signed certificate in certificate chain`    | `DATABASE_SSL=true` should already yield an encrypted-but-unverified connection. If you see this in prod, check that `db.js` hasn't been changed to `rejectUnauthorized: true`. For local plaintext PG, set `DATABASE_SSL=false`. |
 | Socket connects but no commands reach server               | Vite proxy misconfigured in `vite.config.js` (`BACKEND_PORT`), or client-side ad-blocker mangling `/socket.io/`.    |
 | `stl.generate.result` arrives but STL download 404s        | Design expired (>24h). Regenerate.                                                                                 |
 

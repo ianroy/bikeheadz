@@ -197,7 +197,7 @@ Open http://localhost:5173.
    doctl apps create --spec .do/app.yaml
    ```
 3. The spec attaches a Managed PostgreSQL 18 cluster as component `db`.
-   `DATABASE_URL` (and optional `DATABASE_CA_CERT`) are injected automatically.
+   `DATABASE_URL` is injected automatically.
 4. In the DO dashboard, bind `STRIPE_SECRET_KEY` as a **Secret** env var.
 5. The `migrate` `PRE_DEPLOY` job runs `node server/migrate.js` before each
    release goes live.
@@ -223,7 +223,6 @@ See [`.env.example`](./.env.example) for the complete catalogue. Highlights:
 | `PORT`                   | HTTP port (platform-injected)                                  |
 | `DATABASE_URL`           | Postgres connection string                                     |
 | `DATABASE_SSL`           | `false` to disable TLS for local Postgres                      |
-| `DATABASE_CA_CERT`       | PEM CA for strict TLS (DO managed DB)                          |
 | `APP_URL`                | Public URL for Stripe redirects                                |
 | `STRIPE_SECRET_KEY`      | Stripe API secret (`sk_test_…` / `sk_live_…`)                  |
 | `STRIPE_PRICE_STL_CENTS` | STL price override in cents (default `200`)                    |
@@ -255,7 +254,7 @@ See [`.env.example`](./.env.example) for the complete catalogue. Highlights:
 ├── server/                         Node.js backend
 │   ├── index.js                    Express + socket.io bootstrap, healthcheck
 │   ├── logger.js                   JSON stdout logger
-│   ├── db.js                       pg Pool (DATABASE_URL, CA-verified TLS)
+│   ├── db.js                       pg Pool (DATABASE_URL, encrypted unverified TLS)
 │   ├── design-store.js             STL persistence (Postgres ↔ memory fallback)
 │   ├── stripe-client.js            Stripe SDK factory + pricing catalogue
 │   ├── migrate.js                  Admin process

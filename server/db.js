@@ -7,18 +7,16 @@ const { Pool } = pg;
 // 12-factor §4 — treat backing services as attached resources.
 const connectionString = process.env.DATABASE_URL;
 const sslDisabled = process.env.DATABASE_SSL === 'false';
-const caCert = process.env.DATABASE_CA_CERT;
 
-function buildSslConfig() {
-  if (sslDisabled) return false;
-  if (caCert) return { ca: caCert, rejectUnauthorized: true };
-  return { rejectUnauthorized: false };
-}
+// DO Managed PostgreSQL serves a cert whose chain does not validate under
+// Node's default trust store. `rejectUnauthorized: false` keeps the channel
+// encrypted but skips verification — the pattern DO's Node guide recommends.
+const sslConfig = sslDisabled ? false : { rejectUnauthorized: false };
 
 export const db = connectionString
   ? new Pool({
       connectionString,
-      ssl: buildSslConfig(),
+      ssl: sslConfig,
       max: Number(process.env.DB_POOL_MAX) || 10,
       idleTimeoutMillis: 30_000,
     })
