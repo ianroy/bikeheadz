@@ -262,7 +262,7 @@ See [`.env.example`](./.env.example) for the complete catalogue. Highlights:
 │   │   ├── index.js                dispatcher
 │   │   ├── stl.js                  spawns TRELLIS worker, persists designs
 │   │   ├── payments.js             Checkout Session + verify
-│   │   └── designs · orders · account · events
+│   │   └── designs · orders · account
 │   ├── workers/
 │   │   ├── trellis_generate.py     TRELLIS → trimesh → STL merge
 │   │   └── requirements.txt        numpy, pillow, trimesh

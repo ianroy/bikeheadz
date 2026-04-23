@@ -211,7 +211,6 @@ export function initCommandRegistry() {
     ...designsCommands,
     ...ordersCommands,
     ...accountCommands,
-    ...eventsCommands,
     ...stlCommands,
     ...paymentsCommands,
   });
@@ -233,7 +232,6 @@ socket.emit('command', { id, name: 'stl.generate.progress', payload: { step, pct
 | `account.get` / `account.update`   | Read / upsert the single-user profile (row id=1)        |
 | `designs.list` / `.save` / `.delete` | CRUD over the historical designs gallery               |
 | `orders.list`                      | Past orders (for the Account → Orders tab)              |
-| `events.list`                      | Upcoming bike events shown in the left sidebar          |
 | `stl.generate`                     | Photo → STL; streams progress; persists design          |
 | `stl.download`                     | Post-payment STL fetch (requires paid purchase row)     |
 | `payments.catalogue`               | Returns `{ enabled, item }` — the single STL-download SKU |
@@ -254,7 +252,7 @@ designs(id BIGSERIAL PK, account_id → accounts, name, thumbnail_url,
         material CHECK(matte|gloss|chrome), stars 0-5, settings JSONB, …)
 orders(id TEXT PK, account_id → accounts, design_id → designs,
        name, status, price, qty, placed_at)
-events(id TEXT PK, title, happens_at, location, image_url)
+events(id TEXT PK, …)  -- dropped in 003_drop_events.sql
 ```
 
 `002_designs_and_purchases.sql`:
@@ -320,7 +318,7 @@ server/
  │   ├─ index.js                    dispatcher + registry
  │   ├─ stl.js                      spawns TRELLIS, persists, paywalls
  │   ├─ payments.js                 Stripe checkout + verify
- │   └─ designs|orders|account|events.js
+ │   └─ designs|orders|account.js
  ├─ workers/
  │   ├─ trellis_generate.py         photo → head mesh → merge → STL
  │   └─ requirements.txt            numpy, pillow, trimesh
@@ -328,7 +326,8 @@ server/
  │   └─ valve_cap.stl               1.2 MB — the base stem we never scale
  └─ migrations/
      ├─ 001_initial.sql
-     └─ 002_designs_and_purchases.sql
+     ├─ 002_designs_and_purchases.sql
+     └─ 003_drop_events.sql
 ```
 
 ---

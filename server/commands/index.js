@@ -2,7 +2,6 @@ import { logger } from '../logger.js';
 import { designsCommands } from './designs.js';
 import { ordersCommands } from './orders.js';
 import { accountCommands } from './account.js';
-import { eventsCommands } from './events.js';
 import { stlCommands } from './stl.js';
 import { paymentsCommands } from './payments.js';
 
@@ -18,7 +17,6 @@ export function initCommandRegistry() {
     ...designsCommands,
     ...ordersCommands,
     ...accountCommands,
-    ...eventsCommands,
     ...stlCommands,
     ...paymentsCommands,
   });

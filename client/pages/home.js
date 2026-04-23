@@ -20,113 +20,20 @@ export function HomePage({ socket }) {
     showSettings: false,
     selectedDesign: null,
     designs: [],
-    events: [],
     designId: null,
     designTriangles: 0,
     checkoutPending: false,
   };
 
-  const root = el('div.max-w-7xl.mx-auto.px-4.py-6');
+  const root = el('div.max-w-6xl.mx-auto.px-4.py-6');
   const grid = el('div', {
-    class: 'grid grid-cols-1 lg:grid-cols-[220px_1fr_260px] gap-6',
+    class: 'grid grid-cols-1 lg:grid-cols-[1fr_260px] gap-6',
   });
   root.appendChild(grid);
 
-  const leftAside = el('aside.flex.flex-col.gap-4', { class: 'hidden lg:flex' });
   const center = el('section.flex.flex-col.gap-5');
   const rightAside = el('aside.flex.flex-col.gap-4');
-  grid.append(leftAside, center, rightAside);
-
-  // ──────────────────────────────────────────────────────────────
-  // LEFT SIDEBAR — ads + events
-  // ──────────────────────────────────────────────────────────────
-  function renderLeft() {
-    clear(leftAside);
-    leftAside.appendChild(
-      el('div.flex.items-center.gap-2.mb-1',
-        icon('megaphone', { size: 14, color: '#b4ff45' }),
-        el('span.uppercase', {
-          style: { color: '#9090b0', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.05em' },
-        }, 'Ads & Events'),
-      ),
-    );
-
-    for (const ev of state.events) {
-      leftAside.appendChild(
-        el('div', {
-          class: 'rounded-xl overflow-hidden border transition-colors cursor-pointer group',
-          style: { background: '#111120', borderColor: '#1e1e35' },
-        },
-          el('div.relative.overflow-hidden', { style: { height: '7rem' } },
-            el('img', {
-              src: ev.img,
-              alt: ev.title,
-              class: 'w-full h-full object-cover transition-transform duration-500',
-            }),
-            el('div.absolute.inset-0', {
-              style: { background: 'linear-gradient(to top, rgba(0,0,0,0.7), transparent)' },
-            }),
-            el('div', {
-              class: 'absolute flex items-center gap-1.5',
-              style: { left: '8px', bottom: '8px' },
-            },
-              icon('calendar', { size: 12, color: '#b4ff45' }),
-              el('span', { style: { color: '#fff', fontSize: '0.7rem', fontWeight: 700 } }, ev.date),
-            ),
-          ),
-          el('div.p-3',
-            el('p', { style: { color: '#e0e0f0', fontSize: '0.8rem', fontWeight: 600 } }, ev.title),
-            el('p', { style: { color: '#808098', fontSize: '0.7rem' } }, ev.location),
-          ),
-        ),
-      );
-    }
-
-    leftAside.appendChild(
-      el('div', {
-        class: 'rounded-xl p-4 border relative overflow-hidden',
-        style: { background: 'linear-gradient(135deg, #0f1a05, #1a2a08)', borderColor: 'rgba(180,255,69,0.2)' },
-      },
-        el('div.absolute.inset-0', {
-          style: {
-            opacity: 0.1,
-            backgroundImage: 'radial-gradient(circle at 70% 30%, #b4ff45 0%, transparent 60%)',
-          },
-        }),
-        el('p.relative', {
-          style: { color: '#b4ff45', fontSize: '0.75rem', fontWeight: 700, zIndex: 10 },
-        }, '\u{1F6B4} Free Shipping'),
-        el('p.relative.mt-1', {
-          style: { color: '#9090b0', fontSize: '0.7rem', zIndex: 10 },
-        }, 'On all printed stems when you order 3+'),
-        el('button', {
-          class: 'mt-3 relative rounded-lg px-3 py-1 transition-colors',
-          style: {
-            color: '#b4ff45',
-            border: '1px solid rgba(180,255,69,0.4)',
-            fontSize: '0.72rem',
-            zIndex: 10,
-            background: 'transparent',
-          },
-        }, 'Order Now'),
-      ),
-    );
-
-    leftAside.appendChild(
-      el('div', {
-        class: 'rounded-xl p-4 border overflow-hidden',
-        style: { background: '#111120', borderColor: '#1e1e35' },
-      },
-        el('img', {
-          src: 'https://images.unsplash.com/photo-1697162123803-b812798e61e2?w=400&q=80',
-          alt: 'Bike parts',
-          class: 'w-full h-20 object-cover rounded-lg mb-3',
-        }),
-        el('p', { style: { color: '#e0e0f0', fontSize: '0.8rem', fontWeight: 600 } }, 'Custom Valve Caps'),
-        el('p', { style: { color: '#808098', fontSize: '0.7rem' } }, 'Brass, aluminum, titanium options'),
-      ),
-    );
-  }
+  grid.append(center, rightAside);
 
   // ──────────────────────────────────────────────────────────────
   // CENTER — title / uploader / viewer / settings / actions
@@ -675,16 +582,11 @@ export function HomePage({ socket }) {
   // ──────────────────────────────────────────────────────────────
   async function bootData() {
     try {
-      const [designs, events] = await Promise.all([
-        socket.request('designs.list'),
-        socket.request('events.list'),
-      ]);
+      const designs = await socket.request('designs.list');
       state.designs = designs || [];
-      state.events = events || [];
     } catch (err) {
       console.warn('initial load failed', err);
     }
-    renderLeft();
     renderRight();
   }
 
@@ -693,7 +595,6 @@ export function HomePage({ socket }) {
   renderViewerHeader();
   renderSettings();
   renderActions();
-  renderLeft();
   renderRight();
   bootData();
 
