@@ -6,6 +6,12 @@
 #     endpoint on the same port. WebSockets are first-class on DO App Platform.
 #   • Managed PostgreSQL 18 cluster attached as a component; its connection
 #     string is injected as DATABASE_URL.
+#   • Stripe secret keys are bound as SECRET env vars (never checked in).
+#   • TRELLIS (image → 3D) runs on a GPU machine. DO App Platform does not
+#     currently include GPU instance sizes, so in production TRELLIS should
+#     run on a GPU Droplet reachable from the app; set TRELLIS_ENABLED=false
+#     here and have the STL worker defer generation to that service, or
+#     deploy this app onto a GPU-capable runtime of your choice.
 #   • All config comes from environment variables (12-factor §3).
 #   • stdout/stderr are captured by the platform as the log stream (§11).
 
@@ -26,7 +32,7 @@ services:
       branch: main
       deploy_on_push: true
       # repo: your-org/bikeheadz    # fill in when wiring to GitHub
-    build_command: npm ci && npm run build
+    build_command: npm install && npm run build
     run_command: node server/index.js
     health_check:
       http_path: /health
@@ -47,13 +53,50 @@ services:
       - key: DATABASE_SSL
         scope: RUN_TIME
         value: "true"
+      - key: APP_URL
+        scope: RUN_TIME
+        value: ${APP_URL}
+      # ── Stripe ─────────────────────────────────────────────────────
+      # Bind these as SECRET values in the DO dashboard before the first
+      # deploy (Settings → App-Level Environment Variables).
+      - key: STRIPE_SECRET_KEY
+        scope: RUN_TIME
+        type: SECRET
+        value: ""
+      - key: STRIPE_WEBHOOK_SECRET
+        scope: RUN_TIME
+        type: SECRET
+        value: ""
+      - key: STRIPE_CURRENCY
+        scope: RUN_TIME
+        value: "usd"
+      - key: STRIPE_PRICE_STL_CENTS
+        scope: RUN_TIME
+        value: "200"
+      - key: STRIPE_PRICE_PRINT_CENTS
+        scope: RUN_TIME
+        value: "1999"
+      - key: STRIPE_PRICE_PACK4_CENTS
+        scope: RUN_TIME
+        value: "5999"
+      # ── TRELLIS ────────────────────────────────────────────────────
+      # Leave disabled here — pair with a GPU worker for real inference.
+      - key: TRELLIS_ENABLED
+        scope: RUN_TIME
+        value: "false"
+      - key: TRELLIS_MODEL
+        scope: RUN_TIME
+        value: "microsoft/TRELLIS-image-large"
+      - key: PYTHON_BIN
+        scope: RUN_TIME
+        value: "python3"
 
   # One-off migration job. Runs before every deployment goes live.
   - name: migrate
     kind: PRE_DEPLOY
     environment_slug: node-js
     source_dir: /
-    build_command: npm ci
+    build_command: npm install
     run_command: node server/migrate.js
     envs:
       - key: DATABASE_URL

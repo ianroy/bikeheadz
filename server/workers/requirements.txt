@@ -1,0 +1,6 @@
+# Python dependencies for the TRELLIS → STL worker.
+# The heavy CUDA/PyTorch install is handled by TRELLIS-main/setup.sh per the
+# upstream project's instructions — only the glue libs are pinned here.
+numpy>=1.26
+pillow>=10
+trimesh>=4.4

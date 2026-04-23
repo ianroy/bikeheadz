@@ -4,6 +4,7 @@ import { ordersCommands } from './orders.js';
 import { accountCommands } from './account.js';
 import { eventsCommands } from './events.js';
 import { stlCommands } from './stl.js';
+import { paymentsCommands } from './payments.js';
 
 // Two-way command pattern over a single "command" socket event.
 //
@@ -19,6 +20,7 @@ export function initCommandRegistry() {
     ...accountCommands,
     ...eventsCommands,
     ...stlCommands,
+    ...paymentsCommands,
   });
 }
 

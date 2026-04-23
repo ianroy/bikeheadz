@@ -5,6 +5,7 @@ import { createValveStemViewer } from '../components/valve-stem-viewer.js';
 export function HomePage({ socket }) {
   const state = {
     photoUrl: null,
+    photoFile: null,
     photoName: null,
     dragging: false,
     processing: false,
@@ -20,7 +21,9 @@ export function HomePage({ socket }) {
     selectedDesign: null,
     designs: [],
     events: [],
-    lastStl: null,
+    designId: null,
+    designTriangles: 0,
+    checkoutPending: false,
   };
 
   const root = el('div.max-w-7xl.mx-auto.px-4.py-6');
@@ -391,13 +394,14 @@ export function HomePage({ socket }) {
     onClick: handleGenerate,
   });
   const downloadBtn = el('button', {
-    class: 'flex items-center justify-center gap-2 px-6 py-3 rounded-xl border transition-all duration-200',
-    style: { background: '#111120', fontWeight: 700, fontSize: '0.9rem' },
-    onClick: handleDownload,
+    class: 'flex items-center justify-center gap-2 px-6 py-3 rounded-xl transition-all duration-200',
+    style: { fontWeight: 700, fontSize: '0.9rem' },
+    onClick: handleCheckout,
   });
   const payBtn = el('button', {
     class: 'flex items-center justify-center gap-2 px-6 py-3 rounded-xl transition-all duration-200',
     style: { color: '#fff', fontWeight: 700, fontSize: '0.9rem' },
+    onClick: () => handleStartPrintCheckout('printed_stem'),
   });
 
   actions.append(generateBtn, downloadBtn, payBtn);
@@ -425,18 +429,21 @@ export function HomePage({ socket }) {
       );
     }
 
+    const canPurchase = state.stlReady && !!state.designId && !state.checkoutPending;
+
     clear(downloadBtn);
     downloadBtn.append(
-      icon('download', { size: 16, color: state.stlReady ? '#b4ff45' : '#404055' }),
-      'Download STL',
+      icon('creditCard', { size: 16, color: canPurchase ? '#000' : '#808098' }),
+      state.checkoutPending ? 'Redirecting…' : 'Buy STL · $2',
     );
     Object.assign(downloadBtn.style, {
-      borderColor: state.stlReady ? 'rgba(180,255,69,0.4)' : '#252545',
-      color: state.stlReady ? '#b4ff45' : '#404055',
-      cursor: state.stlReady ? 'pointer' : 'not-allowed',
-      background: '#111120',
+      background: canPurchase ? 'linear-gradient(135deg, #b4ff45, #7fc718)' : '#252545',
+      color: canPurchase ? '#000' : '#808098',
+      border: 'none',
+      cursor: canPurchase ? 'pointer' : 'not-allowed',
+      opacity: canPurchase ? 1 : 0.7,
     });
-    downloadBtn.disabled = !state.stlReady;
+    downloadBtn.disabled = !canPurchase;
 
     clear(payBtn);
     payBtn.append(
@@ -444,11 +451,11 @@ export function HomePage({ socket }) {
       'Pay & Print',
     );
     Object.assign(payBtn.style, {
-      background: state.stlReady ? 'linear-gradient(135deg, #ff6b30, #e8450a)' : '#252545',
-      cursor: state.stlReady ? 'pointer' : 'not-allowed',
-      opacity: state.stlReady ? 1 : 0.6,
+      background: canPurchase ? 'linear-gradient(135deg, #ff6b30, #e8450a)' : '#252545',
+      cursor: canPurchase ? 'pointer' : 'not-allowed',
+      opacity: canPurchase ? 1 : 0.6,
     });
-    payBtn.disabled = !state.stlReady;
+    payBtn.disabled = !canPurchase;
 
     clear(readyBanner);
     if (state.stlReady) {
@@ -460,10 +467,12 @@ export function HomePage({ socket }) {
         el('div',
           el('p', {
             style: { color: '#b4ff45', fontWeight: 700, fontSize: '0.88rem' },
-          }, 'Your STL is ready!'),
+          },
+            `Your STL is ready — ${state.designTriangles.toLocaleString()} triangles.`,
+          ),
           el('p', {
             style: { color: '#808098', fontSize: '0.78rem' },
-          }, 'Download the file and send to your 3D printer, or click Pay & Print to have us print it for you.'),
+          }, 'Checkout for $2 to download the file, or order it printed and shipped.'),
         ),
       ));
     }
@@ -548,7 +557,7 @@ export function HomePage({ socket }) {
                   fontWeight: 600,
                   background: 'transparent',
                 },
-                onClick: (e) => { e.stopPropagation(); handleDownload(); },
+                onClick: (e) => { e.stopPropagation(); window.__router?.navigate('/pricing'); },
               }, 'Download'),
               el('button', {
                 class: 'flex-1 py-1.5 rounded-lg transition-colors',
@@ -569,7 +578,7 @@ export function HomePage({ socket }) {
         el('p', { style: { color: '#e0e0f0', fontWeight: 700, fontSize: '0.82rem' } }, 'Pricing'),
         el('div', { class: 'mt-2 flex flex-col gap-1.5' },
           ...[
-            ['STL Download', '$4.99'],
+            ['STL Download', '$2.00'],
             ['Printed Stem', '$19.99'],
             ['Pack of 4',    '$59.99'],
           ].map(([label, price]) =>
@@ -590,12 +599,23 @@ export function HomePage({ socket }) {
     if (!file.type.startsWith('image/')) return;
     if (state.photoUrl) URL.revokeObjectURL(state.photoUrl);
     state.photoUrl = URL.createObjectURL(file);
+    state.photoFile = file;
     state.photoName = file.name;
     state.stlReady = false;
-    state.lastStl = null;
+    state.designId = null;
+    state.designTriangles = 0;
     renderUploader();
     pushViewer();
     renderActions();
+  }
+
+  function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(reader.error || new Error('file_read_failed'));
+      reader.readAsDataURL(file);
+    });
   }
 
   async function handleGenerate() {
@@ -604,12 +624,18 @@ export function HomePage({ socket }) {
     state.stlReady = false;
     state.progress = 0;
     state.processingStep = '';
+    state.designId = null;
     renderActions();
     renderViewerHeader();
     pushViewer();
 
     try {
+      const imageData = state.photoFile ? await fileToBase64(state.photoFile) : null;
+      if (!imageData) throw new Error('photo_required');
+
       const result = await socket.request('stl.generate', {
+        imageData,
+        imageName: state.photoName,
         settings: {
           headScale: state.headScale,
           neckLength: state.neckLength,
@@ -626,29 +652,58 @@ export function HomePage({ socket }) {
           }
         },
       });
-      state.lastStl = result;
+      state.designId = result.designId;
+      state.designTriangles = result.triangles || 0;
       state.stlReady = true;
+      sessionStorage.setItem('bikeheadz.designId', result.designId);
     } catch (err) {
       console.error('stl.generate failed', err);
+      state.processingStep = `Error: ${err.message}`;
     } finally {
       state.processing = false;
       state.progress = 0;
-      state.processingStep = '';
       renderActions();
       renderViewerHeader();
       pushViewer();
     }
   }
 
-  function handleDownload() {
-    if (!state.lastStl) return;
-    const blob = new Blob([state.lastStl.stl], { type: 'text/plain' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = state.lastStl.filename || 'BikeHeadz_ValveStem.stl';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+  async function handleCheckout() {
+    if (!state.designId || state.checkoutPending) return;
+    state.checkoutPending = true;
+    renderActions();
+    try {
+      const { url } = await socket.request('payments.createCheckoutSession', {
+        product: 'stl_download',
+        designId: state.designId,
+      });
+      if (!url) throw new Error('no_checkout_url');
+      window.location.assign(url);
+    } catch (err) {
+      state.checkoutPending = false;
+      alert(err.message === 'stripe_not_configured'
+        ? 'Checkout is disabled in this environment. Configure STRIPE_SECRET_KEY to enable downloads.'
+        : `Could not start checkout: ${err.message}`);
+      renderActions();
+    }
+  }
+
+  async function handleStartPrintCheckout(product) {
+    if (!state.designId || state.checkoutPending) return;
+    state.checkoutPending = true;
+    renderActions();
+    try {
+      const { url } = await socket.request('payments.createCheckoutSession', {
+        product,
+        designId: state.designId,
+      });
+      if (!url) throw new Error('no_checkout_url');
+      window.location.assign(url);
+    } catch (err) {
+      state.checkoutPending = false;
+      alert(`Could not start checkout: ${err.message}`);
+      renderActions();
+    }
   }
 
   // ──────────────────────────────────────────────────────────────
