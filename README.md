@@ -6,6 +6,7 @@
   <img alt="Stack" src="https://img.shields.io/badge/stack-vanilla%20JS%20%2B%20socket.io%20%2B%20SVG.js-b4ff45">
   <img alt="Deploy" src="https://img.shields.io/badge/deploy-Digital%20Ocean%20App%20Platform-0080FF">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-blue">
+  <a href="https://console.runpod.io/hub/ianroy/bikeheadz"><img alt="RunPod Hub" src="https://api.runpod.io/badge/ianroy/bikeheadz"></a>
 </p>
 
 > Turn a portrait into a 3D-printable Presta valve stem cap — upload a photo,
@@ -279,12 +280,15 @@ See [`.env.example`](./.env.example) for the complete catalogue. Highlights:
 │   ├── assets/
 │   │   └── valve_cap.stl           Base valve-cap geometry (never scaled)
 │   └── migrations/                 001_initial, 002_designs_and_purchases, 003_drop_events
+├── Dockerfile                      CUDA 12.1 + TRELLIS + handler (RunPod image)
+├── .dockerignore                   Trims the Docker build context
+├── .runpod/
+│   ├── hub.json                    RunPod Hub listing config
+│   └── tests.json                  Smoke test RunPod runs after each build
 ├── deploy/
-│   └── runpod/                     GPU worker image + setup guide
-│       ├── Dockerfile              CUDA 12.1 + TRELLIS + handler.py
+│   └── runpod/
 │       ├── handler.py              RunPod Serverless generator handler
-│       ├── .dockerignore
-│       └── README.md               Dashboard walkthrough
+│       └── README.md               Hub + dashboard walkthrough
 ├── .do/app.yaml                    Digital Ocean App Platform spec
 ├── Procfile                        release + web process declarations
 ├── .env.example                    config template (12-factor §3)

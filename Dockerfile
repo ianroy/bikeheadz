@@ -1,11 +1,12 @@
 # BikeHeadz — TRELLIS worker image for RunPod Serverless.
 #
-# Build from the REPO ROOT so this file can copy the valve cap STL from
-# server/assets/. Example:
+# Lives at the repo root because:
+#   (a) RunPod Hub (.runpod/hub.json) expects `Dockerfile` at the root.
+#   (b) The build context needs to reach `server/assets/valve_cap.stl`
+#       and `deploy/runpod/handler.py` — both repo-relative paths.
+# Manual build (non-Hub path, from the repo root):
 #   docker buildx build --platform linux/amd64 \
-#     -f deploy/runpod/Dockerfile \
-#     -t <your-registry>/bikeheadz-trellis:latest \
-#     --push .
+#     -t <your-registry>/bikeheadz-trellis:latest --push .
 #
 # Notes:
 # - We deliberately skip TRELLIS's interactive ./setup.sh and install only

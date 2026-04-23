@@ -1,12 +1,16 @@
 # BikeHeadz × RunPod Serverless deployment guide
 
-This directory contains everything the TRELLIS GPU worker needs on RunPod:
+The TRELLIS GPU worker for BikeHeadz is packaged as a RunPod **Hub** listing
+(RunPod's GitHub-backed serverless template system). Everything it needs is
+in the repo:
 
-| File            | Role                                                          |
-| --------------- | ------------------------------------------------------------- |
-| `Dockerfile`    | Container image with CUDA 12.1, PyTorch 2.2, TRELLIS deps     |
-| `handler.py`    | RunPod Serverless generator handler — photo → head → STL      |
-| `.dockerignore` | Keeps the build context lean (repo root is the context)       |
+| File                   | Role                                                          |
+| ---------------------- | ------------------------------------------------------------- |
+| `Dockerfile`           | (repo root) CUDA 12.1 + PyTorch 2.2 + TRELLIS + handler       |
+| `.dockerignore`        | (repo root) trims the build context                           |
+| `deploy/runpod/handler.py` | Generator handler — photo → head → STL                    |
+| `.runpod/hub.json`     | Hub listing config (category, env inputs, GPU presets)        |
+| `.runpod/tests.json`   | Smoke test RunPod runs after every build                      |
 
 The Node server talks to the endpoint via
 [`server/workers/runpod-client.js`](../../server/workers/runpod-client.js).
@@ -16,196 +20,127 @@ local Python spawn path in `server/workers/trellis_generate.py`.
 
 ---
 
-## Next steps on your side
+## Deploying via RunPod Hub (recommended)
 
-You've already got a RunPod account and an API key. Remaining steps:
+You already selected **Serverless repos** in the RunPod dashboard and
+pointed it at `ianroy/bikeheadz`. The Hub wizard's six steps map to this
+repo like so:
 
-### 1. Push the image to a registry
+| Step | What the wizard wants       | Where it lives / what to do                                   |
+| ---- | --------------------------- | ------------------------------------------------------------- |
+| 1    | `.runpod/hub.json`          | Already in the repo (committed)                               |
+| 2    | `.runpod/tests.json`        | Already in the repo (committed)                               |
+| 3    | `Dockerfile`                | Already at the repo root (committed)                          |
+| 4    | Handler script              | [`deploy/runpod/handler.py`](./handler.py) (referenced by Dockerfile) |
+| 5    | Badge (optional)            | Paste into README if desired (we've already added it)         |
+| 6    | **Create a release**        | **You do this on GitHub** — see below                         |
 
-RunPod can pull from Docker Hub, GHCR, or a private RunPod registry.
-Docker Hub is simplest.
+### Step 6: cut a GitHub release
+
+RunPod Hub only builds when a **GitHub release tag** exists. Until you
+publish one, the endpoint stays unconfigured.
 
 ```bash
-# From the repo root (important — the Dockerfile COPYs from server/assets)
+git tag v0.1.0 -m "Initial RunPod Hub release"
+git push origin v0.1.0
+```
+
+…or via the GitHub UI: `Releases → Draft a new release → Choose a tag →
+v0.1.0 → Publish release`.
+
+Within a minute or two RunPod will pick up the tag, run a Docker build
+from your `Dockerfile`, execute `.runpod/tests.json`, and (if tests
+pass) list a ready endpoint on your account. Watch progress on the
+repo's Hub page: `https://console.runpod.io/hub/ianroy/bikeheadz`.
+
+### After the build succeeds
+
+1. Go to the endpoint page RunPod creates for the release.
+2. Grab the **Endpoint URL** (`https://api.runpod.ai/v2/<id>`).
+3. In DO → Settings → App-Level Env Vars, set:
+
+   ```
+   RUNPOD_ENDPOINT_URL=https://api.runpod.ai/v2/<id>
+   RUNPOD_API_KEY=<your key>       (mark as SECRET)
+   ```
+
+4. Redeploy the DO app. Generate → Pay → Download.
+
+### Iterating
+
+Pushes to `main` don't retrigger a Hub build on their own; you need a
+new tag. Pattern:
+
+```bash
+# after merging changes to deploy/runpod/ or server/assets/
+git tag v0.1.1 -m "bumped handler & Dockerfile"
+git push origin v0.1.1
+```
+
+Semver helps RunPod order releases but isn't enforced.
+
+---
+
+## First real invocation: warm the model weights
+
+TRELLIS downloads ~6 GB of weights from Hugging Face on first run. Your
+hub.json already points all caches at `/runpod-volume/hf`, so if you
+attach a **Network Volume** to the endpoint the download happens once
+and persists across cold starts.
+
+1. RunPod dashboard → **Storage → Network Volumes → + New**.
+2. Name `bikeheadz-models`, **same region** as your endpoint (e.g.
+   `US-OR-1`), size `25 GB` (~$1.75/mo).
+3. Endpoint settings → attach this volume at `/runpod-volume`.
+4. Send one **Test Request** from the endpoint page:
+
+   ```json
+   {
+     "input": {
+       "image_b64": "<base64 of any JPG>",
+       "head_scale": 1.0,
+       "neck_length_mm": 50,
+       "head_tilt_deg": 0,
+       "seed": 1
+     }
+   }
+   ```
+
+   The first run takes 60–90 s (weight download). Subsequent runs on the
+   same volume are ~10 s.
+
+---
+
+## Fallback: manual Docker push (non-Hub flow)
+
+If you'd rather not use Hub at all — e.g. you want to host the image on
+your own Docker Hub account — the image builds identically from the
+repo root:
+
+```bash
 docker login
 docker buildx build \
   --platform linux/amd64 \
-  -f deploy/runpod/Dockerfile \
   -t <your-dockerhub-username>/bikeheadz-trellis:latest \
   --push .
 ```
 
-On Apple Silicon, `--platform linux/amd64` is mandatory (RunPod GPUs are
-x86_64). The first build takes 10–15 min mostly because of `flash-attn`
-compiling. Later builds are fast thanks to layer caching.
-
-> **If a build step fails on TRELLIS / flash-attn**: iterate on the
-> Dockerfile. The most common culprits are CUDA/PyTorch/flash-attn
-> version drift. Pin to known-good combinations (or try
-> `runpod/pytorch:2.1.0-py3.11-cuda12.1.0-devel-ubuntu22.04` which has
-> more prebuilt wheels). Errors compiling extensions inside the image
-> almost always mean the base CUDA doesn't match what the extension
-> expects.
-
-### 2. Create a Network Volume for model weights
-
-TRELLIS downloads ~6 GB of model weights from HuggingFace on first run. A
-Network Volume persists them across cold starts for cents per month.
-
-1. RunPod dashboard → **Storage → Network Volumes → + New**.
-2. Name: `bikeheadz-models`.
-3. Datacenter: pick the **same region** you'll deploy the endpoint in
-   (e.g. `US-OR-1`). RunPod won't mount a volume from a different region.
-4. Size: **25 GB** (plenty of headroom for TRELLIS + future models).
-5. Create. Cost: ~$1.75/month.
-
-The Dockerfile already points all HF/PyTorch caches at
-`/runpod-volume/…` so mounting this volume at `/runpod-volume` is the
-only wiring needed.
-
-### 3. Create the Serverless Endpoint
-
-Dashboard → **Serverless → + New Endpoint**.
-
-| Field                | Value                                                     |
-| -------------------- | --------------------------------------------------------- |
-| Name                 | `bikeheadz-trellis`                                       |
-| Container Image      | `<your-dockerhub-username>/bikeheadz-trellis:latest`      |
-| Container Registry Credentials | (none for public Docker Hub repo)               |
-| Container Disk       | `20 GB`                                                   |
-| Network Volume       | `bikeheadz-models` mounted at `/runpod-volume`            |
-| GPU Types            | ✅ `RTX 4090` (preferred) · ✅ `RTX A4000` (fallback)       |
-| Active Workers (min) | `0`                                                       |
-| Max Workers          | `3`                                                       |
-| Idle Timeout         | `60` seconds                                              |
-| Flash Boot           | **On**                                                    |
-| Execution Timeout    | `300` seconds (cold-start insurance)                      |
-| Scaler Type          | Request Count                                             |
-| Scaler Value         | `1` (one concurrent request per worker)                   |
-| Env Variables        | _(none required; add `TRELLIS_MODEL=` to override model)_ |
-
-Hit **Deploy**. RunPod will pull the image and warm-test it. First pull
-is slow (~3 min). When status is `Ready`, copy:
-
-- **Endpoint ID** — shown as `Endpoint: <id>` at the top.
-- **API URL** — clickable, it's
-  `https://api.runpod.ai/v2/<endpoint-id>`.
-
-### 4. Warm the network volume once
-
-The very first real invocation downloads TRELLIS weights into
-`/runpod-volume/hf`. You don't want a paying user to wait for that. Burn
-one hot invocation now:
-
-**Option A — dashboard**:
-Endpoint → **Requests → + Send Test Request** → paste:
-
-```json
-{
-  "input": {
-    "image_b64": "<paste base64 of any JPG here>",
-    "head_scale": 1.0,
-    "neck_length_mm": 50,
-    "head_tilt_deg": 0,
-    "seed": 1
-  }
-}
-```
-
-Click **Send**. Watch logs. The first run writes weights to the volume
-(60–90 s). Subsequent runs on the same volume are ~10 s.
-
-**Option B — terminal**:
-
-```bash
-IMG_B64=$(base64 -i path/to/selfie.jpg)
-curl -X POST https://api.runpod.ai/v2/<ENDPOINT_ID>/runsync \
-  -H "Authorization: Bearer $RUNPOD_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d "{\"input\":{\"image_b64\":\"$IMG_B64\",\"head_scale\":1}}"
-```
-
-`runsync` blocks until the job completes — handy for CI-style smoke
-tests. Expect a `~/tmp` 1-minute wait on first run, ~10s thereafter.
-
-### 5. Point the DO App Platform at the endpoint
-
-In DO dashboard → your app → **Settings → App-Level Environment
-Variables**, add as **Secret**:
-
-```
-RUNPOD_API_KEY=<the key you created>
-RUNPOD_ENDPOINT_URL=https://api.runpod.ai/v2/<endpoint-id>
-```
-
-(You already did this — verify the URL exactly matches the endpoint
-page, no trailing slash.)
-
-### 6. Redeploy DO and test end-to-end
-
-Trigger a fresh deploy (push a commit or use the "Deploy" button). Then:
-
-1. Open your production URL.
-2. Upload a photo, click **Generate**.
-3. Watch progress frames advance — they should read "Loading TRELLIS
-   pipeline… → Analyzing facial geometry… → … → Exporting STL".
-4. Pay $2 with Stripe test card `4242 4242 4242 4242`.
-5. STL downloads.
-
-Cross-check in RunPod dashboard → Endpoint → **Requests** — you should
-see the job and its per-frame log output.
+Then create the endpoint manually via **Serverless → + New Endpoint →
+Pod templates → New Template**, pasting your image URL.
 
 ---
 
-## Tuning
+## Tuning cheatsheet
 
-### Cold start vs cost
-
-| `min_workers` | Pay | Cold-start risk for users |
-| ------------- | --- | ------------------------- |
-| `0` (current) | $0 when idle | First request after 60 s idle waits ~40 s |
-| `1` | ~$144/mo on RTX 4090 | None (always hot) |
-
-Start at `0`. Upgrade to `1` if the first-hit latency costs conversions.
-
-### Choose a cheaper GPU
-
-The handler runs fine on RTX A4000 (~$0.20/hr instead of $0.44/hr for
-RTX 4090). Inference is ~2× slower. Flip the dashboard dropdown to
-A4000-only if cost pressure beats speed.
-
-### Execution timeout
-
-300 s is generous. Real inference is 10–40 s. If you see `TIMED_OUT`
-jobs it's almost always a misbehaving handler — check the **Logs** tab.
-
-### Retry behaviour
-
-By default RunPod retries failed jobs 3×. For a billing-sensitive app
-this can triple cost on a poison request. Drop retries to **1** in the
-endpoint settings.
-
----
-
-## Local smoke test (optional)
-
-You need an NVIDIA GPU with CUDA 12.1 drivers and Docker with the
-NVIDIA Container Toolkit.
-
-```bash
-docker buildx build --load --platform linux/amd64 \
-  -f deploy/runpod/Dockerfile \
-  -t bikeheadz-trellis:dev .
-
-docker run --rm --gpus all -p 8000:8000 \
-  -e RUNPOD_DEBUG=1 \
-  bikeheadz-trellis:dev
-```
-
-RunPod's `runpod` Python SDK doesn't expose a local dev server out of
-the box — the image runs the handler module. For local iteration of
-just the merge logic use `server/workers/trellis_generate.py` with
-`TRELLIS_ENABLED=false`.
+| Setting             | Suggested   | Notes                                           |
+| ------------------- | ----------- | ----------------------------------------------- |
+| Active Workers      | `0`         | Pay nothing while idle                          |
+| Max Workers         | `3`         | Plenty of headroom for initial traffic          |
+| Idle Timeout        | `60s`       | Keeps workers warm between close-together runs  |
+| Flash Boot          | **On**      | ~5× faster reactivation                         |
+| Execution Timeout   | `300s`      | Room for first-run weight download              |
+| Retries             | `1`         | Default `3` can triple billing on poison inputs |
+| GPU Types           | RTX 4090 + A4000 | Fastest cheap + cheapest backup            |
 
 ---
 
@@ -213,10 +148,10 @@ just the merge logic use `server/workers/trellis_generate.py` with
 
 | Symptom                                          | Likely cause & fix                                                                     |
 | ------------------------------------------------ | -------------------------------------------------------------------------------------- |
-| `runpod_http_401:unauthorized`                   | API key mistyped or revoked. Regenerate in Account → API Keys.                         |
-| `runpod_start_failed:{"error":"endpoint not found"}` | Wrong endpoint ID, or endpoint deleted.                                            |
-| First request hangs for 2+ min                   | Cold start + weight download. Do the warm-up in step 4; subsequent runs are fast.      |
-| Every request `TIMED_OUT`                        | Usually a Dockerfile bug — check endpoint Logs. Common: missing CUDA ext or OOM.       |
-| Jobs complete but STL is empty                   | TRELLIS returned 0 faces; check the input image is a front-facing face.                |
-| Progress frames never arrive                     | `return_aggregate_stream` not set, or client hitting `/runsync` instead of `/run`.     |
-| Docker Hub pull fails on deploy                  | Image is private; add registry credentials in endpoint settings OR make it public.     |
+| Hub page says "no releases"                      | You haven't pushed a tag. `git tag v0.1.0 && git push origin v0.1.0`.                  |
+| `.runpod/tests.json` test times out              | First-ever build had to download weights. Re-run, or raise the timeout in tests.json.  |
+| Tests fail with "no face detected"               | The 1×1 PNG in tests.json was enough to check booting but TRELLIS rejected it. Ignore unless the build is marked failed — RunPod still publishes the endpoint if the handler returned an error frame (not crashed). |
+| `runpod_http_401:unauthorized` from DO           | API key mistyped or revoked. Regenerate in RunPod → Account → API Keys.                |
+| First DO-served request hangs 2+ min             | Cold start + weight download. Warm-up with one dashboard test request.                 |
+| Every request `TIMED_OUT`                        | Usually a Dockerfile bug — check the endpoint's **Logs** tab.                          |
+| Docker Hub pull fails (manual path)              | Image is private; add registry credentials in endpoint settings, or make it public.    |
