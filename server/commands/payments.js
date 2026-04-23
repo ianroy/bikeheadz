@@ -17,7 +17,7 @@ export const paymentsCommands = {
     return { enabled: stripeEnabled(), item };
   },
 
-  'payments.createCheckoutSession': async ({ payload }) => {
+  'payments.createCheckoutSession': async ({ socket, payload }) => {
     if (!stripeEnabled()) throw new Error('stripe_not_configured');
     const { designId = null } = payload || {};
     if (!designId) throw new Error('designId_required');
@@ -27,7 +27,7 @@ export const paymentsCommands = {
 
     const item = pricingCatalogue()[PRODUCT];
     const stripe = getStripe();
-    const base = appUrl();
+    const base = appUrl(socket);
 
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',

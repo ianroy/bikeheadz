@@ -15,9 +15,18 @@ export function stripeEnabled() {
   return !!process.env.STRIPE_SECRET_KEY;
 }
 
-export function appUrl() {
-  const u = process.env.APP_URL || process.env.PUBLIC_URL;
-  if (u) return u.replace(/\/$/, '');
+// Resolve the public base URL for Stripe success/cancel redirects.
+// Preference order:
+//   1. explicit APP_URL / PUBLIC_URL env (operator override)
+//   2. the origin header from the socket handshake (where the browser
+//      actually loaded the page — works on any DO URL or custom domain
+//      with zero config)
+//   3. http://localhost:${PORT} fallback for dev
+export function appUrl(socket) {
+  const envUrl = process.env.APP_URL || process.env.PUBLIC_URL;
+  if (envUrl) return envUrl.replace(/\/$/, '');
+  const origin = socket?.handshake?.headers?.origin;
+  if (origin) return origin.replace(/\/$/, '');
   const port = process.env.PORT || 3000;
   return `http://localhost:${port}`;
 }

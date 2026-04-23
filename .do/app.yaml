@@ -53,9 +53,10 @@ services:
       - key: DATABASE_SSL
         scope: RUN_TIME
         value: "true"
-      - key: APP_URL
-        scope: RUN_TIME
-        value: ${APP_URL}
+      # APP_URL is derived from the socket origin at request time (see
+      # server/stripe-client.js appUrl). Set it here as an App-Level env
+      # var only if you want to pin Stripe redirects to a specific domain
+      # regardless of where the browser loaded the app.
       # ── Stripe ─────────────────────────────────────────────────────
       # Bind STRIPE_SECRET_KEY as a SECRET in the DO dashboard before the
       # first deploy (Settings → App-Level Environment Variables).
