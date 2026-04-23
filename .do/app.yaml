@@ -70,8 +70,9 @@ services:
       - key: STRIPE_PRICE_STL_CENTS
         scope: RUN_TIME
         value: "200"
-      # ── TRELLIS ────────────────────────────────────────────────────
-      # Leave disabled here — pair with a GPU worker for real inference.
+      # ── TRELLIS (local fallback; used only if RUNPOD_* is unset) ───
+      # App Platform has no GPU sizes, so keep this disabled in prod.
+      # Real inference runs on the RunPod endpoint below.
       - key: TRELLIS_ENABLED
         scope: RUN_TIME
         value: "false"
@@ -81,6 +82,16 @@ services:
       - key: PYTHON_BIN
         scope: RUN_TIME
         value: "python3"
+      # ── RunPod (GPU TRELLIS backend) ───────────────────────────────
+      # When both values are set, stl.generate is routed to RunPod
+      # Serverless. See deploy/runpod/README.md for setup.
+      - key: RUNPOD_ENDPOINT_URL
+        scope: RUN_TIME
+        value: ""
+      - key: RUNPOD_API_KEY
+        scope: RUN_TIME
+        type: SECRET
+        value: ""
 
   # One-off migration job. Runs before every deployment goes live.
   - name: migrate

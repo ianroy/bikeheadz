@@ -1,0 +1,33 @@
+# Keep the build context small — the repo root is the context so anything
+# not explicitly needed should be listed here.
+.git
+.github
+.claude
+.vscode
+.idea
+node_modules
+dist
+.cache
+.vite
+.do
+.env
+.env.*
+!.env.example
+
+# The 37 MB vendored TRELLIS clone — we clone a fresh copy inside the image
+# instead, so Docker doesn't pay for this in the build context.
+TRELLIS-main
+
+# Documentation & misc
+*.md
+!deploy/runpod/README.md
+
+# Client source isn't needed in the worker image
+client
+index.html
+vite.config.js
+
+# Tests, tooling
+coverage
+tests
+__tests__

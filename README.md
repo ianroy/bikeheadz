@@ -202,17 +202,24 @@ Open http://localhost:5173.
 5. The `migrate` `PRE_DEPLOY` job runs `node server/migrate.js` before each
    release goes live.
 
-### TRELLIS in production
+### TRELLIS in production (GPU offload)
 
-DO App Platform does not currently offer GPU sizes. The bundled `app.yaml`
-ships with `TRELLIS_ENABLED=false`. To generate real 3D heads in production:
+DO App Platform has no GPU sizes, so the bundled `app.yaml` ships with
+`TRELLIS_ENABLED=false`. Real inference is offloaded to a **RunPod
+Serverless** endpoint running the image in [`deploy/runpod/`](./deploy/runpod/).
 
-- Spin up a GPU Droplet (e.g. NVIDIA H100) with TRELLIS installed and expose a
-  small HTTP worker. Swap the `spawn(...)` call in
-  [`server/commands/stl.js`](./server/commands/stl.js) for a `fetch(...)` to
-  that worker.
-- Or deploy this app onto a GPU-capable runtime (Paperspace, Lambda Labs,
-  RunPod) with Python + CUDA baked into the image; keep `TRELLIS_ENABLED=true`.
+The handoff is transparent to callers:
+
+- Set `RUNPOD_ENDPOINT_URL` + `RUNPOD_API_KEY` in the DO env → every
+  `stl.generate` command is routed to RunPod via
+  [`server/workers/runpod-client.js`](./server/workers/runpod-client.js).
+- Leave them unset → the server falls back to the local Python spawn
+  path (`TRELLIS_ENABLED=false` → procedural placeholder head).
+
+End-to-end setup lives in [`deploy/runpod/README.md`](./deploy/runpod/README.md):
+image build, network volume for model weights, endpoint creation,
+warm-up, and dashboard tuning. The same image pattern would run on
+Paperspace Deployments or Lambda with minor changes.
 
 ## Environment variables
 
@@ -226,9 +233,11 @@ See [`.env.example`](./.env.example) for the complete catalogue. Highlights:
 | `APP_URL`                | Public URL for Stripe redirects                                |
 | `STRIPE_SECRET_KEY`      | Stripe API secret (`sk_test_…` / `sk_live_…`)                  |
 | `STRIPE_PRICE_STL_CENTS` | STL price override in cents (default `200`)                    |
-| `TRELLIS_ENABLED`        | `false` to use the procedural fallback head                    |
-| `TRELLIS_PATH`           | Path to a cloned TRELLIS repo                                  |
+| `TRELLIS_ENABLED`        | `false` to use the procedural fallback head (local path only)  |
+| `TRELLIS_PATH`           | Path to a cloned TRELLIS repo (local path only)                |
 | `PYTHON_BIN`             | Python interpreter for the worker (default `python3`)          |
+| `RUNPOD_ENDPOINT_URL`    | `https://api.runpod.ai/v2/<id>` — routes STL gen to RunPod     |
+| `RUNPOD_API_KEY`         | RunPod bearer token (SECRET)                                   |
 | `LOG_LEVEL`              | `error` · `warn` · `info` (default) · `debug`                  |
 
 ## Project layout
@@ -260,15 +269,22 @@ See [`.env.example`](./.env.example) for the complete catalogue. Highlights:
 │   ├── migrate.js                  Admin process
 │   ├── commands/                   socket.io command handlers
 │   │   ├── index.js                dispatcher
-│   │   ├── stl.js                  spawns TRELLIS worker, persists designs
+│   │   ├── stl.js                  RunPod-or-local routing, persists designs
 │   │   ├── payments.js             Checkout Session + verify
 │   │   └── designs · orders · account
 │   ├── workers/
-│   │   ├── trellis_generate.py     TRELLIS → trimesh → STL merge
+│   │   ├── trellis_generate.py     Local TRELLIS (dev / CPU fallback)
+│   │   ├── runpod-client.js        HTTP client for the RunPod endpoint
 │   │   └── requirements.txt        numpy, pillow, trimesh
 │   ├── assets/
 │   │   └── valve_cap.stl           Base valve-cap geometry (never scaled)
-│   └── migrations/                 001_initial, 002_designs_and_purchases
+│   └── migrations/                 001_initial, 002_designs_and_purchases, 003_drop_events
+├── deploy/
+│   └── runpod/                     GPU worker image + setup guide
+│       ├── Dockerfile              CUDA 12.1 + TRELLIS + handler.py
+│       ├── handler.py              RunPod Serverless generator handler
+│       ├── .dockerignore
+│       └── README.md               Dashboard walkthrough
 ├── .do/app.yaml                    Digital Ocean App Platform spec
 ├── Procfile                        release + web process declarations
 ├── .env.example                    config template (12-factor §3)

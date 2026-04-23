@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { logger } from '../logger.js';
 import { db, hasDb } from '../db.js';
 import { designStore } from '../design-store.js';
+import { runpodEnabled, runRunpod } from '../workers/runpod-client.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const WORKER = path.resolve(__dirname, '..', 'workers', 'trellis_generate.py');
@@ -22,7 +23,13 @@ const TRELLIS_ENABLED = (process.env.TRELLIS_ENABLED || 'true').toLowerCase() !=
 // Streams { step, pct } frames over stl.generate.progress, then resolves with
 // { designId, filename, triangles }. The raw STL bytes are NOT shipped over
 // the wire — they're persisted server-side and fetched later via
-// stl.download (post-payment) or payments.verifyAndDownload.
+// stl.download (post-payment) or payments.verifySession.
+//
+// Backend selection (decided per-request, so ops can flip without a restart):
+//   • if RUNPOD_ENDPOINT_URL + RUNPOD_API_KEY are set → call RunPod
+//     Serverless (deploy/runpod/handler.py, real TRELLIS on GPU).
+//   • otherwise → spawn the local Python worker
+//     (server/workers/trellis_generate.py — honours TRELLIS_ENABLED).
 export const stlCommands = {
   'stl.generate': async ({ socket, id, payload }) => {
     const { imageData, imageName = 'photo.png', settings = {} } = payload || {};
@@ -34,27 +41,32 @@ export const stlCommands = {
     const outputPath = path.join(workDir, `${designId}.stl`);
 
     try {
-      await fs.writeFile(imagePath, decodeImage(imageData));
+      const imageBuf = decodeImage(imageData);
+      await fs.writeFile(imagePath, imageBuf);
 
-      const cfg = {
-        image_path: imagePath,
-        valve_cap_path: VALVE_CAP,
-        output_path: outputPath,
-        head_scale: Number(settings.headScale) || 1.0,
-        neck_length_mm: Number(settings.neckLength) || 50,
-        head_tilt_deg: Number(settings.headTilt) || 0,
-        seed: 1,
-      };
+      let stlBytes;
+      if (runpodEnabled()) {
+        logger.info({ msg: 'stl.backend', backend: 'runpod' });
+        stlBytes = await runRunpod({ socket, commandId: id, imageBuf, settings });
+      } else {
+        logger.info({ msg: 'stl.backend', backend: 'local_spawn', trellis_enabled: TRELLIS_ENABLED });
+        await runLocalWorker({
+          socket,
+          commandId: id,
+          cfg: {
+            image_path: imagePath,
+            valve_cap_path: VALVE_CAP,
+            output_path: outputPath,
+            head_scale: Number(settings.headScale) || 1.0,
+            neck_length_mm: Number(settings.neckLength) || 50,
+            head_tilt_deg: Number(settings.headTilt) || 0,
+            seed: 1,
+          },
+        });
+        stlBytes = await fs.readFile(outputPath);
+      }
 
-      await runWorker({
-        socket,
-        commandId: id,
-        cfg,
-      });
-
-      const stlBytes = await fs.readFile(outputPath);
       const filename = 'BikeHeadz_ValveStem.stl';
-
       await designStore.save({
         id: designId,
         stl: stlBytes,
@@ -69,28 +81,21 @@ export const stlCommands = {
         filename,
         triangles: countTriangles(stlBytes),
         bytes: stlBytes.length,
-        // Clients no longer receive STL bytes directly from stl.generate —
-        // they must checkout via payments.createCheckoutSession first.
       };
     } finally {
       fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
     }
   },
 
-  // Fetches an STL for a design the client has already purchased. Returns
-  // { stl, filename }. Rejects if the design has no completed purchase.
+  // Fetches an STL for a design the client has already purchased.
   'stl.download': async ({ payload }) => {
     const { designId, sessionId } = payload || {};
     if (!designId) throw new Error('designId_required');
 
     if (!hasDb()) {
-      // Dev mode — no DB, no paywall. Return the STL directly.
       const cached = await designStore.get(designId);
       if (!cached) throw new Error('design_not_found');
-      return {
-        filename: cached.filename,
-        stl: cached.stl.toString('utf8'),
-      };
+      return { filename: cached.filename, stl: cached.stl.toString('utf8') };
     }
 
     const { rows } = await db.query(
@@ -104,16 +109,13 @@ export const stlCommands = {
 
     const cached = await designStore.get(designId);
     if (!cached) throw new Error('design_expired');
-    return {
-      filename: cached.filename,
-      stl: cached.stl.toString('utf8'),
-    };
+    return { filename: cached.filename, stl: cached.stl.toString('utf8') };
   },
 };
 
-// ---- Worker orchestration --------------------------------------------------
+// ---- Local spawn path (dev + CPU-only deployments) -------------------------
 
-function runWorker({ socket, commandId, cfg }) {
+function runLocalWorker({ socket, commandId, cfg }) {
   return new Promise((resolve, reject) => {
     const child = spawn(PYTHON_BIN, [WORKER], {
       env: { ...process.env, TRELLIS_ENABLED: String(TRELLIS_ENABLED) },
@@ -149,8 +151,6 @@ function runWorker({ socket, commandId, cfg }) {
 
     child.stderr.on('data', (chunk) => {
       stderrBuf += chunk.toString('utf8');
-      // Pass worker warnings through to the server log — useful for
-      // debugging model loading failures.
       logger.debug({ msg: 'worker.stderr', chunk: chunk.toString('utf8').trim() });
     });
 
@@ -165,6 +165,8 @@ function runWorker({ socket, commandId, cfg }) {
     child.stdin.end();
   });
 }
+
+// ---- Helpers ---------------------------------------------------------------
 
 function decodeImage(data) {
   if (Buffer.isBuffer(data)) return data;
@@ -185,13 +187,10 @@ function sanitizeFilename(name) {
 }
 
 function countTriangles(stl) {
-  // Count "facet normal" occurrences for ASCII STL; fall back to heuristic for
-  // binary STL (reader skips this if the worker writes ASCII, which it does).
   const ascii = stl.subarray(0, 80).toString('ascii');
   if (ascii.trimStart().startsWith('solid')) {
     return (stl.toString('utf8').match(/facet normal/g) || []).length;
   }
-  // Binary STL header is 80 bytes + uint32 triangle count.
   if (stl.length >= 84) return stl.readUInt32LE(80);
   return 0;
 }

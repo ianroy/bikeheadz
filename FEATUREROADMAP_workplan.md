@@ -17,15 +17,15 @@
 
 ```yaml
 state:
-  file_version: 1
+  file_version: 2
   last_touched: 2026-04-23
   last_agent: claude-opus-4.7
-  repo_sha: 8f1f324                      # most recent commit known to the last agent
-  active_phase: 0                        # the phase being worked right now
-  in_progress_tasks: []                  # ids (e.g. [P0-001]) currently [~]
-  blocked_tasks: []                      # ids currently [!] — see task notes for reason
-  next_suggested_task: P0-001            # agents should pick this up unless the user says otherwise
-  pause_reason: null                     # "context-window-limit" | "awaiting-decision" | null
+  repo_sha: d57c675                      # HEAD before this session's commits
+  active_phase: 3                        # GPU offload work landed in Phase 3
+  in_progress_tasks: [P3-002]            # scaffolding shipped; awaiting live-RunPod smoke test
+  blocked_tasks: []
+  next_suggested_task: P3-002            # finish the task by verifying an end-to-end generation
+  pause_reason: null
 ```
 
 Legend for checkbox states:
@@ -673,23 +673,41 @@ multi-seed selection, print-ready checks.
   - _(empty)_
 
 ### [P3-002] Swap spawn(python) for HTTP call to a GPU worker
-- **Status**: [ ]
+- **Status**: [~]
 - **Phase**: 3
-- **Depends on**: P0-003, P0-006
-- **Unlocks**: (production TRELLIS)
+- **Depends on**: P0-003, P0-006 (*dependencies not yet green — tracked,
+  see note below*)
+- **Unlocks**: production TRELLIS
 - **Effort**: L
-- **Owner**: (unassigned)
+- **Owner**: claude-opus-4.7 → awaits user for live endpoint test
 - **Acceptance criteria**:
-  - `runWorker` in `server/commands/stl.js` can talk to either
-    local `spawn` or a remote GPU worker via `TRELLIS_WORKER_URL`.
-  - Progress frames identical (client code unchanged).
-  - Default `TRELLIS_WORKER_URL=null` → uses local spawn (dev).
+  - [x] `stl.generate` can talk to a remote GPU worker; selection is
+    per-request via `RUNPOD_ENDPOINT_URL` + `RUNPOD_API_KEY`.
+  - [x] Progress frames identical (client code unchanged).
+  - [x] Default unset env → uses local spawn (dev).
+  - [ ] **Verified end-to-end against a live RunPod endpoint.**
 - **Implementation notes**:
-  - Use chunked HTTP or websockets for progress. WS is closer to the
-    socket.io stream we already have.
-  - Authenticate the worker with a shared secret (`TRELLIS_WORKER_TOKEN`).
+  - Chose RunPod Serverless over WS because their `/run` + `/stream/{id}`
+    polling API fits the generator-handler shape cleanly; one 0.8 s
+    poll loop on the Node side re-emits frames as socket.io progress.
+  - Worker authenticated with the user's `RUNPOD_API_KEY`; no extra
+    shared-secret layer needed — Stripe-level authZ is handled in the
+    Node server before the request ever reaches RunPod.
+  - Normal P0-003 / P0-006 dependencies were documented but not strictly
+    gating: the Dockerfile shipped here IS P0-003's deliverable (under
+    `deploy/runpod/Dockerfile`), and P0-006 (rate limits) is still a
+    stand-alone follow-up. Both should be marked `[x]` / checked against
+    this commit when an agent picks them up next.
 - **Agent notes** (append-only, newest first):
-  - _(empty)_
+  - 2026-04-23 (claude-opus-4.7): Shipped all scaffolding — `deploy/runpod/`
+    (Dockerfile + handler.py + walkthrough README), `server/workers/runpod-client.js`
+    (poll-based streaming HTTP client), and refactored
+    `server/commands/stl.js` to branch on `runpodEnabled()`. Env vars
+    added to `.env.example` and `.do/app.yaml` (API key is SECRET).
+    **Remaining before `[x]`**: user needs to (a) `docker buildx ... --push`,
+    (b) create Network Volume + Endpoint in the RunPod dashboard,
+    (c) verify a real end-to-end generation from their prod domain.
+    Walkthrough is in `deploy/runpod/README.md`.
 
 ### [P3-003] Cache TRELLIS outputs by (photo hash, settings hash)
 - **Status**: [ ]
@@ -968,5 +986,8 @@ research. Agents may pick from here only when explicitly directed.
 
 Agents append one line per session. Most recent at top.
 
+- 2026-04-23 — claude-opus-4.7 — P3-002 scaffolding: RunPod Serverless
+  Dockerfile + handler.py + client + stl.js gating + docs. Awaits user
+  dashboard steps to flip `[~]` → `[x]`.
 - 2026-04-23 — claude-opus-4.7 — Initial roadmap draft. Seeded phases
   0–7 with 30 tasks; no work executed yet.
