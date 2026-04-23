@@ -280,14 +280,14 @@ See [`.env.example`](./.env.example) for the complete catalogue. Highlights:
 │   ├── assets/
 │   │   └── valve_cap.stl           Base valve-cap geometry (never scaled)
 │   └── migrations/                 001_initial, 002_designs_and_purchases, 003_drop_events
-├── Dockerfile                      CUDA 12.1 + TRELLIS + handler (RunPod image)
+├── Dockerfile                      CUDA 12.1 + TRELLIS (RunPod image)
+├── handler.py                      RunPod Serverless generator handler
 ├── .dockerignore                   Trims the Docker build context
 ├── .runpod/
 │   ├── hub.json                    RunPod Hub listing config
 │   └── tests.json                  Smoke test RunPod runs after each build
 ├── deploy/
 │   └── runpod/
-│       ├── handler.py              RunPod Serverless generator handler
 │       └── README.md               Hub + dashboard walkthrough
 ├── .do/app.yaml                    Digital Ocean App Platform spec
 ├── Procfile                        release + web process declarations

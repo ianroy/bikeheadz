@@ -1,7 +1,7 @@
 import { logger } from '../logger.js';
 
 // Drop-in replacement for the local Python worker. Talks to a RunPod
-// Serverless endpoint that runs deploy/runpod/handler.py. The wire format
+// Serverless endpoint that runs handler.py at the repo root. The wire format
 // (progress / result / error frames) matches the local worker exactly, so
 // the caller doesn't care which backend is serving the request.
 //

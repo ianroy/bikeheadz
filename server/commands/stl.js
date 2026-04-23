@@ -27,7 +27,7 @@ const TRELLIS_ENABLED = (process.env.TRELLIS_ENABLED || 'true').toLowerCase() !=
 //
 // Backend selection (decided per-request, so ops can flip without a restart):
 //   • if RUNPOD_ENDPOINT_URL + RUNPOD_API_KEY are set → call RunPod
-//     Serverless (deploy/runpod/handler.py, real TRELLIS on GPU).
+//     Serverless (handler.py at repo root, real TRELLIS on GPU).
 //   • otherwise → spawn the local Python worker
 //     (server/workers/trellis_generate.py — honours TRELLIS_ENABLED).
 export const stlCommands = {

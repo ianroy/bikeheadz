@@ -3,7 +3,7 @@
 # Lives at the repo root because:
 #   (a) RunPod Hub (.runpod/hub.json) expects `Dockerfile` at the root.
 #   (b) The build context needs to reach `server/assets/valve_cap.stl`
-#       and `deploy/runpod/handler.py` — both repo-relative paths.
+#       and `handler.py` — both repo-relative paths.
 # Manual build (non-Hub path, from the repo root):
 #   docker buildx build --platform linux/amd64 \
 #     -t <your-registry>/bikeheadz-trellis:latest --push .
@@ -56,7 +56,7 @@ RUN pip install --upgrade pip setuptools wheel \
 
 # App payload.
 WORKDIR /app
-COPY deploy/runpod/handler.py /app/handler.py
+COPY handler.py /app/handler.py
 COPY server/assets/valve_cap.stl /app/valve_cap.stl
 
 # RunPod Serverless imports and calls `handler`, but starting explicitly lets

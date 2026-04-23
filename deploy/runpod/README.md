@@ -8,7 +8,7 @@ in the repo:
 | ---------------------- | ------------------------------------------------------------- |
 | `Dockerfile`           | (repo root) CUDA 12.1 + PyTorch 2.2 + TRELLIS + handler       |
 | `.dockerignore`        | (repo root) trims the build context                           |
-| `deploy/runpod/handler.py` | Generator handler — photo → head → STL                    |
+| `handler.py`           | (repo root) Generator handler — photo → head → STL            |
 | `.runpod/hub.json`     | Hub listing config (category, env inputs, GPU presets)        |
 | `.runpod/tests.json`   | Smoke test RunPod runs after every build                      |
 
@@ -31,7 +31,7 @@ repo like so:
 | 1    | `.runpod/hub.json`          | Already in the repo (committed)                               |
 | 2    | `.runpod/tests.json`        | Already in the repo (committed)                               |
 | 3    | `Dockerfile`                | Already at the repo root (committed)                          |
-| 4    | Handler script              | [`deploy/runpod/handler.py`](./handler.py) (referenced by Dockerfile) |
+| 4    | Handler script              | [`handler.py`](../../handler.py) at repo root (referenced by Dockerfile) |
 | 5    | Badge (optional)            | Paste into README if desired (we've already added it)         |
 | 6    | **Create a release**        | **You do this on GitHub** — see below                         |
 
