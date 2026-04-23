@@ -140,12 +140,12 @@ Crucially, **the STL bytes are not returned here.** The client gets a
 ### 4.3 Pay for & download an STL
 
 ```
-Client ─ payments.createCheckoutSession({product: 'stl_download', designId})
+Client ─ payments.createCheckoutSession({designId})
 Server ─ stripe.checkout.sessions.create({
-           line_items: [{ price_data: $2, … }],
+           line_items: [{ price_data: $2, quantity: 1 }],
            success_url: /checkout/return?session_id={CHECKOUT_SESSION_ID},
            cancel_url:  /pricing?cancelled=1,
-           metadata: { product, designId },
+           metadata: { designId },
          })
          INSERT INTO purchases (status='pending', …)
        ← returns { url, sessionId }
@@ -236,8 +236,8 @@ socket.emit('command', { id, name: 'stl.generate.progress', payload: { step, pct
 | `events.list`                      | Upcoming bike events shown in the left sidebar          |
 | `stl.generate`                     | Photo → STL; streams progress; persists design          |
 | `stl.download`                     | Post-payment STL fetch (requires paid purchase row)     |
-| `payments.catalogue`               | Live product list & availability for the Pricing page   |
-| `payments.createCheckoutSession`   | Builds a Stripe Checkout session URL                    |
+| `payments.catalogue`               | Returns `{ enabled, item }` — the single STL-download SKU |
+| `payments.createCheckoutSession`   | Builds a Stripe Checkout session URL for a `designId`    |
 | `payments.verifySession`           | Confirms payment, returns the STL payload on success    |
 
 ---
@@ -267,7 +267,7 @@ purchases(id BIGSERIAL PK, design_id → generated_designs,
           stripe_session_id UNIQUE, stripe_payment_id,
           amount_cents, currency,
           status CHECK(pending|paid|failed|expired|refunded),
-          product CHECK(stl_download|printed_stem|pack_of_4),
+          product CHECK(stl_download|printed_stem|pack_of_4),  -- only 'stl_download' is used today
           customer_email, created_at, paid_at)
 ```
 
@@ -305,7 +305,7 @@ client/
  └─ pages/
      ├─ home.js                     photo upload → generate → checkout
      ├─ how-it-works.js             marketing / explainer
-     ├─ pricing.js                  3 Stripe tiers + CTA
+     ├─ pricing.js                  Single STL-download tier + CTA
      ├─ checkout-return.js          verify Stripe session, stream STL
      └─ account.js                  profile, designs, orders, settings
 
@@ -346,7 +346,7 @@ Everything is read from `process.env` at startup. Canonical list in
   production domain (e.g. `https://bikeheadz.ondigitalocean.app`).
 - **`TRELLIS_ENABLED=false`** toggles the procedural fallback head — useful
   on App Platform (no GPU) and in CI.
-- **`STRIPE_PRICE_*_CENTS`** override prices without code changes.
+- **`STRIPE_PRICE_STL_CENTS`** overrides the STL-download price without code changes.
 
 The DO `app.yaml` declares the same variables, promotes Stripe secrets to
 `SECRET` type, and injects `${db.DATABASE_URL}` / `${db.CA_CERT}` from the
@@ -421,12 +421,20 @@ Short subject (<70 chars), body explains the "why". Always add
 
 ### 10.3 Add a new product / price tier
 
-1. Extend `pricingCatalogue()` in `server/stripe-client.js` with a new key.
-2. Add the product id to the `PRODUCTS` whitelist and `product CHECK(...)`
-   database constraint (add a new migration).
-3. Add a tile to `client/pages/pricing.js` (copy, color, CTA text).
-4. Update `server/commands/payments.js` to understand any new fulfillment
-   rules (e.g. requires shipping address).
+The app currently ships a single product (`stl_download`). To introduce
+another tier:
+
+1. Extend `pricingCatalogue()` in `server/stripe-client.js` with a new key
+   and env-driven `unitAmount`.
+2. Reintroduce a product selector in `server/commands/payments.js` — accept a
+   `product` param in `createCheckoutSession`, validate against a whitelist,
+   and thread it through `metadata` + the `purchases.product` column. The
+   DB `CHECK` constraint already permits `printed_stem` / `pack_of_4`, so
+   reusing those names needs no migration.
+3. Update `payments.catalogue` to return `{ items }` (array) and adjust
+   `client/pages/pricing.js` to render a grid of cards again.
+4. Add any new fulfillment rules (e.g. shipping address collection) in the
+   checkout-session creation call.
 
 ### 10.4 Replace the TRELLIS worker with a remote GPU service
 
@@ -505,7 +513,7 @@ OpenTelemetry).
 | **TRELLIS**      | Microsoft's image-conditioned 3D-generation model.                        |
 | **trimesh**      | Python library for mesh I/O, transforms, boolean ops, export.             |
 | **Design**       | One generated STL + the settings used to produce it, stored in Postgres.  |
-| **Purchase**     | One Stripe Checkout session tied to a design and a product tier.          |
+| **Purchase**     | One Stripe Checkout session tied to a design (currently always the STL-download product). |
 | **Command**      | A single socket.io message, `{ id, name, payload }`.                      |
 | **12-factor**    | The configuration discipline we follow; see https://12factor.net.         |
 
