@@ -31,20 +31,6 @@ export function pricingCatalogue() {
       unitAmount: Number(process.env.STRIPE_PRICE_STL_CENTS) || 200,
       currency: process.env.STRIPE_CURRENCY || 'usd',
     },
-    printed_stem: {
-      productId: 'printed_stem',
-      name: 'Printed Stem',
-      description: 'We print and ship your BikeHeadz valve stem cap.',
-      unitAmount: Number(process.env.STRIPE_PRICE_PRINT_CENTS) || 1999,
-      currency: process.env.STRIPE_CURRENCY || 'usd',
-    },
-    pack_of_4: {
-      productId: 'pack_of_4',
-      name: 'Pack of 4 printed stems',
-      description: 'Four printed BikeHeadz valve stem caps — great for group rides.',
-      unitAmount: Number(process.env.STRIPE_PRICE_PACK4_CENTS) || 5999,
-      currency: process.env.STRIPE_CURRENCY || 'usd',
-    },
   };
 }
 
@@ -55,7 +41,6 @@ export function logStripeConfig() {
   }
   logger.info({
     msg: 'stripe.configured',
-    hasWebhookSecret: !!process.env.STRIPE_WEBHOOK_SECRET,
     currency: process.env.STRIPE_CURRENCY || 'usd',
   });
 }

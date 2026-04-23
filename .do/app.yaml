@@ -60,13 +60,9 @@ services:
         scope: RUN_TIME
         value: ${APP_URL}
       # ── Stripe ─────────────────────────────────────────────────────
-      # Bind these as SECRET values in the DO dashboard before the first
-      # deploy (Settings → App-Level Environment Variables).
+      # Bind STRIPE_SECRET_KEY as a SECRET in the DO dashboard before the
+      # first deploy (Settings → App-Level Environment Variables).
       - key: STRIPE_SECRET_KEY
-        scope: RUN_TIME
-        type: SECRET
-        value: ""
-      - key: STRIPE_WEBHOOK_SECRET
         scope: RUN_TIME
         type: SECRET
         value: ""
@@ -76,12 +72,6 @@ services:
       - key: STRIPE_PRICE_STL_CENTS
         scope: RUN_TIME
         value: "200"
-      - key: STRIPE_PRICE_PRINT_CENTS
-        scope: RUN_TIME
-        value: "1999"
-      - key: STRIPE_PRICE_PACK4_CENTS
-        scope: RUN_TIME
-        value: "5999"
       # ── TRELLIS ────────────────────────────────────────────────────
       # Leave disabled here — pair with a GPU worker for real inference.
       - key: TRELLIS_ENABLED

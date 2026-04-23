@@ -5,40 +5,30 @@ import { logger } from '../logger.js';
 
 // Socket command surface for Stripe.
 //
-//   payments.catalogue          — list products + prices for the pricing page
-//   payments.createCheckoutSession — start checkout for a product+design
-//   payments.verifySession      — post-redirect: confirm payment, unlock download
-//
-// Webhook-driven state updates happen in a narrow HTTP endpoint in server/index.js
-// (the only non-command surface in the app — Stripe requires a signed HTTP POST).
+//   payments.catalogue             — return { enabled, item } for the pricing page
+//   payments.createCheckoutSession — start checkout for the current design
+//   payments.verifySession         — post-redirect: confirm payment, unlock download
 
-const PRODUCTS = ['stl_download', 'printed_stem', 'pack_of_4'];
+const PRODUCT = 'stl_download';
 
 export const paymentsCommands = {
   'payments.catalogue': async () => {
-    return {
-      enabled: stripeEnabled(),
-      items: Object.values(pricingCatalogue()),
-    };
+    const item = pricingCatalogue()[PRODUCT];
+    return { enabled: stripeEnabled(), item };
   },
 
   'payments.createCheckoutSession': async ({ payload }) => {
     if (!stripeEnabled()) throw new Error('stripe_not_configured');
-    const { product = 'stl_download', designId = null, qty = 1 } = payload || {};
-    if (!PRODUCTS.includes(product)) throw new Error('unknown_product');
+    const { designId = null } = payload || {};
+    if (!designId) throw new Error('designId_required');
 
-    // STL downloads must reference a freshly generated design.
-    if (product === 'stl_download') {
-      if (!designId) throw new Error('designId_required');
-      const exists = await designStore.exists(designId);
-      if (!exists) throw new Error('design_not_found_or_expired');
-    }
+    const exists = await designStore.exists(designId);
+    if (!exists) throw new Error('design_not_found_or_expired');
 
-    const catalogue = pricingCatalogue();
-    const item = catalogue[product];
+    const item = pricingCatalogue()[PRODUCT];
     const stripe = getStripe();
-
     const base = appUrl();
+
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       payment_method_types: ['card'],
@@ -51,14 +41,11 @@ export const paymentsCommands = {
           },
           unit_amount: item.unitAmount,
         },
-        quantity: Math.max(1, Math.min(10, Number(qty) || 1)),
+        quantity: 1,
       }],
       success_url: `${base}/checkout/return?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${base}/pricing?cancelled=1`,
-      metadata: {
-        product,
-        designId: designId || '',
-      },
+      metadata: { designId },
     });
 
     if (hasDb()) {
@@ -66,11 +53,11 @@ export const paymentsCommands = {
         `INSERT INTO purchases (design_id, stripe_session_id, amount_cents, currency, product)
          VALUES ($1, $2, $3, $4, $5)
          ON CONFLICT (stripe_session_id) DO NOTHING`,
-        [designId, session.id, item.unitAmount, item.currency, product]
+        [designId, session.id, item.unitAmount, item.currency, PRODUCT]
       );
     }
 
-    logger.info({ msg: 'payments.session_created', sessionId: session.id, product, designId });
+    logger.info({ msg: 'payments.session_created', sessionId: session.id, designId });
     return { url: session.url, sessionId: session.id };
   },
 
@@ -86,7 +73,6 @@ export const paymentsCommands = {
 
     const paid = session.payment_status === 'paid';
     const designId = session.metadata?.designId || null;
-    const product = session.metadata?.product || 'stl_download';
 
     if (paid && hasDb()) {
       await db.query(
@@ -114,7 +100,6 @@ export const paymentsCommands = {
 
     return {
       paid,
-      product,
       designId,
       design,
       amount: session.amount_total,

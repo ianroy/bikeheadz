@@ -398,13 +398,8 @@ export function HomePage({ socket }) {
     style: { fontWeight: 700, fontSize: '0.9rem' },
     onClick: handleCheckout,
   });
-  const payBtn = el('button', {
-    class: 'flex items-center justify-center gap-2 px-6 py-3 rounded-xl transition-all duration-200',
-    style: { color: '#fff', fontWeight: 700, fontSize: '0.9rem' },
-    onClick: () => handleStartPrintCheckout('printed_stem'),
-  });
 
-  actions.append(generateBtn, downloadBtn, payBtn);
+  actions.append(generateBtn, downloadBtn);
 
   function renderActions() {
     const canGenerate = !!state.photoUrl && !state.processing;
@@ -444,18 +439,6 @@ export function HomePage({ socket }) {
       opacity: canPurchase ? 1 : 0.7,
     });
     downloadBtn.disabled = !canPurchase;
-
-    clear(payBtn);
-    payBtn.append(
-      icon('creditCard', { size: 16, color: '#fff' }),
-      'Pay & Print',
-    );
-    Object.assign(payBtn.style, {
-      background: canPurchase ? 'linear-gradient(135deg, #ff6b30, #e8450a)' : '#252545',
-      cursor: canPurchase ? 'pointer' : 'not-allowed',
-      opacity: canPurchase ? 1 : 0.6,
-    });
-    payBtn.disabled = !canPurchase;
 
     clear(readyBanner);
     if (state.stlReady) {
@@ -674,7 +657,6 @@ export function HomePage({ socket }) {
     renderActions();
     try {
       const { url } = await socket.request('payments.createCheckoutSession', {
-        product: 'stl_download',
         designId: state.designId,
       });
       if (!url) throw new Error('no_checkout_url');
@@ -684,24 +666,6 @@ export function HomePage({ socket }) {
       alert(err.message === 'stripe_not_configured'
         ? 'Checkout is disabled in this environment. Configure STRIPE_SECRET_KEY to enable downloads.'
         : `Could not start checkout: ${err.message}`);
-      renderActions();
-    }
-  }
-
-  async function handleStartPrintCheckout(product) {
-    if (!state.designId || state.checkoutPending) return;
-    state.checkoutPending = true;
-    renderActions();
-    try {
-      const { url } = await socket.request('payments.createCheckoutSession', {
-        product,
-        designId: state.designId,
-      });
-      if (!url) throw new Error('no_checkout_url');
-      window.location.assign(url);
-    } catch (err) {
-      state.checkoutPending = false;
-      alert(`Could not start checkout: ${err.message}`);
       renderActions();
     }
   }
