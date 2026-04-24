@@ -8,15 +8,12 @@
 #   docker buildx build --platform linux/amd64 \
 #     -t <your-registry>/bikeheadz-trellis:latest --push .
 #
-# Notes:
-# - We deliberately skip TRELLIS's interactive ./setup.sh and install only
-#   the pip-installable bits. If a requirement fails to build on first
-#   deploy, iterate here rather than inside the serverless container.
-# - Flash-attn pins are CUDA/PyTorch-sensitive; the values below match the
-#   base image. If you change the base tag, re-verify compatibility on the
-#   flash-attn release page.
+# Base: official pytorch/pytorch devel image — pre-built CUDA 12.1 + PyTorch
+# 2.1.2 + Python 3.10 that actually exists on Docker Hub (unlike the
+# made-up runpod/pytorch tag the first draft tried). flash-attn is added
+# as a best-effort step so a wheel mismatch doesn't kill the whole build.
 
-FROM runpod/pytorch:2.2.0-py3.11-cuda12.1.1-devel-ubuntu22.04
+FROM pytorch/pytorch:2.1.2-cuda12.1-cudnn8-devel
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PIP_NO_CACHE_DIR=1 \
@@ -28,7 +25,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1
 
 # System deps. libgl1 + libglib2.0-0 satisfy Pillow/OpenCV; ninja + build-essential
-# are needed for flash-attn / spconv wheels to compile if prebuilt ones are missed.
+# are needed if pip falls back to source builds.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         git \
         build-essential \
@@ -39,19 +36,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Clone TRELLIS. Pinning a sha keeps builds reproducible; update as upstream moves.
+# Clone TRELLIS. `--depth 1` keeps the layer small.
 WORKDIR /opt
 RUN git clone --depth 1 https://github.com/Microsoft/TRELLIS.git
 
-# Python deps. Install TRELLIS's own requirements first, then the extras the
-# inference path needs. `--no-build-isolation` for flash-attn uses the outer
-# torch; saves 3+ GB of duplicated build env.
+# Python deps. TRELLIS's own requirements first, then acceleration extras.
+# flash-attn is wheel-only here (`--no-build-isolation` lets it reuse the
+# outer torch) and wrapped in `|| true` so an incompatible wheel for the
+# base image's exact CUDA/torch combo doesn't break the image — TRELLIS
+# still runs without it, just slower.
 WORKDIR /opt/TRELLIS
 RUN pip install --upgrade pip setuptools wheel \
     && pip install -r requirements.txt \
-    && pip install "xformers==0.0.27.post2" \
-    && pip install "spconv-cu121" \
-    && pip install "flash-attn==2.7.0.post2" --no-build-isolation \
+    && pip install xformers \
+    && pip install spconv-cu121 \
+    && (pip install flash-attn --no-build-isolation || echo "flash-attn wheel unavailable; continuing without") \
     && pip install runpod trimesh pillow numpy
 
 # App payload.
@@ -59,6 +58,6 @@ WORKDIR /app
 COPY handler.py /app/handler.py
 COPY server/assets/valve_cap.stl /app/valve_cap.stl
 
-# RunPod Serverless imports and calls `handler`, but starting explicitly lets
-# you smoke-test the image locally with `docker run --gpus all <img>`.
+# RunPod Serverless imports and starts the handler at module scope; the
+# explicit CMD lets you smoke-test the image locally too.
 CMD ["python", "-u", "/app/handler.py"]
