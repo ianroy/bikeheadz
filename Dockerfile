@@ -8,12 +8,12 @@
 #   docker buildx build --platform linux/amd64 \
 #     -t <your-registry>/bikeheadz-trellis:latest --push .
 #
-# Base: official pytorch/pytorch devel image — pre-built CUDA 12.1 + PyTorch
-# 2.1.2 + Python 3.10 that actually exists on Docker Hub (unlike the
-# made-up runpod/pytorch tag the first draft tried). flash-attn is added
-# as a best-effort step so a wheel mismatch doesn't kill the whole build.
+# Base: official pytorch/pytorch image at the exact torch/CUDA combo
+# that TRELLIS's setup.sh has hard-coded wheel URLs for (torch 2.4.0 +
+# CUDA 12.1 → xformers 0.0.27.post2, kaolin cu121, etc). Deviating from
+# this forces setup.sh into "Unsupported PyTorch version" fallbacks.
 
-FROM pytorch/pytorch:2.1.2-cuda12.1-cudnn8-devel
+FROM pytorch/pytorch:2.4.0-cuda12.1-cudnn9-devel
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PIP_NO_CACHE_DIR=1 \
@@ -22,10 +22,10 @@ ENV DEBIAN_FRONTEND=noninteractive \
     HF_HOME=/runpod-volume/hf \
     HUGGINGFACE_HUB_CACHE=/runpod-volume/hf \
     TRANSFORMERS_CACHE=/runpod-volume/hf \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    TORCH_CUDA_ARCH_LIST="7.0 7.5 8.0 8.6 8.9 9.0+PTX"
 
-# System deps. libgl1 + libglib2.0-0 satisfy Pillow/OpenCV; ninja + build-essential
-# are needed if pip falls back to source builds.
+# System deps for building CUDA extensions + image/mesh libs at runtime.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         git \
         build-essential \
@@ -36,28 +36,31 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Clone TRELLIS. `--depth 1` keeps the layer small.
+# Clone TRELLIS — `--depth 1` keeps the layer small.
 WORKDIR /opt
 RUN git clone --depth 1 https://github.com/Microsoft/TRELLIS.git
 
-# Python deps. TRELLIS's own requirements first, then acceleration extras.
-# flash-attn is wheel-only here (`--no-build-isolation` lets it reuse the
-# outer torch) and wrapped in `|| true` so an incompatible wheel for the
-# base image's exact CUDA/torch combo doesn't break the image — TRELLIS
-# still runs without it, just slower.
 WORKDIR /opt/TRELLIS
-RUN pip install --upgrade pip setuptools wheel \
-    && pip install -r requirements.txt \
-    && pip install xformers \
-    && pip install spconv-cu121 \
-    && (pip install flash-attn --no-build-isolation || echo "flash-attn wheel unavailable; continuing without") \
-    && pip install runpod trimesh pillow numpy
+
+# TRELLIS installs its deps by running setup.sh with flags. We let it
+# drive, splitting `--basic` (required, let it fail the build) from each
+# CUDA extension (individually guarded so a single wheel mismatch
+# doesn't kill the image — the worker can still run, just slower).
+RUN bash ./setup.sh --basic
+
+RUN bash ./setup.sh --xformers      || echo "[build] xformers install failed; continuing"
+RUN bash ./setup.sh --spconv        || echo "[build] spconv install failed; continuing"
+RUN bash ./setup.sh --flash-attn    || echo "[build] flash-attn install failed; continuing"
+RUN bash ./setup.sh --diffoctreerast || echo "[build] diffoctreerast install failed; continuing"
+
+# Worker-side deps that aren't in setup.sh.
+RUN pip install --no-cache-dir runpod
 
 # App payload.
 WORKDIR /app
 COPY handler.py /app/handler.py
 COPY server/assets/valve_cap.stl /app/valve_cap.stl
 
-# RunPod Serverless imports and starts the handler at module scope; the
-# explicit CMD lets you smoke-test the image locally too.
+# RunPod Serverless imports handler.py and runpod.serverless.start() runs
+# at module scope. The explicit CMD is also useful for local smoke tests.
 CMD ["python", "-u", "/app/handler.py"]
