@@ -37,6 +37,13 @@ from PIL import Image
 sys.path.insert(0, "/opt/TRELLIS")
 os.environ.setdefault("SPCONV_ALGO", "native")
 
+# Version banner — prints unconditionally at module load time so we can
+# tell from the worker logs whether the running container is actually
+# the image tag we think it is.
+HANDLER_VERSION = "v0.1.14"
+sys.stderr.write(f"[bikeheadz] handler.py {HANDLER_VERSION} booting (pid={os.getpid()})\n")
+sys.stderr.flush()
+
 # ---- Module-load-time diagnostics ------------------------------------------
 # Build logs prove flexicubes/flexicubes.py and __init__.py are baked into
 # the image, but the runtime worker still raises ModuleNotFoundError. Dump
