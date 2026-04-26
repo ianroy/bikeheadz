@@ -37,6 +37,36 @@ from PIL import Image
 sys.path.insert(0, "/opt/TRELLIS")
 os.environ.setdefault("SPCONV_ALGO", "native")
 
+# ---- Module-load-time diagnostics ------------------------------------------
+# Build logs prove flexicubes/flexicubes.py and __init__.py are baked into
+# the image, but the runtime worker still raises ModuleNotFoundError. Dump
+# everything Python sees so the next failure log carries enough evidence to
+# point a finger.
+def _diag_flexicubes():
+    flex_dir = "/opt/TRELLIS/trellis/representations/mesh/flexicubes"
+    sys.stderr.write(f"[diag] sys.path[0:3]={sys.path[:3]}\n")
+    sys.stderr.write(f"[diag] flex_dir exists: {os.path.isdir(flex_dir)}\n")
+    if os.path.isdir(flex_dir):
+        contents = sorted(os.listdir(flex_dir))
+        sys.stderr.write(f"[diag] flex_dir contents: {contents}\n")
+        for fname in ("__init__.py", "flexicubes.py", "tables.py"):
+            full = f"{flex_dir}/{fname}"
+            if os.path.exists(full):
+                sys.stderr.write(f"[diag]   {fname}: size={os.path.getsize(full)}, readable={os.access(full, os.R_OK)}\n")
+            else:
+                sys.stderr.write(f"[diag]   {fname}: MISSING\n")
+    # Try a clean import directly so the trace is isolated from the rest
+    # of the trellis package (which pulls in heavy deps via __init__).
+    import importlib
+    try:
+        spec = importlib.util.find_spec("trellis.representations.mesh.flexicubes.flexicubes")
+        sys.stderr.write(f"[diag] find_spec(flexicubes.flexicubes) = {spec}\n")
+    except Exception as e:
+        sys.stderr.write(f"[diag] find_spec raised: {type(e).__name__}: {e}\n")
+    sys.stderr.flush()
+
+_diag_flexicubes()
+
 VALVE_CAP_PATH = os.environ.get("VALVE_CAP_PATH", "/app/valve_cap.stl")
 TRELLIS_MODEL = os.environ.get("TRELLIS_MODEL", "microsoft/TRELLIS-image-large")
 
