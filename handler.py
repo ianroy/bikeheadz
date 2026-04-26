@@ -50,7 +50,21 @@ def _load_pipeline():
     if _PIPELINE is not None:
         return _PIPELINE
     from trellis.pipelines import TrellisImageTo3DPipeline  # heavy
-    _PIPELINE = TrellisImageTo3DPipeline.from_pretrained(TRELLIS_MODEL)
+    from huggingface_hub import snapshot_download
+
+    # Force a complete repo snapshot first so TRELLIS's internal relative
+    # paths (e.g. "ckpts/ss_dec_conv3d_16l8_fp16") resolve against a
+    # populated local directory. Calling from_pretrained directly on the
+    # HF id falls back to per-component HTTP fetches — those interpret
+    # the relative paths as standalone repo ids and 401 against the HF
+    # API. Passing the local snapshot path sidesteps all of that.
+    cache_dir = os.environ.get("HF_HOME", "/runpod-volume/hf")
+    local_path = snapshot_download(
+        repo_id=TRELLIS_MODEL,
+        cache_dir=cache_dir,
+        token=os.environ.get("HF_TOKEN"),
+    )
+    _PIPELINE = TrellisImageTo3DPipeline.from_pretrained(local_path)
     _PIPELINE.cuda()
     return _PIPELINE
 
