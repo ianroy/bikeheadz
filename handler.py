@@ -52,19 +52,45 @@ def _load_pipeline():
     from trellis.pipelines import TrellisImageTo3DPipeline  # heavy
     from huggingface_hub import snapshot_download
 
-    # Force a complete repo snapshot first so TRELLIS's internal relative
-    # paths (e.g. "ckpts/ss_dec_conv3d_16l8_fp16") resolve against a
-    # populated local directory. Calling from_pretrained directly on the
-    # HF id falls back to per-component HTTP fetches — those interpret
-    # the relative paths as standalone repo ids and 401 against the HF
-    # API. Passing the local snapshot path sidesteps all of that.
-    cache_dir = os.environ.get("HF_HOME", "/runpod-volume/hf")
-    local_path = snapshot_download(
+    # TRELLIS's base Pipeline.from_pretrained does:
+    #
+    #   try:
+    #       _models[k] = models.from_pretrained(f"{path}/{v}")   # local
+    #   except:
+    #       _models[k] = models.from_pretrained(v)               # bare HF id
+    #
+    # If ANY sub-checkpoint file is missing locally, the local attempt
+    # raises, the bare exception is silently swallowed, and the fallback
+    # tries to fetch e.g. `ckpts/ss_dec_conv3d_16l8_fp16` as a standalone
+    # HF repo — which 401s. The cache_dir flavor of snapshot_download
+    # uses symlinks pointing into a blobs tree; any LFS download miss
+    # leaves dangling symlinks and triggers exactly that flow.
+    #
+    # Using local_dir materialises every file as a real file in a flat
+    # directory (no symlinks, no blobs hash tree) and re-runs are
+    # idempotent — already-downloaded files are skipped. Then we sanity
+    # check the ckpts/ contents before instantiating the pipeline.
+    cache_root = os.environ.get("HF_HOME", "/runpod-volume/hf")
+    local_dir = os.path.join(cache_root, "trellis-image-large")
+
+    sys.stderr.write(f"[trellis] downloading {TRELLIS_MODEL} → {local_dir}\n")
+    snapshot_download(
         repo_id=TRELLIS_MODEL,
-        cache_dir=cache_dir,
+        local_dir=local_dir,
         token=os.environ.get("HF_TOKEN"),
+        max_workers=4,
     )
-    _PIPELINE = TrellisImageTo3DPipeline.from_pretrained(local_path)
+
+    ckpts_dir = os.path.join(local_dir, "ckpts")
+    if not os.path.isdir(ckpts_dir):
+        raise RuntimeError(
+            f"snapshot_download did not populate {ckpts_dir}; "
+            f"local_dir contents: {sorted(os.listdir(local_dir))}"
+        )
+    ckpts = sorted(os.listdir(ckpts_dir))
+    sys.stderr.write(f"[trellis] ckpts/ contains {len(ckpts)} files: {ckpts}\n")
+
+    _PIPELINE = TrellisImageTo3DPipeline.from_pretrained(local_dir)
     _PIPELINE.cuda()
     return _PIPELINE
 
