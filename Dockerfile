@@ -36,9 +36,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Clone TRELLIS — `--depth 1` keeps the layer small.
+# Clone TRELLIS WITH submodules. `flexicubes` (mesh extraction) is a
+# submodule pointing at MaxtirError/FlexiCubes; without --recursive the
+# directory exists but is empty, and the worker fails at runtime with
+# `No module named 'trellis.representations.mesh.flexicubes.flexicubes'`.
 WORKDIR /opt
-RUN git clone --depth 1 https://github.com/Microsoft/TRELLIS.git
+RUN git clone --recurse-submodules --shallow-submodules --depth 1 \
+        https://github.com/Microsoft/TRELLIS.git
 
 WORKDIR /opt/TRELLIS
 
