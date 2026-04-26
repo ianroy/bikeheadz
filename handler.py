@@ -40,7 +40,7 @@ os.environ.setdefault("SPCONV_ALGO", "native")
 # Version banner — prints unconditionally at module load time so we can
 # tell from the worker logs whether the running container is actually
 # the image tag we think it is.
-HANDLER_VERSION = "v0.1.14"
+HANDLER_VERSION = "v0.1.15"
 sys.stderr.write(f"[bikeheadz] handler.py {HANDLER_VERSION} booting (pid={os.getpid()})\n")
 sys.stderr.flush()
 
@@ -111,12 +111,43 @@ def _load_pipeline():
     local_dir = os.path.join(cache_root, "trellis-image-large")
 
     sys.stderr.write(f"[trellis] downloading {TRELLIS_MODEL} → {local_dir}\n")
+    sys.stderr.flush()
+    # local_dir_use_symlinks=False forces real files everywhere. Older
+    # huggingface_hub versions (pre-0.20) default to "auto" which symlinks
+    # into a blob-hash cache; if any LFS pull silently fails, the symlink
+    # dangles, os.path.exists() returns False, and TRELLIS's loader
+    # silently falls back to fetching the relative path as a standalone
+    # HF repo (which 401s). Telling HF to materialise every file as a
+    # plain regular file makes existence checks unambiguous.
     snapshot_download(
         repo_id=TRELLIS_MODEL,
         local_dir=local_dir,
+        local_dir_use_symlinks=False,
         token=os.environ.get("HF_TOKEN"),
         max_workers=4,
     )
+
+    # Hard sanity check: every checkpoint pair must exist as a real,
+    # non-empty file. If a single one is missing or zero-byte we bail
+    # with a clear error instead of letting TRELLIS's silent fallback
+    # mask the problem.
+    ckpts_dir = os.path.join(local_dir, "ckpts")
+    missing_or_empty = []
+    for fname in sorted(os.listdir(ckpts_dir)):
+        full = os.path.join(ckpts_dir, fname)
+        try:
+            sz = os.path.getsize(full)
+        except OSError as e:
+            missing_or_empty.append(f"{fname} (stat error: {e})")
+            continue
+        if sz == 0:
+            missing_or_empty.append(f"{fname} (0 bytes)")
+        if not os.path.exists(full):
+            missing_or_empty.append(f"{fname} (path exists in listing but os.path.exists False — likely dangling symlink)")
+    if missing_or_empty:
+        sys.stderr.write(f"[trellis] ckpts/ has bad files: {missing_or_empty}\n")
+        sys.stderr.flush()
+        raise RuntimeError(f"ckpts incomplete: {missing_or_empty}")
 
     ckpts_dir = os.path.join(local_dir, "ckpts")
     if not os.path.isdir(ckpts_dir):

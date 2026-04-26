@@ -81,7 +81,10 @@ RUN bash ./setup.sh --flash-attn    || echo "[build] flash-attn install failed; 
 RUN bash ./setup.sh --diffoctreerast || echo "[build] diffoctreerast install failed; continuing"
 
 # Worker-side deps that aren't in setup.sh.
-RUN pip install --no-cache-dir runpod
+# Pinning huggingface_hub to a modern version where snapshot_download(local_dir=...)
+# materialises real files by default — older releases create symlinks into a
+# blob hash tree and any partial LFS pull leaves dangling links.
+RUN pip install --no-cache-dir runpod "huggingface_hub>=0.30,<1.0"
 
 # App payload.
 WORKDIR /app
