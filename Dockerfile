@@ -53,7 +53,14 @@ WORKDIR /opt
 RUN git clone --depth 1 https://github.com/Microsoft/TRELLIS.git \
     && cd TRELLIS \
     && git submodule update --init --recursive --depth 1 \
-    && touch trellis/representations/mesh/flexicubes/__init__.py
+    && touch trellis/representations/mesh/flexicubes/__init__.py \
+    && chmod -R a+rX trellis \
+    && echo "=== flexicubes contents ===" \
+    && ls -la trellis/representations/mesh/flexicubes/ \
+    && test -f trellis/representations/mesh/flexicubes/flexicubes.py \
+    && test -f trellis/representations/mesh/flexicubes/__init__.py \
+    && echo "=== flexicubes import test ===" \
+    && PYTHONPATH=/opt/TRELLIS python -c "from trellis.representations.mesh.flexicubes.flexicubes import FlexiCubes; print('OK', FlexiCubes)"
 
 WORKDIR /opt/TRELLIS
 
