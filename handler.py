@@ -40,7 +40,7 @@ os.environ.setdefault("SPCONV_ALGO", "native")
 # Version banner — prints unconditionally at module load time so we can
 # tell from the worker logs whether the running container is actually
 # the image tag we think it is.
-HANDLER_VERSION = "v0.1.15"
+HANDLER_VERSION = "v0.1.16"
 sys.stderr.write(f"[bikeheadz] handler.py {HANDLER_VERSION} booting (pid={os.getpid()})\n")
 sys.stderr.flush()
 
@@ -112,42 +112,47 @@ def _load_pipeline():
 
     sys.stderr.write(f"[trellis] downloading {TRELLIS_MODEL} → {local_dir}\n")
     sys.stderr.flush()
-    # local_dir_use_symlinks=False forces real files everywhere. Older
-    # huggingface_hub versions (pre-0.20) default to "auto" which symlinks
-    # into a blob-hash cache; if any LFS pull silently fails, the symlink
-    # dangles, os.path.exists() returns False, and TRELLIS's loader
-    # silently falls back to fetching the relative path as a standalone
-    # HF repo (which 401s). Telling HF to materialise every file as a
-    # plain regular file makes existence checks unambiguous.
-    snapshot_download(
+    # local_dir_use_symlinks=False is the old API to force real files; newer
+    # huggingface_hub treats it as a no-op (already the default) but accepts
+    # the kwarg. If a still-newer version drops it, we try without.
+    snapshot_kwargs = dict(
         repo_id=TRELLIS_MODEL,
         local_dir=local_dir,
-        local_dir_use_symlinks=False,
         token=os.environ.get("HF_TOKEN"),
         max_workers=4,
     )
+    try:
+        snapshot_download(**snapshot_kwargs, local_dir_use_symlinks=False)
+    except TypeError:
+        snapshot_download(**snapshot_kwargs)
 
-    # Hard sanity check: every checkpoint pair must exist as a real,
-    # non-empty file. If a single one is missing or zero-byte we bail
-    # with a clear error instead of letting TRELLIS's silent fallback
-    # mask the problem.
+    # Per-file diagnostic: report listing AND realpath/size/exists for each
+    # ckpts file so we can prove (or refute) the dangling-symlinks theory.
     ckpts_dir = os.path.join(local_dir, "ckpts")
-    missing_or_empty = []
+    sys.stderr.write(f"[trellis] ckpts inventory at {ckpts_dir}:\n")
+    bad = []
     for fname in sorted(os.listdir(ckpts_dir)):
         full = os.path.join(ckpts_dir, fname)
+        is_link = os.path.islink(full)
         try:
-            sz = os.path.getsize(full)
+            real = os.path.realpath(full)
+            real_exists = os.path.exists(real)
+            sz = os.path.getsize(full) if os.path.exists(full) else -1
         except OSError as e:
-            missing_or_empty.append(f"{fname} (stat error: {e})")
-            continue
-        if sz == 0:
-            missing_or_empty.append(f"{fname} (0 bytes)")
-        if not os.path.exists(full):
-            missing_or_empty.append(f"{fname} (path exists in listing but os.path.exists False — likely dangling symlink)")
-    if missing_or_empty:
-        sys.stderr.write(f"[trellis] ckpts/ has bad files: {missing_or_empty}\n")
-        sys.stderr.flush()
-        raise RuntimeError(f"ckpts incomplete: {missing_or_empty}")
+            real, real_exists, sz = "?", False, -1
+            sys.stderr.write(f"[trellis]   {fname}: stat error {e}\n")
+        sys.stderr.write(
+            f"[trellis]   {fname}: link={is_link} exists={os.path.exists(full)} "
+            f"size={sz} realpath_exists={real_exists}\n"
+        )
+        if not os.path.exists(full) or sz == 0:
+            bad.append(fname)
+    sys.stderr.flush()
+    if bad:
+        raise RuntimeError(
+            f"ckpts incomplete (dangling/empty): {bad}. "
+            f"Try: rm -rf {local_dir} on the network volume to force re-download."
+        )
 
     ckpts_dir = os.path.join(local_dir, "ckpts")
     if not os.path.isdir(ckpts_dir):

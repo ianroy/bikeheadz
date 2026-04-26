@@ -81,10 +81,10 @@ RUN bash ./setup.sh --flash-attn    || echo "[build] flash-attn install failed; 
 RUN bash ./setup.sh --diffoctreerast || echo "[build] diffoctreerast install failed; continuing"
 
 # Worker-side deps that aren't in setup.sh.
-# Pinning huggingface_hub to a modern version where snapshot_download(local_dir=...)
-# materialises real files by default — older releases create symlinks into a
-# blob hash tree and any partial LFS pull leaves dangling links.
-RUN pip install --no-cache-dir runpod "huggingface_hub>=0.30,<1.0"
+# (NOTE: don't aggressively pin huggingface_hub — transformers depends on the
+# version setup.sh resolved, and bumping HF beyond ~0.25 breaks
+# `is_offline_mode` lookups inside transformers.)
+RUN pip install --no-cache-dir runpod
 
 # App payload.
 WORKDIR /app
