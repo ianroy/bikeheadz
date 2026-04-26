@@ -37,12 +37,23 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Clone TRELLIS WITH submodules. `flexicubes` (mesh extraction) is a
-# submodule pointing at MaxtirError/FlexiCubes; without --recursive the
-# directory exists but is empty, and the worker fails at runtime with
-# `No module named 'trellis.representations.mesh.flexicubes.flexicubes'`.
+# submodule pointing at MaxtirError/FlexiCubes; without it, the worker
+# fails at runtime with
+#   No module named 'trellis.representations.mesh.flexicubes.flexicubes'.
+#
+# Two layers of safety:
+#   1. Explicit `git submodule update --init --recursive` after the
+#      clone, in case `--recurse-submodules` silently noops on a
+#      shallow clone.
+#   2. `touch __init__.py` so Python treats the submodule directory as
+#      a package — FlexiCubes upstream doesn't ship one, so the import
+#      `trellis.representations.mesh.flexicubes.flexicubes` would still
+#      fail even with all files present.
 WORKDIR /opt
-RUN git clone --recurse-submodules --shallow-submodules --depth 1 \
-        https://github.com/Microsoft/TRELLIS.git
+RUN git clone --depth 1 https://github.com/Microsoft/TRELLIS.git \
+    && cd TRELLIS \
+    && git submodule update --init --recursive --depth 1 \
+    && touch trellis/representations/mesh/flexicubes/__init__.py
 
 WORKDIR /opt/TRELLIS
 
