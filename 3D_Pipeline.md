@@ -149,10 +149,14 @@ Bound it (0.85 .. 1.15) so the result still fits the cap.
    upward. For each, compute the convex-hull radius.
 2. The radius profile typically goes: *narrow (chest tapers up to neck) →
    minimum (neck) → bulges out (jaw/head) → tapers down to top of skull*.
-3. Find the local minimum *below* the global maximum — that's the neck.
-4. Slice with a horizontal plane at that Z. Discard the lower half.
-5. Close the cut hole into a flat disc by triangulating the open boundary
-   loop (`trimesh.repair.fill_holes`).
+3. Find the local minimum *below* the global maximum — that's `z_cut`.
+4. **Crop via boolean, not `trimesh.slice_plane`.** Construct an
+   axis-aligned box covering the head bounding-box footprint up to `z_cut`
+   and subtract it from the head as a `manifold3d` operation. This produces
+   a watertight mesh with a *properly triangulated* flat disc at the cut —
+   `trimesh.slice_plane(cap=True)` and `trimesh.repair.fill_holes` are both
+   known to leave non-manifold caps on non-convex boundary loops
+   (trimesh issues #1149, #2180). Boolean cropping bypasses both bugs.
 
 **Approach B (learned, fold in later):**
 1. Render the head from the front using TRELLIS's existing image input as a
@@ -250,18 +254,27 @@ those procedurally. We just place it in the cavity we made.
 - If the negative core and valve cap aren't co-centered correctly in their
   source files, the cap will be off-axis and the print won't thread onto a
   valve. Confirm the source STLs share an origin before committing to this
-  design. (Action item: see §8.)
+  design. (Action item: see §11.)
 
-### Stage 5 — Print-prep (optional, post-MVP)
+### Stage 5 — Print-prep
 
-Not part of the user's 4 steps but worth noting:
+Not part of the user's 4 steps but mandatory for printable, wire-efficient
+output. Order matters: **decimate after the boolean, not before.**
+Decimating first throws away features the boolean needs to land cleanly,
+and manifold3d 3.x is fast enough on 200K-tri inputs (sub-second) that the
+"speed up the boolean" argument doesn't hold.
 
-- **Decimate** to a sensible triangle budget. 200K is fine for a slicer but
-  bloats the wire format. Target 50K–80K with `trimesh.simplify.simplify_quadric_decimation`.
-- **Smooth** any TRELLIS staircase artifacts on the head (Taubin filter,
-  low pass).
-- **Repair** any post-boolean small holes one more time.
-- **Validate** with `trimesh.repair.broken_faces` and reject if any.
+- **Decimate** the unioned solid to **30–60K triangles**. At ~30 mm part
+  size, more is invisible to the slicer. Use `fast-simplification`
+  (Cython wrapper around sp4cerat's QEM — ~4× faster than MeshLab and
+  meaningfully better preservation than Open3D's, which has a known
+  hole-creation bug — Open3D issue #4083). Decimation must **mask out
+  the cap region** so the threads are preserved at full density.
+- **Smooth** TRELLIS staircase artifacts on the head with **Taubin only**
+  (`trimesh.smoothing.filter_taubin(lamb=0.5, nu=-0.53, iterations=3-5`).
+  Laplacian shrinks the head and breaks the calibrated scale; HC is
+  overkill. Mask the cut plane and the cap region — both must stay flat.
+- **Validate** with the assertion ladder in §8.6 before export.
 
 ## 6. Calibration
 
@@ -285,33 +298,280 @@ Deliverable: a small Python script `tools/calibrate_pipeline.py` that loads
 the references, prints these numbers, and writes them to a JSON file the
 handler imports. Cheap to re-run if the reference set changes.
 
-## 7. Tool Selection
+## 7. Tools & Libraries
 
-**Required:**
-- **`trimesh`** — already a dependency. Used for STL I/O, transforms, slicing,
-  hole filling, decimation, normal repair.
-- **`manifold3d`** — new dependency. Boolean ops via Manifold's exact CSG.
-  Pip-installable, no native build, MIT-licensed.
+### Library audit (early 2026)
 
-**Optional (Phase 2+):**
-- **`pymeshlab`** — if `trimesh.repair` isn't enough for stubborn TRELLIS
-  output. Provides MeshLab's "Close Holes" and "Re-Orient Faces Coherently"
-  filters. Adds ~120 MB to the container.
-- **`open3d`** — only if we need point-cloud-style registration to align
-  TRELLIS heads to the reference set (currently overkill).
-- **`mediapipe`** — for Approach B in Stage 2 (chin landmark detection).
-  ~30 MB, useful even outside this pipeline (e.g., pre-flight photo
-  validation: "no face detected, please use a clearer photo").
+| Library | Latest | Maintenance | License | Footprint | Role here |
+|---|---|---|---|---|---|
+| **trimesh** | 4.12.x | Very active (weekly) | MIT | ~2 MB pure Python | Lingua franca: I/O, transforms, properties, repair |
+| **manifold3d** | 3.4.x | Very active (monthly) | Apache 2.0 | ~3 MB | The boolean engine. Only CPU CSG with a manifold-output guarantee |
+| **pymeshlab** | 2025.7.x | Active, slow cadence; ARM64 wheels now ship | **GPL v3** | ~150 MB | Heavy-duty repair (close holes, reorient, non-manifold edges). License caveat below |
+| **fast-simplification** | 0.1.x | Stable | MIT | <1 MB | Quadric decimation. ~4× faster than MeshLab, no Open3D bugs |
+| **gpytoolbox** | 0.3.x | Active (research-pace) | MIT (+ GPL submodules to avoid) | ~10 MB | Optional: `remesh_botsch` isotropic remesh smooths TRELLIS triangle distribution before boolean |
+| **mediapipe** | 0.10.x | Maintained, Tasks API replacing Solutions | Apache 2.0 | ~60 MB | 2D face landmarks on the input photo for Stage 0 reject + Stage 2-B chin localization |
 
-**Rejected:**
-- **Blender as a library (`bpy`)** — too heavy (1+ GB), slow startup, only
-  marginally more capable than `manifold3d` for our needs.
-- **OpenSCAD** — fundamentally a CSG language, awkward to drive from Python,
-  and CGAL booleans are slower and less tolerant than Manifold.
-- **CGAL Python bindings** — works but `manifold3d` is faster and more
-  pythonic for this volume of operations.
+**Rejected for the runtime image:**
 
-## 8. Integration With the Existing App
+| Library | Why not |
+|---|---|
+| `open3d` 0.19 | 65–427 MB depending on platform; `simplify_quadric_decimation` has a known hole-creation bug (#4083); mesh-repair stack hasn't improved meaningfully. Fine in dev/QA |
+| `pyvista` / `vedo` | Pull in VTK (~150 MB). VTK boolean is the unreliable one — explicitly noted in MeshLib's 2025 survey as "often fails on non-manifold". Fine for headless QA renders |
+| `libigl` 2.6 | Right tool only if we needed geodesics, harmonic deformation, curvature — we don't |
+| `bpy` (Blender as lib) | 1+ GB, slow startup, marginally more capable than manifold3d for what we need |
+| OpenSCAD / raw CGAL | Awkward to drive from Python; CGAL booleans slower and less robust than Manifold for organic input |
+
+### License caveat: pymeshlab is GPL v3
+
+PyMeshLab links MeshLab (GPL). Embedding it directly in the closed-source
+SaaS taints the deployment. Two paths:
+
+1. **Subprocess isolation.** Wrap `pymeshlab` calls in a `python -m
+   bikeheadz.repair_subprocess` invocation that exchanges meshes via
+   temporary STL files. Subprocess output is not derivative work under
+   established interpretation, but the included MeshLab binaries are still
+   distributed with the image. Document it.
+2. **Avoid pymeshlab.** Substitute `gpytoolbox.remesh_botsch` +
+   `trimesh.repair` + manifold3d's tolerance-aware repair. Less powerful
+   on degenerate input, MIT throughout.
+
+Default is path 1 unless legal pushback. If we're worried, ship the
+pymeshlab path off the hot path entirely (offline batch repair only,
+GPL not a concern for non-distributed tools).
+
+### Bill of materials (runtime image)
+
+```
+trimesh==4.12.*
+manifold3d==3.4.*
+fast-simplification==0.1.*
+pymeshlab==2025.7.*       # behind subprocess wrapper, optional
+gpytoolbox==0.3.*         # optional: remesh_botsch
+mediapipe==0.10.*
+numpy>=1.26
+```
+
+`open3d`, `pyvista`, `vedo`, `libigl` belong in `requirements-dev.txt`
+only — never ship with the worker image.
+
+### What changed in the last 12–18 months
+
+1. **manifold3d 3.0 (Nov 2024) → 3.4 (Mar 2026).** Explicit ε-tolerance
+   tracking; `RefineToTolerance`; Minkowski sums (useful: inflate the
+   negative core uniformly for clearance instead of scaling). 3.4 fixed a
+   numerical regression in 3.3's lazy collider revert — pin `>=3.4.1`.
+2. **trimesh 4.x** made `manifold3d` the default boolean engine; no more
+   shelling out to Blender. Pass `engine='manifold'` explicitly to defend
+   against stale installs.
+3. **pymeshlab 2025.07** finally ships ARM64 wheels — works on Apple
+   Silicon dev boxes without rosetta gymnastics.
+4. **gpytoolbox 0.3** matured into a serious option for `remesh_botsch`
+   isotropic remeshing; cleans up TRELLIS triangle distribution and makes
+   manifold3d's life easier without a license question.
+5. **Open3D 0.19** got SYCL GPU paths but its mesh-repair stack remains
+   stagnant — keep it off the hot path.
+
+## 8. Mesh Manipulation Best Practices
+
+This section is opinionated. Applies to every stage in §5; the stage
+descriptions there reference recipes here by number.
+
+### 8.1 Coordinate convention — decide once, assert always
+
+Pick **Z-up, millimeters, +Y forward (face)**. Convert TRELLIS's unit-box
+output at the very first stage. Encode in a `Scene` dataclass; assert in
+every stage entry-point. Never recompute orientation downstream. The
+Three.js viewer at [valve-stem-viewer.js:251](client/components/valve-stem-viewer.js:251)
+already assumes Z-up — don't break that contract.
+
+### 8.2 TRELLIS defect catalogue
+
+Single-photo reconstruction outputs (TRELLIS, InstantMesh, TripoSR all
+have similar failure modes; TripoSR is worst on the back of the head)
+reliably exhibit:
+
+1. Small holes / topological discontinuities (Microsoft acknowledges this
+   and ships a `mesh_postprocess.py` reference implementation).
+2. Tiny non-manifold edges around hair, ear lobes, glasses.
+3. Self-intersections in concave regions (under chin, nostrils).
+4. 1–3 isolated stray components from floater voxels.
+5. Slight asymmetry; back of head is hallucinated and sometimes
+   degenerate.
+
+**Treat all single-photo recon outputs as "needs heavy repair before
+boolean."** This is the dominant reason Stage 1.5 (repair) exists.
+
+### 8.3 Repair recipe (between TRELLIS and Stage 1's scaling)
+
+```python
+import trimesh, numpy as np, pymeshlab as ml
+
+def to_clean_manifold(mesh: trimesh.Trimesh) -> trimesh.Trimesh:
+    # 1. Drop floaters: keep only the largest connected component.
+    comps = mesh.split(only_watertight=False)
+    mesh = max(comps, key=lambda m: len(m.faces))
+
+    # 2. Round-trip through pymeshlab for serious topological repair.
+    ms = ml.MeshSet()
+    ms.add_mesh(ml.Mesh(mesh.vertices, mesh.faces))
+    ms.meshing_remove_duplicate_vertices()
+    ms.meshing_remove_duplicate_faces()
+    ms.meshing_remove_unreferenced_vertices()
+    ms.meshing_repair_non_manifold_edges()
+    ms.meshing_close_holes(maxholesize=200)        # bound by edge count
+    ms.meshing_re_orient_faces_coherently()
+
+    out = ms.current_mesh()
+    rep = trimesh.Trimesh(out.vertex_matrix(), out.face_matrix(), process=True)
+    rep.merge_vertices()
+    rep.fix_normals()
+    return rep
+```
+
+**Why pymeshlab and not just `trimesh.repair`:**
+`trimesh.repair.fill_holes` uses fan triangulation and *fails on
+non-convex holes* (documented in `trimesh.repair` source). For TRELLIS
+output, holes are usually around hair/ears and frequently non-convex.
+PyMeshLab's `meshing_close_holes` is the only reliable Python option that
+isn't Blender.
+
+If GPL is a hard no, the fallback chain is `trimesh.repair.fix_inversion
+→ fix_normals → fill_holes` (with a manual filter to reject non-convex
+boundary loops) plus `gpytoolbox.remesh_botsch` for an isotropic pass.
+
+### 8.4 Plane-based crop via boolean (Stage 2)
+
+`trimesh.Trimesh.slice_plane(..., cap=True)` and
+`trimesh.repair.fill_holes` both have **unresolved bugs producing
+non-watertight caps** (trimesh issues #1149, #1454, #2180). Don't trust
+either. Crop as a manifold3d boolean instead:
+
+```python
+import manifold3d as m3
+import numpy as np
+
+def crop_below(head: trimesh.Trimesh, z_cut: float) -> trimesh.Trimesh:
+    bbox = head.bounds
+    pad = 5.0  # mm
+    box = m3.Manifold.cube(
+        size=[bbox[1,0]-bbox[0,0]+2*pad,
+              bbox[1,1]-bbox[0,1]+2*pad,
+              z_cut - bbox[0,2] + pad],
+        center=False,
+    ).translate([bbox[0,0]-pad, bbox[0,1]-pad, bbox[0,2]-pad])
+
+    H = m3.Manifold(m3.Mesh(head.vertices.astype(np.float32),
+                            head.faces.astype(np.uint32)))
+    cut = H - box
+    out = cut.to_mesh()
+    return trimesh.Trimesh(out.vert_properties[:, :3], out.tri_verts)
+```
+
+The cap face emerges from manifold3d's CDT — properly triangulated, no
+fan-fill artifacts, watertight by construction.
+
+### 8.5 Boolean carve + cap (Stages 3–4)
+
+```python
+def carve_and_cap(head: m3.Manifold,
+                  negative_core: m3.Manifold,
+                  valve_cap:    m3.Manifold) -> m3.Manifold:
+    socketed = head - negative_core    # carve socket
+    return socketed + valve_cap        # union threaded cap
+```
+
+Notes from the trenches:
+
+- **Negative core must be 0.1–0.2 mm larger than the cap on every axis.**
+  This gives printable clearance and avoids zero-volume slivers from
+  coplanar faces — manifold3d's worst-failure mode.
+- If the cap STL came from Fusion/SolidWorks it's already watertight; if
+  from a hobbyist source, repair it identically to the head.
+- Set `tolerance` on input proportional to feature size (≈0.01 mm for
+  30 mm parts). The default can over-merge fine threads.
+- Never mutate loaded reference Manifolds. Reconstruct per-request from
+  the cached `Mesh`.
+
+### 8.6 Validation gate (assertion ladder)
+
+Run after Stage 1.5 (repair), Stage 3 (post-subtract), Stage 4
+(post-union), and immediately before STL export. Log the *stage* the
+assertion came from so failures point to the regression site.
+
+```python
+def assert_printable(m: trimesh.Trimesh, *, stage: str):
+    checks = [
+        (m.is_watertight,                              "leaks"),
+        (m.is_winding_consistent,                      "winding"),
+        (m.is_volume,                                  "not a solid"),
+        (len(m.split(only_watertight=True)) == 1,      "multiple shells"),
+        (m.volume > 0,                                 "inverted normals"),
+        (m.bounding_box.extents.min() > 5,             "feature collapsed"),
+        (m.bounding_box.extents.max() < 200,           "scale wrong"),
+        (m.euler_number == 2,                          "topology not a sphere"),
+    ]
+    failed = [msg for ok, msg in checks if not ok]
+    if failed:
+        raise PipelineError(stage=stage, failures=failed)
+```
+
+The wall-thickness check (§5 stage notes) is *not* in this ladder —
+trimesh doesn't compute it cheaply. Implement it via signed-distance
+sampling on a sparse grid only if/when slicer rejection becomes a real
+failure mode.
+
+### 8.7 Decimation: after boolean, never before
+
+Decimate the unioned solid as the final geometric op. Mask the cap
+region (the threads must stay full-density):
+
+```python
+import fast_simplification as fs
+
+def decimate(mesh: trimesh.Trimesh, target_tris: int = 40_000) -> trimesh.Trimesh:
+    reduction = 1.0 - target_tris / max(len(mesh.faces), target_tris)
+    if reduction <= 0:
+        return mesh
+    v, f = fs.simplify(
+        mesh.vertices, mesh.faces,
+        target_reduction=reduction,
+        agg=7,                  # aggressiveness 0–10
+        lossless=False,
+    )
+    out = trimesh.Trimesh(v, f, process=True)
+    out.fix_normals()
+    return out
+```
+
+For 30 mm prints at 0.1–0.2 mm layer height, 30–60K triangles is the
+sweet spot. Past that, the slicer literally cannot resolve the detail.
+
+### 8.8 Smoothing: Taubin only, masked
+
+```python
+import trimesh.smoothing as ts
+ts.filter_taubin(mesh, lamb=0.5, nu=-0.53, iterations=4)
+```
+
+Laplacian shrinks the head and breaks the calibrated scale; HC is
+overkill for organic surfaces this size. Always exclude faces within
+1–2 mm of the cut plane and the cap region (use `mesh.face_attributes` to
+mark them).
+
+### 8.9 STL export: always binary
+
+```python
+mesh.export(path, file_type='stl')   # trimesh defaults to binary
+```
+
+ASCII STL at 80K triangles is ~25–30 MB; binary is ~4 MB. Slicers parse
+binary 5–10× faster. Generate ASCII only as a *companion* file for
+human-readable QA diffs, never as the primary output. This also fixes
+the latent bug where [server/commands/stl.js:98](server/commands/stl.js:98)
+does `cached.stl.toString('utf8')` — switch the download path to
+`Buffer`-aware before any pipeline change ships.
+
+## 9. Integration With the Existing App
 
 This is where the pipeline plugs into what already ships.
 
@@ -361,7 +621,7 @@ in the `stl.generate` payload. Under the new pipeline:
 
 The 3D viewer placeholder ([client/components/valve-stem-viewer.js](client/components/valve-stem-viewer.js))
 already responds to all three. If we deprecate `neck_length_mm`, drop it
-from the slider too — see §9 phase plan.
+from the slider too — see §10 phase plan.
 
 ### Dockerfile
 
@@ -402,7 +662,7 @@ the pipeline forward. Assert:
 
 Run it in CI on every commit that touches the pipeline.
 
-## 9. Implementation Phases
+## 10. Implementation Phases
 
 Designed for incremental ship — each phase has a working app at the end.
 
@@ -447,7 +707,7 @@ Designed for incremental ship — each phase has a working app at the end.
    accordingly.
 5. **Done when:** the slider UI matches what the pipeline actually does.
 
-## 10. Open Questions (for the next iteration of this doc)
+## 11. Open Questions (for the next iteration of this doc)
 
 1. **Origin of `valve_cap.stl` and `negative_core.stl`.** Are they
    co-centered in their source coordinate frames? If yes, Stage 3 and
@@ -472,6 +732,6 @@ Designed for incremental ship — each phase has a working app at the end.
 
 ---
 
-**Next action:** review this doc, refine §5 and §9, then start Phase 0 by
+**Next action:** review this doc, refine §5 and §10, then start Phase 0 by
 writing `tools/calibrate_pipeline.py` to extract the constants from the
 reference STLs.
