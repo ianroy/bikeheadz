@@ -18,7 +18,8 @@ FROM pytorch/pytorch:2.4.0-cuda12.1-cudnn9-devel
 ENV DEBIAN_FRONTEND=noninteractive \
     PIP_NO_CACHE_DIR=1 \
     SPCONV_ALGO=native \
-    ATTN_BACKEND=sdpa \
+    ATTN_BACKEND=xformers \
+    SPARSE_ATTN_BACKEND=xformers \
     TORCH_HOME=/runpod-volume/torch \
     HF_HOME=/runpod-volume/hf \
     HUGGINGFACE_HUB_CACHE=/runpod-volume/hf \
@@ -80,6 +81,14 @@ WORKDIR /opt/TRELLIS
 RUN bash ./setup.sh --basic
 
 RUN bash ./setup.sh --xformers      || echo "[build] xformers install failed; continuing"
+# setup.sh's xformers logic does case "$PYTORCH_VERSION" in 2.4.0)... but
+# `python -c "import torch; print(torch.__version__)"` returns
+# `2.4.0+cu121` on cuda images, never matching the case. Force-install
+# the right wheel directly.
+RUN pip install --no-cache-dir "xformers==0.0.27.post2" --index-url https://download.pytorch.org/whl/cu121 \
+    || pip install --no-cache-dir "xformers==0.0.27.post2" \
+    || pip install --no-cache-dir "xformers" \
+    || echo "[build] direct xformers install also failed"
 RUN bash ./setup.sh --spconv        || echo "[build] spconv install failed; continuing"
 RUN bash ./setup.sh --flash-attn    || echo "[build] flash-attn install failed; continuing"
 RUN bash ./setup.sh --diffoctreerast || echo "[build] diffoctreerast install failed; continuing"

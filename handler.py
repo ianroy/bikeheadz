@@ -36,18 +36,22 @@ from PIL import Image
 # TRELLIS is cloned into /opt/TRELLIS by the Dockerfile.
 sys.path.insert(0, "/opt/TRELLIS")
 os.environ.setdefault("SPCONV_ALGO", "native")
-# Force sdpa (PyTorch's built-in scaled_dot_product_attention) as the
-# attention backend. Both flash_attn and xformers are best-effort
-# installs in setup.sh; both routinely fail silently on CUDA/torch
-# wheel combinations. sdpa needs zero external deps — it ships with
-# PyTorch 2.0+ — so it's the only backend choice that's actually
-# guaranteed to be available in the image.
-os.environ.setdefault("ATTN_BACKEND", "sdpa")
+# TRELLIS has TWO independent attention modules:
+#   • trellis.modules.attention reads ATTN_BACKEND, supports
+#     {xformers, flash_attn, sdpa, naive}.
+#   • trellis.modules.sparse.attention reads SPARSE_ATTN_BACKEND (or
+#     falls back to ATTN_BACKEND), but ONLY accepts {xformers,
+#     flash_attn}.  No sdpa, no naive.
+# So we have to pick xformers or flash_attn — and force-install it in
+# the Dockerfile because setup.sh's case statement misses our exact
+# torch version string.
+os.environ.setdefault("ATTN_BACKEND", "xformers")
+os.environ.setdefault("SPARSE_ATTN_BACKEND", "xformers")
 
 # Version banner — prints unconditionally at module load time so we can
 # tell from the worker logs whether the running container is actually
 # the image tag we think it is.
-HANDLER_VERSION = "v0.1.20"
+HANDLER_VERSION = "v0.1.21"
 sys.stderr.write(f"[bikeheadz] handler.py {HANDLER_VERSION} booting (pid={os.getpid()})\n")
 sys.stderr.flush()
 
