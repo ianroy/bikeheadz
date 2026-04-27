@@ -16,15 +16,21 @@ assume they hold. If any shifts, the plan needs revisiting.
 
 | Decision | Value | Rationale |
 |---|---|---|
-| **Print process** | **Resin (SLA / MSLA)** as primary | The reference STLs (~200K tris) have organic detail and fine threads. SLA prints them reliably and handles internal-thread overhangs without supports. FDM is a fallback only — different clearance and triangle budget if we ever ship it (see Stage 5). |
-| **Coordinate frame** | **Z-up, +Y forward (face), millimeters** | Matches §8.1 invariants and the Three.js viewer at [valve-stem-viewer.js:251](client/components/valve-stem-viewer.js:251), which rotates −π/2 around X assuming Z-up. |
+| **Print process** | **FDM** (filament fused deposition) | This is the fulfilment process. The committed reference STLs (`ian_head.stl`, `nik_head.stl`) were FDM-printed and proved the design is FDM-compatible — that's the empirical evidence. SLA could be added later as a "premium" SKU but everything below is tuned for FDM tolerances. |
+| **Print orientation** | **Head-down, cap-up** (cap section pointing toward the bed) | The valve cap's internal threads are radial features. Printed cap-up they sit as a raised collar and the threads land as steep self-supporting overhangs. Printed cap-down (head pointing up), the threads become unsupported overhangs that FDM tears. The references were sliced cap-up — match that. |
+| **Coordinate frame** | **Z-up, +Y forward (face), millimeters** | Matches §8.1 invariants and the Three.js viewer at [valve-stem-viewer.js:251](client/components/valve-stem-viewer.js:251), which rotates −π/2 around X assuming Z-up. The Stage 5 export should orient `cap region toward −Z` so a slicer's default "place flat on bed" picks the right face. |
 | **Boolean engine** | **manifold3d 3.4+** | §7 audit; the only CPU CSG with a manifold-output guarantee. |
-| **Negative-core clearance** | **0.15 mm radial** over the valve cap's outer profile | Tuned to SLA tolerance. FDM would want ≈0.25–0.30 mm. |
-| **Triangle budget (output)** | **30–60K** | 30 mm part at 0.05 mm SLA layer height; more is invisible to the slicer. FDM at 0.1 mm could justify ~80K. |
-| **STL format on the wire** | **Binary** | §8.9. ASCII at 80K tris is ~25 MB vs ~4 MB binary; slicers parse binary 5–10× faster. Existing post-payment download path needs a `Buffer`-aware fix before any pipeline change ships. |
+| **Negative-core clearance** | **0.25 mm radial** over the valve cap's outer profile | FDM at 0.4 mm nozzle / 0.2 mm layer leaves shrinkage and elephant-foot in the 0.1–0.2 mm range. 0.25 mm gives clean clearance without slop. SLA would want 0.10–0.15 mm; revisit clearance per process if we ever ship dual fulfilment. |
+| **Layer height target** | **0.16–0.20 mm** | Standard FDM cap printing. Threads on a ~13 mm cap need at least 4–5 layers per thread pitch; this band hits that with stock PLA/PETG profiles. Stage 5 doesn't enforce layer height (slicer's job) but the triangle budget below assumes it. |
+| **Triangle budget (output)** | **50–80K** | 30 mm part at 0.16–0.20 mm FDM layer height. Lower than 50K starts faceting the chin and ears; higher than 80K is invisible to the slicer at this layer height and just bloats `stl_b64` over the wire. |
+| **Min wall thickness** | **1.2 mm** | FDM at 0.4 mm nozzle prints reliable walls at 3× nozzle width = 1.2 mm. Below that, gaps and inconsistent extrusion. Drives the optional wall-thickness check in §8.6. |
+| **STL format on the wire** | **Binary** | §8.9. ASCII at 80K tris is ~25 MB vs ~4 MB binary; slicers parse binary 5–10× faster. Existing post-payment download path at [server/commands/stl.js:98](server/commands/stl.js:98) needs a `Buffer`-aware fix before any pipeline change ships (Phase 0). |
 
-**Open today:** the FDM-vs-SLA assumption depends on the fulfilment vendor —
-confirm with whoever's printing before Phase −1.
+**Open today:** confirm with the print vendor that filament/profile
+matches the references' actual print (PLA vs PETG, layer height, nozzle
+diameter). The clearance and wall-thickness numbers above assume a stock
+0.4 mm nozzle and 0.16–0.20 mm layers — if they're using a 0.6 mm nozzle
+or 0.28 mm layers, those numbers shift.
 
 ## 1. Goal
 
@@ -129,7 +135,7 @@ photo  ──────────────────────►│ 
                                            ▼
                               ┌──────────────────────────────────────┐
                               │ STAGE 5 — Print-prep                 │
-                              │ fast-simplification → 30–60K tris    │
+                              │ fast-simplification → 50–80K tris    │
                               │ Taubin smoothing on organic regions  │
                               │ assert_printable; export binary STL  │
                               └────────────┬─────────────────────────┘
@@ -322,8 +328,8 @@ those procedurally. We just place it in the cavity we made.
    negative core in Stage 3 — that's the whole reason we use a paired
    negative-core/valve-cap design. The negative core is sized slightly
    larger than the valve cap so the cap nests inside without intersecting
-   the cavity walls (≈0.1–0.2 mm clearance for thermal expansion in
-   resin/SLA prints).
+   the cavity walls. **0.25 mm radial clearance** for FDM (§0); covers
+   nozzle width tolerance and elephant-foot at the cap base.
 2. **Verify the threads are exposed.** The cap's outside, where the threads
    are, must remain on the inside of the cavity (not get filled in). This
    is a function of the negative core being larger in radius than the cap's
@@ -353,12 +359,15 @@ Decimating first throws away features the boolean needs to land cleanly,
 and manifold3d 3.x is fast enough on 200K-tri inputs (sub-second) that the
 "speed up the boolean" argument doesn't hold.
 
-- **Decimate** the unioned solid to **30–60K triangles**. At ~30 mm part
-  size, more is invisible to the slicer. Use `fast-simplification`
-  (Cython wrapper around sp4cerat's QEM — ~4× faster than MeshLab and
-  meaningfully better preservation than Open3D's, which has a known
-  hole-creation bug — Open3D issue #4083). Decimation must **mask out
-  the cap region** so the threads are preserved at full density.
+- **Decimate** the unioned solid to **50–80K triangles** (FDM at
+  0.16–0.20 mm layer height, §0). Below 50K the chin and ears start
+  faceting; above 80K the slicer can't resolve the detail at this layer
+  height. Use `fast-simplification` (Cython wrapper around sp4cerat's
+  QEM — ~4× faster than MeshLab and meaningfully better preservation
+  than Open3D's, which has a known hole-creation bug — Open3D issue
+  #4083). Decimation must **mask out the cap region** so the threads
+  are preserved at full density (the threads are the tightest tolerance
+  feature in the entire part).
 - **Smooth** TRELLIS staircase artifacts on the head with **Taubin only**
   (`trimesh.smoothing.filter_taubin(lamb=0.5, nu=-0.53, iterations=3-5`).
   Laplacian shrinks the head and breaks the calibrated scale; HC is
@@ -382,11 +391,11 @@ Constants we extract:
 | `VALVE_CAP_OFFSET_FROM_HEAD_BOTTOM_MM` | Z offset between head bottom plane and the cap's reference origin | Stage 3/4 positioning |
 | `NEGATIVE_CORE_DIAMETER_MM` | Measured from `negative_core.stl` | Calibration assertion |
 | `VALVE_CAP_OUTER_DIAMETER_MM` | Measured from `valve_cap.stl` | Calibration assertion |
-| `NEGATIVE_CORE_CLEARANCE_MM` | Locked at **0.15 mm** (§0); calibration verifies actual radial gap matches | Stage 3 sizing assertion |
+| `NEGATIVE_CORE_CLEARANCE_MM` | Locked at **0.25 mm** (FDM, §0); calibration verifies actual radial gap matches | Stage 3 sizing assertion |
 | `MANIFOLD_TOLERANCE_MM` | Locked at **0.01 mm** (§8.5); 1/3000 of part bbox | Passed to manifold3d on every Manifold construction |
 | `CAP_REGION_Z_RANGE_MM` | Z range of cap-section faces in the references (e.g. `[-12.0, -3.0]`) | Mask for §8.7 decimation and §8.8 smoothing |
 | `CAP_REGION_RADIUS_MM` | XY radius around origin that bounds the cap-section faces | Same mask |
-| `MIN_WALL_THICKNESS_MM` | Locked at **0.8 mm** for SLA, **1.2 mm** for FDM | Optional §8.6 wall-thickness check |
+| `MIN_WALL_THICKNESS_MM` | Locked at **1.2 mm** (FDM @ 0.4 mm nozzle, §0). SLA fallback would be 0.8 mm | Optional §8.6 wall-thickness check |
 
 Deliverable: `tools/calibrate_pipeline.py` loads the references, computes
 these numbers, and writes them to `server/assets/pipeline_constants.json`.
@@ -640,8 +649,9 @@ def decimate(mesh: trimesh.Trimesh, target_tris: int = 40_000) -> trimesh.Trimes
     return out
 ```
 
-For 30 mm prints at 0.1–0.2 mm layer height, 30–60K triangles is the
-sweet spot. Past that, the slicer literally cannot resolve the detail.
+For 30 mm FDM prints at 0.16–0.20 mm layer height, 50–80K triangles is
+the sweet spot (§0). Past that, the slicer literally cannot resolve the
+detail. Below 50K the chin and ears facet visibly.
 
 ### 8.8 Smoothing: Taubin only, masked
 
@@ -789,7 +799,7 @@ For each corpus entry the test:
    - Output bbox dimensions within 5% of `golden.stl`.
    - Hausdorff distance to `golden.stl` below per-entry threshold
      (default 0.5 mm; tuned during Phase −1).
-   - Triangle count in §0's 30–60K band.
+   - Triangle count in §0's 50–80K band.
 
 Why we don't synthesize TRELLIS-output by inverting the references: the
 references are *post-boolean*. Inverting an organic boolean is not
@@ -980,7 +990,7 @@ in the logs (§9.5).
 5. Ramp `PIPELINE_VERSION=v1` traffic per §9.5: 10% → 50% → 100%.
 
 **Done when:** 100% v1 traffic, single-shell watertight outputs at
-30–60K triangles matching the references when overlaid.
+50–80K triangles matching the references when overlaid.
 
 ### Phase 3 — Robustness
 
@@ -1015,8 +1025,9 @@ within a week of going live.
 3. TRELLIS-output cache: key by `sha256(image)+seed`, store on the
    Network Volume. Slider tweaks reuse the cached raw mesh and re-run
    only Stages 1.5–5. Big UX and cost win.
-4. Triangle budget tightening per §0 (target 30–60K, not the older
-   80K number).
+4. Confirm Stage 5 decimation hits the §0 50–80K band consistently
+   across the corpus; tune the `target_tris` parameter if the
+   distribution drifts.
 
 **Done when:** the slider UI matches what the pipeline actually does,
 and a slider tweak completes in < 5 s on a warm worker.
@@ -1050,7 +1061,8 @@ in §0.)
 
 ---
 
-**Next action:** confirm §0 decisions (especially the SLA-vs-FDM
-fulfilment assumption), then run **Phase −1 (the spike)** in §10.
-Everything else waits on the spike report. After the spike, refine §5,
-§8, and §10 with whatever the spike teaches us, and start Phase 0.
+**Next action:** confirm §0 decisions (especially the FDM
+filament/profile/nozzle assumptions with the print vendor), then run
+**Phase −1 (the spike)** in §10. Everything else waits on the spike
+report. After the spike, refine §5, §8, and §10 with whatever the spike
+teaches us, and start Phase 0.
