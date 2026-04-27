@@ -100,6 +100,15 @@ RUN bash ./setup.sh --kaolin        || echo "[build] kaolin install failed; cont
 RUN bash ./setup.sh --nvdiffrast    || echo "[build] nvdiffrast install failed; continuing"
 RUN bash ./setup.sh --mipgaussian   || echo "[build] mipgaussian install failed; continuing"
 
+# Best-effort install of common TRELLIS-internal deps that aren't always
+# pulled in by setup.sh --basic. plyfile is needed by representations.gaussian;
+# diff-gaussian-rasterization is the CUDA extension setup.sh's --mipgaussian
+# tries to install (we install it again here in case mip-splatting build
+# failed but the standalone wheel works).
+RUN pip install --no-cache-dir plyfile || echo "[build] plyfile install failed"
+RUN pip install --no-cache-dir "git+https://github.com/graphdeco-inria/diff-gaussian-rasterization.git" \
+    || echo "[build] diff-gaussian-rasterization install failed"
+
 # Worker-side deps that aren't in setup.sh.
 # (NOTE: don't aggressively pin huggingface_hub — transformers depends on the
 # version setup.sh resolved, and bumping HF beyond ~0.25 breaks

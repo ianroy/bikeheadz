@@ -51,7 +51,7 @@ os.environ.setdefault("SPARSE_ATTN_BACKEND", "xformers")
 # Version banner — prints unconditionally at module load time so we can
 # tell from the worker logs whether the running container is actually
 # the image tag we think it is.
-HANDLER_VERSION = "v0.1.21"
+HANDLER_VERSION = "v0.1.22"
 sys.stderr.write(f"[bikeheadz] handler.py {HANDLER_VERSION} booting (pid={os.getpid()})\n")
 sys.stderr.flush()
 
@@ -84,6 +84,41 @@ def _diag_flexicubes():
     sys.stderr.flush()
 
 _diag_flexicubes()
+
+
+# Eager submodule probe: import each TRELLIS submodule the pipeline will
+# need, with their own try/except, BEFORE TRELLIS's loader gets a chance
+# to hide the failure inside its silent fallback. Whatever's missing
+# prints a `[probe]` line in the boot log we can read directly.
+def _diag_probe_imports():
+    targets = [
+        "trellis.modules.attention",
+        "trellis.modules.sparse",
+        "trellis.modules.sparse.attention",
+        "trellis.representations",
+        "trellis.representations.gaussian",
+        "trellis.representations.mesh",
+        "trellis.representations.octree",
+        "trellis.representations.radiance_field",
+        "trellis.models.sparse_structure_vae",
+        "trellis.models.sparse_structure_flow",
+        "trellis.models.structured_latent_vae.encoder",
+        "trellis.models.structured_latent_vae.base",
+        "trellis.models.structured_latent_vae.decoder_gs",
+        "trellis.models.structured_latent_vae.decoder_rf",
+        "trellis.models.structured_latent_vae.decoder_mesh",
+        "trellis.models.structured_latent_vae",
+    ]
+    for mod in targets:
+        try:
+            __import__(mod)
+            sys.stderr.write(f"[probe] OK    {mod}\n")
+        except Exception as e:
+            sys.stderr.write(f"[probe] FAIL  {mod}  →  {type(e).__name__}: {e}\n")
+    sys.stderr.flush()
+
+_diag_probe_imports()
+
 
 VALVE_CAP_PATH = os.environ.get("VALVE_CAP_PATH", "/app/valve_cap.stl")
 TRELLIS_MODEL = os.environ.get("TRELLIS_MODEL", "microsoft/TRELLIS-image-large")
