@@ -323,7 +323,7 @@ server/
  │   ├─ trellis_generate.py         photo → head mesh → merge → STL
  │   └─ requirements.txt            numpy, pillow, trimesh
  ├─ assets/
- │   └─ valve_cap.stl               1.2 MB — the base stem we never scale
+ │   └─ valve_cap.stl               372 KB — minimal threaded screw cap (~7.4K tris)
  └─ migrations/
      ├─ 001_initial.sql
      ├─ 002_designs_and_purchases.sql

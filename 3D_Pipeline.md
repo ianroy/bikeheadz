@@ -71,7 +71,7 @@ Committed under `server/assets/`:
 
 | File | Triangles | Role |
 |---|---|---|
-| `valve_cap.stl` | ~25,500 | The threaded screw cap. Must be added without deformation — fit matters; threads grip a real Presta valve. |
+| `valve_cap.stl` | ~7,400 | Minimal threaded screw cap (sourced from `Screw Cap Minimal.stl`). Same thread profile as a real valve cap, but no decorative exterior — just the threaded cylinder. Lower triangle count means cleaner manifold3d booleans and faster Stage 3/4 ops. Must be added without deformation — fit matters; threads grip a real Presta valve. |
 | `negative_core.stl` | ~290 | Boolean cutter. Subtracted from the head bottom to carve a clean cavity that nests the valve cap. |
 | `reference/ian_head.stl` | ~200,000 | Golden output #1. Calibration target. |
 | `reference/nik_head.stl` | ~200,000 | Golden output #2. Calibration target. |
