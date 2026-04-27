@@ -97,6 +97,14 @@ RUN bash ./setup.sh --diffoctreerast || echo "[build] diffoctreerast install fai
 # CUDA extension build, so allow individual failures rather than killing
 # the image.
 RUN bash ./setup.sh --kaolin        || echo "[build] kaolin install failed; continuing"
+# Same trap as xformers — setup.sh's PYTORCH_VERSION case matches "2.4.0"
+# literally, but torch.__version__ on the cuda image is "2.4.0+cu121",
+# so the wheel URL never fires. flexicubes.py:17 does
+#   `from kaolin.utils.testing import check_tensor`
+# unconditionally, so without kaolin every mesh decoder breaks.
+RUN pip install --no-cache-dir kaolin -f https://nvidia-kaolin.s3.us-east-2.amazonaws.com/torch-2.4.0_cu121.html \
+    || pip install --no-cache-dir kaolin \
+    || echo "[build] direct kaolin install also failed"
 RUN bash ./setup.sh --nvdiffrast    || echo "[build] nvdiffrast install failed; continuing"
 RUN bash ./setup.sh --mipgaussian   || echo "[build] mipgaussian install failed; continuing"
 
