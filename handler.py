@@ -40,7 +40,7 @@ os.environ.setdefault("SPCONV_ALGO", "native")
 # Version banner — prints unconditionally at module load time so we can
 # tell from the worker logs whether the running container is actually
 # the image tag we think it is.
-HANDLER_VERSION = "v0.1.16"
+HANDLER_VERSION = "v0.1.17"
 sys.stderr.write(f"[bikeheadz] handler.py {HANDLER_VERSION} booting (pid={os.getpid()})\n")
 sys.stderr.flush()
 

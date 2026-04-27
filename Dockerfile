@@ -60,12 +60,15 @@ RUN git clone --depth 1 https://github.com/Microsoft/TRELLIS.git \
     && cd TRELLIS \
     && git submodule update --init --recursive --depth 1 \
     && touch trellis/representations/mesh/flexicubes/__init__.py \
+    && find trellis -type d -not -path '*/\.*' \
+        -exec sh -c '[ ! -f "$0/__init__.py" ] && touch "$0/__init__.py" && echo "[init] created $0/__init__.py" || true' {} \; \
     && chmod -R a+rX trellis \
     && echo "=== flexicubes contents ===" \
     && ls -la trellis/representations/mesh/flexicubes/ \
     && test -f trellis/representations/mesh/flexicubes/flexicubes.py \
     && test -f trellis/representations/mesh/flexicubes/tables.py \
-    && test -f trellis/representations/mesh/flexicubes/__init__.py
+    && test -f trellis/representations/mesh/flexicubes/__init__.py \
+    && test -f trellis/modules/__init__.py
 
 WORKDIR /opt/TRELLIS
 
