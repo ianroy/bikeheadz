@@ -83,6 +83,13 @@ RUN bash ./setup.sh --xformers      || echo "[build] xformers install failed; co
 RUN bash ./setup.sh --spconv        || echo "[build] spconv install failed; continuing"
 RUN bash ./setup.sh --flash-attn    || echo "[build] flash-attn install failed; continuing"
 RUN bash ./setup.sh --diffoctreerast || echo "[build] diffoctreerast install failed; continuing"
+# Mesh / Gaussian Splatting / radiance-field decoders need these. setup.sh
+# has the right wheel URLs for torch 2.4.0 + cu121 specifically. Each is a
+# CUDA extension build, so allow individual failures rather than killing
+# the image.
+RUN bash ./setup.sh --kaolin        || echo "[build] kaolin install failed; continuing"
+RUN bash ./setup.sh --nvdiffrast    || echo "[build] nvdiffrast install failed; continuing"
+RUN bash ./setup.sh --mipgaussian   || echo "[build] mipgaussian install failed; continuing"
 
 # Worker-side deps that aren't in setup.sh.
 # (NOTE: don't aggressively pin huggingface_hub — transformers depends on the

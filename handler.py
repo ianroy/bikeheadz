@@ -47,7 +47,7 @@ os.environ.setdefault("ATTN_BACKEND", "sdpa")
 # Version banner — prints unconditionally at module load time so we can
 # tell from the worker logs whether the running container is actually
 # the image tag we think it is.
-HANDLER_VERSION = "v0.1.19"
+HANDLER_VERSION = "v0.1.20"
 sys.stderr.write(f"[bikeheadz] handler.py {HANDLER_VERSION} booting (pid={os.getpid()})\n")
 sys.stderr.flush()
 
