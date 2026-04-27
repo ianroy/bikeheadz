@@ -9,6 +9,23 @@ inside `handler.py` past the TRELLIS call belongs here.
 
 ---
 
+## 0. Locked decisions
+
+These are not open questions — they are pre-conditions. The phases below
+assume they hold. If any shifts, the plan needs revisiting.
+
+| Decision | Value | Rationale |
+|---|---|---|
+| **Print process** | **Resin (SLA / MSLA)** as primary | The reference STLs (~200K tris) have organic detail and fine threads. SLA prints them reliably and handles internal-thread overhangs without supports. FDM is a fallback only — different clearance and triangle budget if we ever ship it (see Stage 5). |
+| **Coordinate frame** | **Z-up, +Y forward (face), millimeters** | Matches §8.1 invariants and the Three.js viewer at [valve-stem-viewer.js:251](client/components/valve-stem-viewer.js:251), which rotates −π/2 around X assuming Z-up. |
+| **Boolean engine** | **manifold3d 3.4+** | §7 audit; the only CPU CSG with a manifold-output guarantee. |
+| **Negative-core clearance** | **0.15 mm radial** over the valve cap's outer profile | Tuned to SLA tolerance. FDM would want ≈0.25–0.30 mm. |
+| **Triangle budget (output)** | **30–60K** | 30 mm part at 0.05 mm SLA layer height; more is invisible to the slicer. FDM at 0.1 mm could justify ~80K. |
+| **STL format on the wire** | **Binary** | §8.9. ASCII at 80K tris is ~25 MB vs ~4 MB binary; slicers parse binary 5–10× faster. Existing post-payment download path needs a `Buffer`-aware fix before any pipeline change ships. |
+
+**Open today:** the FDM-vs-SLA assumption depends on the fulfilment vendor —
+confirm with whoever's printing before Phase −1.
+
 ## 1. Goal
 
 Take a photo of a person, return a 3D-printable STL of a bike valve stem cap
@@ -61,48 +78,96 @@ The Dockerfile already does `COPY server/assets/valve_cap.stl /app/valve_cap.stl
 ## 4. Pipeline Architecture
 
 ```
-                                   ┌──────────────────────────────────┐
-                                   │ TRELLIS (existing, on GPU)       │
-photo  ────────►  handler.py  ───► │  outputs["mesh"][0]              │
-                                   │  ~200K triangles, unitless,      │
-                                   │  watertight-ish, head + chest    │
-                                   └────────────┬─────────────────────┘
-                                                │ trimesh.Trimesh
-                                                ▼
                               ┌──────────────────────────────────────┐
-                              │ STAGE 1 — Normalize & calibrate      │
-                              │ Convert to mm. Scale to match the    │
-                              │ canonical reference height.          │
-                              │ Reorient so +Z is up, head-down at   │
-                              │ the origin.                          │
+                              │ STAGE 0 — Input validation           │
+photo  ──────────────────────►│ mediapipe FaceMesh on the photo.     │
+                              │ Reject early if no face detected;    │
+                              │ extract 2D landmarks for Stage 1's   │
+                              │ orientation hint.  See §5 Stage 0.   │
+                              └────────────┬─────────────────────────┘
+                                           ▼
+                              ┌──────────────────────────────────────┐
+                              │ TRELLIS (existing, GPU)              │
+                              │ outputs["mesh"][0]                   │
+                              │ ~200K tris, unitless, head + chest,  │
+                              │ frequently non-manifold (see §8.2)   │
+                              └────────────┬─────────────────────────┘
+                                           │ trimesh.Trimesh
+                                           ▼
+                              ┌──────────────────────────────────────┐
+                              │ STAGE 1 — Normalize                  │
+                              │ Orient (Z-up, +Y forward), scale to  │
+                              │ TARGET_HEAD_HEIGHT_MM, recenter to   │
+                              │ origin.                              │
+                              └────────────┬─────────────────────────┘
+                                           ▼
+                              ┌──────────────────────────────────────┐
+                              │ STAGE 1.5 — Repair                   │
+                              │ pymeshlab round-trip: drop floaters, │
+                              │ fix non-manifold edges, close holes, │
+                              │ reorient faces.  See §8.3.           │
                               └────────────┬─────────────────────────┘
                                            ▼
                               ┌──────────────────────────────────────┐
                               │ STAGE 2 — Crop to neck-and-up        │
-                              │ Find the chin/neck transition; slice │
-                              │ with a horizontal plane; close the   │
-                              │ resulting hole into a flat disc.     │
+                              │ Boolean-subtract a bounding box up   │
+                              │ to z_cut. Cap face is CDT-           │
+                              │ triangulated, watertight by          │
+                              │ construction.  See §8.4.             │
                               └────────────┬─────────────────────────┘
                                            ▼
                               ┌──────────────────────────────────────┐
-                              │ STAGE 3 — Boolean: subtract socket   │
-                              │ Position negative_core.stl at the    │
-                              │ head bottom; subtract.               │
-                              │ Result: head with a clean cavity.    │
+                              │ STAGE 3 — Subtract negative core     │
+                              │ head − negative_core ⇒ socketed head.│
                               └────────────┬─────────────────────────┘
                                            ▼
                               ┌──────────────────────────────────────┐
-                              │ STAGE 4 — Boolean: insert valve cap  │
-                              │ Translate valve_cap.stl to the same  │
-                              │ pose; union with the cavity head.    │
-                              │ Threads must remain exposed.         │
+                              │ STAGE 4 — Union valve cap            │
+                              │ socketed + valve_cap ⇒ threaded cap. │
+                              │ Threads stay exposed inside cavity.  │
+                              └────────────┬─────────────────────────┘
+                                           ▼
+                              ┌──────────────────────────────────────┐
+                              │ STAGE 5 — Print-prep                 │
+                              │ fast-simplification → 30–60K tris    │
+                              │ Taubin smoothing on organic regions  │
+                              │ assert_printable; export binary STL  │
                               └────────────┬─────────────────────────┘
                                            ▼
                                        final.stl
                               (single manifold, slicer-clean)
 ```
 
+Stages 0, 1.5, and 5 are mandatory but distinct from the user's
+"4 things." See §5 for prose on each.
+
 ## 5. Stage-by-stage Technical Detail
+
+### Stage 0 — Input validation
+
+**Why:** Failing fast on bad input saves a $0.50–2 GPU cold-start. A 1×1
+PNG, a photo with no face, or an extreme-angle selfie shouldn't make it
+to TRELLIS.
+
+**Inputs:** Raw uploaded photo bytes.
+
+**Steps:**
+1. Decode → `PIL.Image`. Reject if either dimension < 256 px.
+2. Run `mediapipe FaceMesh` (Tasks API). Require ≥1 face with confidence
+   ≥ 0.7.
+3. Extract these landmark points and stash on the request context for
+   Stage 1 to consume as an orientation hint:
+   - chin (landmark 152)
+   - nose tip (landmark 1)
+   - left/right eye outer corners (33, 263)
+   - top of forehead approximation (10)
+4. Compute 2D head pose (yaw/pitch/roll). If any axis > 30°, log a
+   warning — Stage 1's PCA may need the landmark fallback.
+
+**Failure mode:**
+`PipelineError(stage="stage0", failure="no_face_detected")` with
+user-facing copy: *"Couldn't find a clear face. Use a front-facing
+portrait."*
 
 ### Stage 1 — Normalize & calibrate
 
@@ -133,10 +198,37 @@ Bound it (0.85 .. 1.15) so the result still fits the cap.
 
 **Risks:**
 - TRELLIS output occasionally has the head looking sideways. PCA orientation
-  fails ≈10% of the time. Fallback: render the mesh from a few angles and
-  pick the one with the highest face-detection confidence (mediapipe).
+  fails ≈10% of the time. Fallback: use Stage 0's mediapipe landmarks
+  (eyes, nose, chin) to compute a head-frame matrix and apply it instead.
 - The reference STLs include the valve cap. Subtract its height when
   computing `TARGET_HEAD_HEIGHT_MM`.
+
+### Stage 1.5 — Repair
+
+**Why:** TRELLIS output is *not* manifold (§8.2 catalogs the defect
+modes). manifold3d will refuse non-manifold input or silently corrupt
+the boolean result. Repair before any boolean.
+
+**Inputs:** Stage 1 output (oriented, scaled, recentered).
+
+**Steps:** See §8.3 — drop floaters, pymeshlab round-trip (non-manifold
+edge repair, close holes, reorient faces).
+
+**Validation:** Run `assert_printable(stage="stage1.5")` (§8.6) — but
+relax the `is_volume` and `is_winding_consistent` checks since the
+post-repair head isn't yet a closed solid (no socket, no cap). Tighten
+those checks again at Stage 3 and 4.
+
+**Reference implementation to read first:** Microsoft ships a
+`mesh_postprocess.py` in the TRELLIS repo. Likely covers 60–80% of what
+we need against the same defect catalogue. Read it before writing
+ours — don't reinvent.
+
+**Risks:**
+- pymeshlab is GPL v3. See §7's license caveat for the subprocess
+  isolation pattern. If legal kills this path, fall back to
+  `trimesh.repair` + `gpytoolbox.remesh_botsch`, accepting weaker
+  hole-closing on non-convex boundaries.
 
 ### Stage 2 — Crop to neck-and-up
 
@@ -183,26 +275,23 @@ much more reliable than booleans against the messy organic shape of a head.
 Carve first with the simple shape, then we know exactly where the threads go.
 
 **Inputs:**
-- `head_cropped` from Stage 2 (must be watertight; verify with
-  `trimesh.repair.fill_holes` + `is_watertight`).
+- `head_cropped` from Stage 2 (already watertight by construction —
+  Stage 2's boolean crop guarantees it).
 - `negative_core.stl` from `server/assets/`.
 
 **Steps:**
-1. **Repair** both meshes if needed:
-   - `trimesh.repair.fix_normals(head_cropped)`
-   - `trimesh.repair.fix_winding(head_cropped)`
-   - `trimesh.repair.fill_holes(head_cropped)`
-   - For TRELLIS output, also consider `trimesh.smoothing.filter_taubin` at a
-     very low strength to remove staircase artifacts.
+1. **Pre-flight check.** Run `assert_printable(stage="pre-stage3")`
+   (§8.6) on `head_cropped`. Repair already happened in Stage 1.5 (§8.3);
+   if it fails here, surface the error — don't silently re-repair, that
+   hides regressions and produces nondeterministic output.
 2. **Position the negative core.** Translate it so its top face is flush
    with the bottom plane of the cropped head, centered on the head's XY
-   centroid at that plane.
-3. **Boolean subtract.**
-   ```
-   head_with_cavity = manifold3d.Manifold(head_cropped) - manifold3d.Manifold(negative_core)
-   ```
-4. **Validate:** `head_with_cavity.is_watertight` must be `True`. If not,
-   surface the failure as an error (don't ship a broken STL).
+   centroid at that plane. The translation matrix is reused identically
+   in Stage 4 — confirm via the spike (Phase −1) that this works for
+   both references.
+3. **Boolean subtract.** See §8.5 for the recipe and the tolerance rule.
+4. **Validate:** `assert_printable(stage="stage3")` (§8.6). Watertight,
+   single shell, positive volume.
 
 **Library choice:**
 - **`manifold3d`** is the right tool. MIT-licensed, exact-arithmetic CSG, no
@@ -286,17 +375,25 @@ Source files:
 - `server/assets/reference/nik_head.stl`
 
 Constants we extract:
-- `TARGET_HEAD_HEIGHT_MM` — height of the head portion only, averaged across
-  references. This drives Stage 1 scaling.
-- `VALVE_CAP_OFFSET_FROM_HEAD_BOTTOM_MM` — vertical offset between the head
-  bottom plane and the valve cap's reference origin. Drives Stage 3/4
-  positioning.
-- `NEGATIVE_CORE_DIAMETER_MM` and `VALVE_CAP_OUTER_DIAMETER_MM` — verifies
-  the clearance fit. (Calibration assertion, not a runtime input.)
 
-Deliverable: a small Python script `tools/calibrate_pipeline.py` that loads
-the references, prints these numbers, and writes them to a JSON file the
-handler imports. Cheap to re-run if the reference set changes.
+| Constant | Source | Used by |
+|---|---|---|
+| `TARGET_HEAD_HEIGHT_MM` | Reference bbox height minus cap section, averaged | Stage 1 scaling |
+| `VALVE_CAP_OFFSET_FROM_HEAD_BOTTOM_MM` | Z offset between head bottom plane and the cap's reference origin | Stage 3/4 positioning |
+| `NEGATIVE_CORE_DIAMETER_MM` | Measured from `negative_core.stl` | Calibration assertion |
+| `VALVE_CAP_OUTER_DIAMETER_MM` | Measured from `valve_cap.stl` | Calibration assertion |
+| `NEGATIVE_CORE_CLEARANCE_MM` | Locked at **0.15 mm** (§0); calibration verifies actual radial gap matches | Stage 3 sizing assertion |
+| `MANIFOLD_TOLERANCE_MM` | Locked at **0.01 mm** (§8.5); 1/3000 of part bbox | Passed to manifold3d on every Manifold construction |
+| `CAP_REGION_Z_RANGE_MM` | Z range of cap-section faces in the references (e.g. `[-12.0, -3.0]`) | Mask for §8.7 decimation and §8.8 smoothing |
+| `CAP_REGION_RADIUS_MM` | XY radius around origin that bounds the cap-section faces | Same mask |
+| `MIN_WALL_THICKNESS_MM` | Locked at **0.8 mm** for SLA, **1.2 mm** for FDM | Optional §8.6 wall-thickness check |
+
+Deliverable: `tools/calibrate_pipeline.py` loads the references, computes
+these numbers, and writes them to `server/assets/pipeline_constants.json`.
+The handler imports the JSON at module load (no recompute on warm
+invocations). Re-runs in CI on any change to `server/assets/reference/`
+or `negative_core.stl` / `valve_cap.stl`; > 1% drift in any constant
+blocks the merge until reviewed (§9.5).
 
 ## 7. Tools & Libraries
 
@@ -401,7 +498,7 @@ reliably exhibit:
 **Treat all single-photo recon outputs as "needs heavy repair before
 boolean."** This is the dominant reason Stage 1.5 (repair) exists.
 
-### 8.3 Repair recipe (between TRELLIS and Stage 1's scaling)
+### 8.3 Repair recipe (Stage 1.5)
 
 ```python
 import trimesh, numpy as np, pymeshlab as ml
@@ -652,60 +749,277 @@ warm invocation).
 
 ### Tests
 
-New file: `tools/pipeline_smoke_test.py`. For each reference STL,
-synthetically reconstruct what TRELLIS *would have* produced (e.g., crop
-the reference to remove the valve cap, leaving a head-only mesh) and run
-the pipeline forward. Assert:
-- Output bounding box matches the reference within tolerance.
-- Output is watertight.
-- Hausdorff distance to the reference is below threshold.
+Two-tier test strategy. The corpus is the only thing that grows over
+time; the spike is one-off.
 
-Run it in CI on every commit that touches the pipeline.
+**Phase −1 spike test** (one-off, notebook):
+1. Load each `reference/*_head.stl` plus `valve_cap.stl`.
+2. Compute `reference − valve_cap` via manifold3d. Inspect: does the
+   leftover look like a head with a clean socket?
+3. Compute `(reference − valve_cap) + valve_cap` and Hausdorff-diff
+   against the original reference. Should be ≈0.
+4. Compute the constants in §6 from the references; sanity-check ranges
+   (head height 50–80 mm, cap offset −15 to −5 mm, etc.).
+
+If any of these fails, the design is wrong and the rest of the plan
+should not start. Output: a 1-page spike report with specific numbers.
+
+**Production smoke test** (`tools/pipeline_smoke_test.py`, runs in CI):
+
+Driven by a fixed corpus at `server/assets/test_corpus/`. Each entry is:
+
+```
+test_corpus/
+  001_studio_portrait/
+    photo.jpg            # original input
+    trellis_raw.stl      # cached TRELLIS output (so CI doesn't need a GPU)
+    golden.stl           # known-good pipeline output (committed)
+    notes.md             # one-line description and any quirks
+```
+
+The corpus starts with 5 inputs at Phase −1 and grows toward ~25 by
+Phase 4. Failed inputs from production join the corpus automatically
+(see §9.5 Failure corpus).
+
+For each corpus entry the test:
+1. Loads `trellis_raw.stl` (skipping TRELLIS — CI has no GPU).
+2. Runs the full pipeline (Stages 1 through 5).
+3. Asserts:
+   - `assert_printable(final, stage="final")` passes (§8.6).
+   - Output bbox dimensions within 5% of `golden.stl`.
+   - Hausdorff distance to `golden.stl` below per-entry threshold
+     (default 0.5 mm; tuned during Phase −1).
+   - Triangle count in §0's 30–60K band.
+
+Why we don't synthesize TRELLIS-output by inverting the references: the
+references are *post-boolean*. Inverting an organic boolean is not
+deterministic and the reconstruction wouldn't match what TRELLIS
+actually emits. The corpus path uses real TRELLIS outputs as ground
+truth, which is the only honest signal.
+
+### 9.5 Iteration & operations
+
+The plan above ships v1. To iterate without regressing:
+
+#### Feature flag and traffic split
+
+Add `PIPELINE_VERSION` to handler.py with two values:
+
+- `legacy` — current `_merge` (handler.py:230). Default until Phase 2's
+  done-when criteria are met.
+- `v1` — new four-stage pipeline.
+
+The Node side passes the desired version through the RunPod job input.
+Default rollout sequence: `100% legacy → 10% v1 → 50% v1 → 100% v1`.
+Each step gated on:
+- Failure rate of v1 ≤ failure rate of legacy.
+- p50 latency of v1 ≤ 1.5× legacy.
+- Zero `assert_printable(final)` regressions over the last 200 v1
+  requests.
+
+Rollback is instant: flip the env var. Image-tag rollback is the slower
+last resort.
+
+#### Failure corpus
+
+On any pipeline error or `assert_printable` failure, write to a Network
+Volume path:
+
+```
+/runpod-volume/failures/<yyyymmdd>/<job-id>/
+    photo.jpg
+    trellis_raw.stl     (if Stage 0/1 passed)
+    error.json          { stage, failure, message, timing }
+    stage_outputs/      partial meshes from each completed stage
+```
+
+Once a week:
+1. Triage failures (categorize by stage).
+2. Add representative ones to `test_corpus/`.
+3. Re-run the smoke test. If it newly fails, fix or document.
+
+This is the only mechanism that turns production reality into pipeline
+improvements. **Without it, the plan is one-shot, not iterative.**
+
+#### Telemetry schema
+
+Every run emits one structured log line at completion:
+
+```json
+{
+  "ts": "2026-04-27T19:13:41.598Z",
+  "version": "v1",
+  "job_id": "74bd37f4-...",
+  "image_sha256": "ab12...",
+  "stages": {
+    "stage0_ms": 47, "stage0_ok": true, "stage0_face_count": 1,
+    "trellis_ms": 16400,
+    "stage1_ms": 85, "stage1_pca_used": true,
+    "stage1_5_ms": 320, "stage1_5_holes_closed": 7, "stage1_5_floaters_dropped": 2,
+    "stage2_ms": 140, "stage2_z_cut": 67.4,
+    "stage3_ms": 220,
+    "stage4_ms": 180,
+    "stage5_ms": 410, "stage5_tris_in": 187214, "stage5_tris_out": 42018
+  },
+  "final_volume_mm3": 7421.3,
+  "final_tris": 42018,
+  "validation_passed": true
+}
+```
+
+Ship to whatever log aggregator we settle on (CloudWatch / BetterStack
+/ Loki — TBD). Without this, regressions are invisible until users
+complain.
+
+#### Abuse and resource bounds
+
+- **Triangle budget on TRELLIS output:** reject after Stage 1.5 if
+  `len(faces) > 500_000`. Adversarial inputs have been observed past
+  1M, which would burn manifold3d for minutes.
+- **Per-stage timeout:** 60 s wall-clock. Exceeded → abort with
+  `stage_timeout`.
+- **Total wall-clock budget post-cold-start:** 5 minutes.
+- **Photo size cap:** 25 MB upload. Anything larger is rejected at the
+  Node edge.
+
+#### Calibration regeneration
+
+Any change to `server/assets/reference/` or to `valve_cap.stl` /
+`negative_core.stl` triggers `tools/calibrate_pipeline.py` in CI. New
+constants are diffed against the previous JSON; > 1% drift in any
+constant blocks the merge until reviewed.
+
+#### Architecture decision: where does CPU work run?
+
+For now: **fused with the GPU worker.** Same handler.py, same RunPod
+endpoint. Pros: simple, one cold-start, one container. Cons: GPU sits
+idle during Stages 1.5–5 (~30–60 s), paying GPU rates for CPU work.
+
+Revisit if cost becomes a problem: split into a GPU endpoint (TRELLIS
+only) + CPU endpoint (the four boolean stages). Adds a second
+cold-start path and a job hand-off — not worth the complexity until
+the GPU-idle cost is real.
+
+#### STL transfer mechanism
+
+`stl_b64` in the JSON response (committed in `f9dc227`) wastes ~33% on
+the wire. Acceptable at v1 scale. Migrate to a presigned download URL
+or socket.io binary frame when traffic warrants — flag for review when
+average response size > 8 MB.
 
 ## 10. Implementation Phases
 
-Designed for incremental ship — each phase has a working app at the end.
+Designed for incremental ship — each phase has a working app at the end,
+and each phase is gated behind `PIPELINE_VERSION` (§9.5) so rollback is
+seconds, not a rebuild.
 
-### Phase 0 — Calibration & contracts (no code change to handler)
-1. Write `tools/calibrate_pipeline.py`.
-2. Generate `server/assets/pipeline_constants.json`.
-3. Confirm `negative_core.stl` and `valve_cap.stl` share an origin and that
-   the negative core is correctly oversized vs. the cap (§5 Stage 4 risk).
-4. **Done when:** the constants file exists and a unit test asserts the
-   geometric relationship between the two cap-related STLs is sane.
+### Phase −1 — Spike (no app changes, half-day)
 
-### Phase 1 — Stage 1 + Stage 2 (no booleans yet)
-1. Implement `stage1_normalize` and `stage2_crop_to_head` in
-   `server/workers/pipeline.py`.
-2. Replace the *scaling* part of `_merge` in `handler.py` with calls to
-   these stages. Keep the existing `concatenate` for now.
-3. **Done when:** the live app shows correctly-scaled, neck-cropped heads
-   sitting on top of the unmodified valve cap (still two shells, still not
-   printable).
+Validate the architecture against the references **manually** before
+committing engineering effort.
 
-### Phase 2 — Stage 3 + Stage 4 (real booleans)
-1. Add `manifold3d` to the Dockerfile.
-2. Add the negative core to the Dockerfile COPY.
-3. Implement `stage3_subtract_negative_core` and `stage4_union_valve_cap`.
-4. Replace `_merge`'s `concatenate` call with the boolean sequence.
-5. **Done when:** the live app outputs single-shell, watertight,
-   slicer-clean STLs that look like the references when overlaid.
+1. Open a Jupyter notebook with `trimesh` + `manifold3d`.
+2. Load `reference/ian_head.stl`, `reference/nik_head.stl`,
+   `valve_cap.stl`, `negative_core.stl`.
+3. Run the inverse boolean: `reference − valve_cap`. Inspect the result —
+   should be a head with a clean socket. Confirm the socket geometry
+   matches what we expect Stage 3 to produce.
+4. Run `(reference − valve_cap) + valve_cap` and Hausdorff-diff against
+   the original reference. Result should be ≈0 mm. If not, the
+   negative-core / valve-cap pair don't share an origin and we have to
+   bake in a translation offset.
+5. Sanity-check the §6 calibration constants by hand on both references.
+   Bounding-box agreement between the two heads tells us the calibration
+   tolerance.
+6. Write a 1-page spike report.
+
+**Done when:** the report says "yes, design works" with specific
+numbers, OR identifies a structural problem to redesign around.
+
+**If this fails, the rest of the plan does not start.** Do not skip.
+
+### Phase 0 — Calibration, contracts, and the binary-STL bug
+
+1. Fix the latent ASCII-STL assumption at
+   [server/commands/stl.js:98](server/commands/stl.js:98) — switch the
+   download path to `Buffer`-aware before any pipeline change touches
+   the wire. Without this, post-payment downloads will be corrupt the
+   moment binary STLs ship from the new pipeline.
+2. Write `tools/calibrate_pipeline.py`. Generate
+   `server/assets/pipeline_constants.json` from the references.
+3. Wire the JSON-diff CI check (§9.5 calibration regeneration).
+4. Land 5 entries in `server/assets/test_corpus/` (capture
+   `trellis_raw.stl` + `golden.stl` from manual TRELLIS runs in dev).
+5. Add `PIPELINE_VERSION` env var to handler.py; default `legacy`. No
+   logic branches on it yet.
+
+**Done when:** constants file exists, ASCII-STL bug is fixed, corpus
+has ≥5 entries, CI calibration check is green.
+
+### Phase 1 — Stages 0, 1, 1.5, 2 (no full booleans yet)
+
+1. Implement `stage0_validate`, `stage1_normalize`, `stage1_5_repair`,
+   `stage2_crop` in `server/workers/pipeline.py`.
+2. Replace `_merge`'s scaling logic with these stages, gated on
+   `PIPELINE_VERSION=v1`. Keep the `concatenate` glue for now (still
+   not printable; that's fine — Phase 2 fixes it).
+3. Ship behind the feature flag at 10% traffic.
+
+**Done when:** v1-flagged requests show correctly-scaled, neck-cropped
+heads sitting on top of the unmodified valve cap. Stage 0–2 telemetry
+in the logs (§9.5).
+
+### Phase 2 — Stages 3, 4, 5 (real booleans + print-prep)
+
+1. Add `manifold3d` and `fast-simplification` to the Dockerfile.
+2. Add `negative_core.stl` to the Dockerfile COPY.
+3. Implement `stage3_subtract_negative_core`, `stage4_union_valve_cap`,
+   `stage5_postprocess`. Replace `concatenate` with the boolean
+   sequence in v1.
+4. Smoke test must pass on all corpus entries before flag flip.
+5. Ramp `PIPELINE_VERSION=v1` traffic per §9.5: 10% → 50% → 100%.
+
+**Done when:** 100% v1 traffic, single-shell watertight outputs at
+30–60K triangles matching the references when overlaid.
 
 ### Phase 3 — Robustness
-1. Auto-watertight repair before Stage 3.
-2. Reject (don't silently degrade) inputs that fail validation; surface
-   meaningful errors to the client.
-3. Implement the calibration smoke test in CI.
-4. **Done when:** failure modes are explicit ("no face detected", "mesh not
-   manifold after repair", "head pose ambiguous") instead of weird outputs.
+
+1. Define the error taxonomy as Python enum + Node-side handling +
+   user-facing copy:
+   - `no_face_detected`
+   - `low_image_quality`
+   - `head_pose_ambiguous`
+   - `non_manifold_input_unrepairable`
+   - `boolean_failed`
+   - `output_not_watertight`
+   - `output_dimensions_out_of_range`
+   - `triangle_budget_exceeded`
+   - `stage_timeout`
+2. Reject (don't silently degrade) inputs that fail validation. Each
+   rejection writes to the failure corpus (§9.5).
+3. Add `pymeshlab` (subprocess-isolated per §7) for hard-to-repair
+   inputs. Fall back to the MIT path if subprocess fails.
+4. Wire the telemetry schema (§9.5) to a real log aggregator.
+
+**Done when:** every failure path has a specific error code, a written
+user-facing message, and a corresponding entry in the failure corpus
+within a week of going live.
 
 ### Phase 4 — Polish
-1. Mediapipe-based Stage 2 fallback.
-2. Decimate output to ~80K triangles.
-3. Drop or rename `neck_length_mm` slider.
-4. Update [client/pages/home.js](client/pages/home.js) and the viewer
-   accordingly.
-5. **Done when:** the slider UI matches what the pipeline actually does.
+
+1. Mediapipe-based Stage 2 fallback (Approach B in §5 Stage 2) for
+   tilted-head failures from the corpus.
+2. Drop or rename the `neck_length_mm` slider (Stage 2 picks the cut
+   automatically). Update [client/pages/home.js](client/pages/home.js)
+   and the viewer accordingly.
+3. TRELLIS-output cache: key by `sha256(image)+seed`, store on the
+   Network Volume. Slider tweaks reuse the cached raw mesh and re-run
+   only Stages 1.5–5. Big UX and cost win.
+4. Triangle budget tightening per §0 (target 30–60K, not the older
+   80K number).
+
+**Done when:** the slider UI matches what the pipeline actually does,
+and a slider tweak completes in < 5 s on a warm worker.
 
 ## 11. Open Questions (for the next iteration of this doc)
 
@@ -721,17 +1035,22 @@ Designed for incremental ship — each phase has a working app at the end.
    "automated, predictable output" we should be honest and remove sliders
    that don't change the print. If the goal is "let people fiddle," keep
    them and clamp to safe ranges.
-4. **Print material assumption.** Resin (SLA) prints crisp threads but is
-   brittle. FDM PLA at 0.1mm prints functional threads but with looser
-   tolerance. The negative core's clearance over the valve cap should be
-   tuned to the dominant target — confirm with whoever's running fulfillment.
-5. **Should the bottom of the head have a flat sealing rim?** Stage 2 cuts
+4. **Should the bottom of the head have a flat sealing rim?** Stage 2 cuts
    the head with a plane. Whether the resulting flat ring around the cavity
    gets a bevel or stays sharp affects both aesthetics and how the cap sits
-   on a tire valve. Look at the references and lock down the geometry.
+   on a tire valve. Look at the references during Phase −1 and lock down
+   the geometry.
+5. **Where does CPU work run long-term?** §9.5 commits to fused with the
+   GPU worker for v1. Open question: at what scale does it become
+   cheaper to split into a CPU-only worker pool? Probably never on
+   serverless billing, but worth modelling once we have real traffic.
+
+(Q4 from a previous draft — print material — is now a locked decision
+in §0.)
 
 ---
 
-**Next action:** review this doc, refine §5 and §10, then start Phase 0 by
-writing `tools/calibrate_pipeline.py` to extract the constants from the
-reference STLs.
+**Next action:** confirm §0 decisions (especially the SLA-vs-FDM
+fulfilment assumption), then run **Phase −1 (the spike)** in §10.
+Everything else waits on the spike report. After the spike, refine §5,
+§8, and §10 with whatever the spike teaches us, and start Phase 0.
