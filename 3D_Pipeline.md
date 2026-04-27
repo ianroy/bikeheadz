@@ -16,21 +16,23 @@ assume they hold. If any shifts, the plan needs revisiting.
 
 | Decision | Value | Rationale |
 |---|---|---|
-| **Print process** | **FDM** (filament fused deposition) | This is the fulfilment process. The committed reference STLs (`ian_head.stl`, `nik_head.stl`) were FDM-printed and proved the design is FDM-compatible — that's the empirical evidence. SLA could be added later as a "premium" SKU but everything below is tuned for FDM tolerances. |
-| **Print orientation** | **Head-down, cap-up** (cap section pointing toward the bed) | The valve cap's internal threads are radial features. Printed cap-up they sit as a raised collar and the threads land as steep self-supporting overhangs. Printed cap-down (head pointing up), the threads become unsupported overhangs that FDM tears. The references were sliced cap-up — match that. |
-| **Coordinate frame** | **Z-up, +Y forward (face), millimeters** | Matches §8.1 invariants and the Three.js viewer at [valve-stem-viewer.js:251](client/components/valve-stem-viewer.js:251), which rotates −π/2 around X assuming Z-up. The Stage 5 export should orient `cap region toward −Z` so a slicer's default "place flat on bed" picks the right face. |
+| **Print process** | **FDM, PLA filament, 0.4 mm nozzle** | This is the fulfilment process. The committed reference STLs (`ian_head.stl`, `nik_head.stl`) were FDM-printed in PLA and proved the design works on this stack — that's the empirical evidence. SLA could be added later as a premium SKU but everything below is tuned for FDM/PLA. |
+| **Printer family** | **High-speed bed-slingers and CoreXY with input-shaping** — Bambu A1 / A1 Mini, Prusa MK4 / MINI+, Elegoo Centauri Carbon, etc. | All run OrcaSlicer or its forks (Bambu Studio, PrusaSlicer descended from Slic3r). All ship sane PLA profiles for 0.4 mm × 0.12–0.20 mm out of the box. No exotic firmware tuning required from us. We're targeting "drop the STL into Orca, hit print" — the slicer compensates for shrinkage, elephant-foot, and ringing. |
+| **Print orientation** | **Cap-down** (valve cap section flat on the bed; head pointing up) | The cap section is the only flat circular face on the assembly — natural footprint for bed adhesion. Printed cap-down the cap walls grow upward, internal threads form as helical features at ~60° (well within FDM self-support), and the head builds organically on top. Printed any other way, the head's curved skull contacts the bed and needs supports the slicer can't place cleanly. The references were sliced cap-down. |
+| **Coordinate frame** | **Z-up, +Y forward (face), millimeters** | Matches §8.1 invariants and the Three.js viewer at [valve-stem-viewer.js:251](client/components/valve-stem-viewer.js:251), which rotates −π/2 around X assuming Z-up. Stage 5 export must orient the **cap region toward −Z** so the slicer's default "place flat on bed" picks the cap as the print face. |
 | **Boolean engine** | **manifold3d 3.4+** | §7 audit; the only CPU CSG with a manifold-output guarantee. |
-| **Negative-core clearance** | **0.25 mm radial** over the valve cap's outer profile | FDM at 0.4 mm nozzle / 0.2 mm layer leaves shrinkage and elephant-foot in the 0.1–0.2 mm range. 0.25 mm gives clean clearance without slop. SLA would want 0.10–0.15 mm; revisit clearance per process if we ever ship dual fulfilment. |
-| **Layer height target** | **0.16–0.20 mm** | Standard FDM cap printing. Threads on a ~13 mm cap need at least 4–5 layers per thread pitch; this band hits that with stock PLA/PETG profiles. Stage 5 doesn't enforce layer height (slicer's job) but the triangle budget below assumes it. |
-| **Triangle budget (output)** | **50–80K** | 30 mm part at 0.16–0.20 mm FDM layer height. Lower than 50K starts faceting the chin and ears; higher than 80K is invisible to the slicer at this layer height and just bloats `stl_b64` over the wire. |
-| **Min wall thickness** | **1.2 mm** | FDM at 0.4 mm nozzle prints reliable walls at 3× nozzle width = 1.2 mm. Below that, gaps and inconsistent extrusion. Drives the optional wall-thickness check in §8.6. |
+| **Negative-core clearance** | **0.25 mm radial** over the valve cap's outer profile | FDM/PLA at 0.4 mm nozzle and 0.12–0.16 mm layers leaves shrinkage (~0.2–0.3% for PLA), elephant-foot at the cap base, and extrusion-width tolerance combining to roughly 0.15 mm of slop. 0.25 mm gives clean thread clearance without slop in the assembled part. SLA would want 0.10–0.15 mm. |
+| **Layer height target** | **0.12–0.16 mm** | The user's printer family runs comfortably here on PLA. A typical bike valve thread pitch is ~0.8 mm; at 0.12 mm layers that's ~6–7 layers per pitch — crisp threads. At 0.16 mm, ~5 layers — still clean. Stage 5 doesn't enforce this (slicer's job) but the triangle budget below assumes it. |
+| **Triangle budget (output)** | **50–80K** | 30 mm part at 0.12–0.16 mm FDM/PLA layer height. Below 50K the chin and ears facet visibly. Above 80K the slicer can't resolve added detail at this layer height and the surplus just bloats `stl_b64` over the wire. The thread region (cap) is masked from decimation and stays at full density regardless — those tolerances matter. |
+| **Min wall thickness** | **1.2 mm** | FDM at 0.4 mm nozzle prints reliable walls at 3× nozzle width = 1.2 mm. Below that, PLA shows gaps and inconsistent extrusion. Drives the optional wall-thickness check in §8.6. |
 | **STL format on the wire** | **Binary** | §8.9. ASCII at 80K tris is ~25 MB vs ~4 MB binary; slicers parse binary 5–10× faster. Existing post-payment download path at [server/commands/stl.js:98](server/commands/stl.js:98) needs a `Buffer`-aware fix before any pipeline change ships (Phase 0). |
 
-**Open today:** confirm with the print vendor that filament/profile
-matches the references' actual print (PLA vs PETG, layer height, nozzle
-diameter). The clearance and wall-thickness numbers above assume a stock
-0.4 mm nozzle and 0.16–0.20 mm layers — if they're using a 0.6 mm nozzle
-or 0.28 mm layers, those numbers shift.
+**Open today:** none of the §0 numbers depend on which printer in the
+target family the user owns — they're all PLA / 0.4 mm nozzle / OrcaSlicer
+fork. If a user later prints on a 0.6 mm nozzle, 0.25+ mm layers, or
+non-PLA filament (PETG, ABS, ASA), the clearance and wall-thickness
+numbers above need a re-tune. Bake that as a future "advanced
+fulfilment" SKU rather than a default.
 
 ## 1. Goal
 
@@ -359,8 +361,8 @@ Decimating first throws away features the boolean needs to land cleanly,
 and manifold3d 3.x is fast enough on 200K-tri inputs (sub-second) that the
 "speed up the boolean" argument doesn't hold.
 
-- **Decimate** the unioned solid to **50–80K triangles** (FDM at
-  0.16–0.20 mm layer height, §0). Below 50K the chin and ears start
+- **Decimate** the unioned solid to **50–80K triangles** (FDM/PLA at
+  0.12–0.16 mm layer height, §0). Below 50K the chin and ears start
   faceting; above 80K the slicer can't resolve the detail at this layer
   height. Use `fast-simplification` (Cython wrapper around sp4cerat's
   QEM — ~4× faster than MeshLab and meaningfully better preservation
@@ -649,9 +651,9 @@ def decimate(mesh: trimesh.Trimesh, target_tris: int = 40_000) -> trimesh.Trimes
     return out
 ```
 
-For 30 mm FDM prints at 0.16–0.20 mm layer height, 50–80K triangles is
-the sweet spot (§0). Past that, the slicer literally cannot resolve the
-detail. Below 50K the chin and ears facet visibly.
+For 30 mm FDM/PLA prints at 0.12–0.16 mm layer height, 50–80K triangles
+is the sweet spot (§0). Past that, the slicer literally cannot resolve
+the detail. Below 50K the chin and ears facet visibly.
 
 ### 8.8 Smoothing: Taubin only, masked
 
