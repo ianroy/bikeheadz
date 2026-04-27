@@ -12,6 +12,7 @@ export function HomePage({ socket }) {
     progress: 0,
     processingStep: '',
     stlReady: false,
+    stlData: null,
     headScale: 0.85,
     neckLength: 50,
     headTilt: 0,
@@ -217,6 +218,7 @@ export function HomePage({ socket }) {
       headColor: state.headColor,
       photoUrl: state.photoUrl,
       processing: state.processing,
+      stlData: state.stlData,
     });
   }
 
@@ -492,6 +494,7 @@ export function HomePage({ socket }) {
     state.photoFile = file;
     state.photoName = file.name;
     state.stlReady = false;
+    state.stlData = null;
     state.designId = null;
     state.designTriangles = 0;
     renderUploader();
@@ -512,6 +515,7 @@ export function HomePage({ socket }) {
     if (!state.photoUrl || state.processing) return;
     state.processing = true;
     state.stlReady = false;
+    state.stlData = null;
     state.progress = 0;
     state.processingStep = '';
     state.designId = null;
@@ -544,6 +548,7 @@ export function HomePage({ socket }) {
       });
       state.designId = result.designId;
       state.designTriangles = result.triangles || 0;
+      state.stlData = result.stl_b64 || null;
       state.stlReady = true;
       sessionStorage.setItem('bikeheadz.designId', result.designId);
     } catch (err) {

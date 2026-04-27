@@ -81,6 +81,10 @@ export const stlCommands = {
         filename,
         triangles: countTriangles(stlBytes),
         bytes: stlBytes.length,
+        // Base64 of the raw STL so the client can render the real mesh in
+        // the 3D viewer immediately, without waiting for purchase. The
+        // post-payment download path still goes through stl.download.
+        stl_b64: stlBytes.toString('base64'),
       };
     } finally {
       fs.rm(workDir, { recursive: true, force: true }).catch(() => {});

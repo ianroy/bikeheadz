@@ -1,29 +1,37 @@
-import { SVG } from '@svgdotjs/svg.js';
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { STLLoader } from 'three/addons/loaders/STLLoader.js';
 
-// Replaces the THREE.js <ValveStem3DViewer>. All graphical objects are
-// controlled through SVG.js primitives (gradients, ellipses, paths, groups,
-// clip-paths, filters). The viewer exposes:
+// Real WebGL viewer for the BikeHeadz preview/output mesh.
+//
+// API (unchanged from the previous SVG viewer so home.js doesn't need to
+// re-learn it):
 //
 //   createValveStemViewer({ container, initial })
 //       → { update(patch), destroy() }
 //
-// Accepted state keys (same surface as before):
-//   headScale    — 0.5..1.5  scale applied to the head sphere/neck stub
-//   neckLength   — 20..80    mm, visually scaled
-//   headTilt     — -15..15   degrees
+// State keys:
+//   headScale    — 0.5..1.5  scales the placeholder head sphere
+//   neckLength   — 20..80    mm; scales the placeholder stem cylinder
+//   headTilt     — -15..15   degrees; rotates the placeholder head
 //   materialType — 'matte' | 'gloss' | 'chrome'
-//   headColor    — CSS hex   fallback color when no photo is loaded
-//   photoUrl     — string|null  clipped into the head circle
-//   processing   — boolean   toggles a scanning ring animation
+//   headColor    — CSS hex; tints the model
+//   processing   — boolean; pauses auto-rotate and pulses the placeholder head
+//   stlData      — base64 string | ArrayBuffer | Uint8Array | null
+//                   When set, the placeholder is removed and the real STL
+//                   mesh is rendered in its place.
+//   photoUrl     — accepted for API compat with the old SVG viewer but
+//                   ignored (a photo doesn't compose with a 3D mesh).
 //
-// Drag-to-rotate is implemented with a yaw angle that slightly squishes the
-// horizontal ellipses (caps, threads) and shifts gradient stops, giving a
-// legible sense of 3D without leaving the 2D SVG surface.
+// Behavior:
+//   • OrbitControls drives the camera. Drag to rotate, scroll/pinch to zoom.
+//   • Idle auto-rotate kicks in when the user isn't interacting and we're
+//     not actively processing.
+//   • While `stlData` is null, a parametric stem+sphere placeholder reflects
+//     the current slider settings so the controls feel live before
+//     generation completes.
 
-const VB_X = -160;
-const VB_Y = -240;
-const VB_W = 320;
-const VB_H = 480;
+const BG_COLOR = 0x0d0d1e;
 
 export function createValveStemViewer({ container, initial = {} }) {
   const state = {
@@ -32,315 +40,338 @@ export function createValveStemViewer({ container, initial = {} }) {
     headTilt: 0,
     materialType: 'chrome',
     headColor: '#c8b8a0',
-    photoUrl: null,
     processing: false,
+    stlData: null,
+    photoUrl: null,
     ...initial,
   };
 
-  const draw = SVG().addTo(container).size('100%', '100%').viewbox(VB_X, VB_Y, VB_W, VB_H);
-  const node = draw.node;
-  node.style.background = '#0d0d1e';
-  node.style.cursor = 'grab';
-  node.style.touchAction = 'none';
-  node.style.display = 'block';
+  // ── Renderer ───────────────────────────────────────────────
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  const canvas = renderer.domElement;
+  Object.assign(canvas.style, {
+    width: '100%', height: '100%', display: 'block', touchAction: 'none',
+  });
+  container.appendChild(canvas);
 
-  // Persistent defs — gradients whose stops we mutate per-frame.
-  const defs = draw.defs();
+  // ── Scene + camera + lights ────────────────────────────────
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(BG_COLOR);
 
-  const metalGrad = mkLinearGradient(defs, 'metal', [
-    [0, '#e4e8f0'], [0.45, '#8e95a5'], [1, '#2c3040'],
-  ]);
-  const brassGrad = mkLinearGradient(defs, 'brass', [
-    [0, '#eddc8b'], [0.5, '#c8a032'], [1, '#5e4710'],
-  ]);
-  const darkMetalGrad = mkLinearGradient(defs, 'darkmetal', [
-    [0, '#b6bdcd'], [0.5, '#606674'], [1, '#1d2130'],
-  ]);
-  const headGrad = mkLinearGradient(defs, 'head', [
-    [0, '#ffffff'], [0.4, state.headColor], [1, '#1d1d22'],
-  ]);
-  const floorGrad = mkRadialGradient(defs, 'floor', [
-    [0, 'rgba(180,255,69,0.12)'], [1, 'rgba(180,255,69,0)'],
-  ]);
+  const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100);
+  camera.position.set(0, 1.4, 6);
 
-  // Scene groups.
-  const scene = draw.group();
-  const floor = scene.group();
-  floor.ellipse(260, 34).center(0, 180).fill('url(#floor)');
+  scene.add(new THREE.AmbientLight(0xffffff, 0.35));
+  scene.add(new THREE.HemisphereLight(0xb8c8ff, 0x202028, 0.5));
+  const key = new THREE.DirectionalLight(0xffffff, 1.6);
+  key.position.set(4, 6, 4);
+  scene.add(key);
+  const fill = new THREE.DirectionalLight(0xffd9b8, 0.45);
+  fill.position.set(-5, 2, -3);
+  scene.add(fill);
 
-  const stemGroup = scene.group();
-  const headGroup = scene.group();
-  const scanGroup = scene.group();
+  // Brand-color floor disc (faint).
+  const floor = new THREE.Mesh(
+    new THREE.CircleGeometry(2.2, 64),
+    new THREE.MeshBasicMaterial({
+      color: 0xb4ff45, transparent: true, opacity: 0.06, side: THREE.DoubleSide,
+    }),
+  );
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.y = -1.6;
+  scene.add(floor);
 
-  // Interaction — yaw rotates the stem "around" the vertical axis.
-  let yaw = 0.35;
-  let dragging = false;
-  let prev = { x: 0, y: 0 };
+  // ── Controls ───────────────────────────────────────────────
+  const controls = new OrbitControls(camera, canvas);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.enablePan = false;
+  controls.minDistance = 3.5;
+  controls.maxDistance = 12;
+  controls.minPolarAngle = Math.PI * 0.15;
+  controls.maxPolarAngle = Math.PI * 0.85;
+  controls.autoRotate = !state.processing;
+  controls.autoRotateSpeed = 0.7;
 
-  const onDown = (e) => {
-    dragging = true;
-    prev = { x: e.clientX, y: e.clientY };
-    node.style.cursor = 'grabbing';
-    node.setPointerCapture?.(e.pointerId);
-  };
-  const onMove = (e) => {
-    if (!dragging) return;
-    const dx = e.clientX - prev.x;
-    yaw += dx * 0.01;
-    prev = { x: e.clientX, y: e.clientY };
-  };
-  const onUp = (e) => {
-    dragging = false;
-    node.style.cursor = 'grab';
-    node.releasePointerCapture?.(e.pointerId);
-  };
-  node.addEventListener('pointerdown', onDown);
-  node.addEventListener('pointermove', onMove);
-  node.addEventListener('pointerup', onUp);
-  node.addEventListener('pointercancel', onUp);
-  node.addEventListener('pointerleave', onUp);
+  let userInteracting = false;
+  controls.addEventListener('start', () => {
+    userInteracting = true;
+    controls.autoRotate = false;
+  });
+  controls.addEventListener('end', () => {
+    userInteracting = false;
+    controls.autoRotate = !state.processing;
+  });
 
-  // Animation loop.
-  let scanPhase = 0;
+  // ── Model + material ───────────────────────────────────────
+  const modelRoot = new THREE.Group();
+  scene.add(modelRoot);
+
+  const material = new THREE.MeshStandardMaterial();
+  applyMaterialPreset(material, state.materialType, state.headColor);
+
+  let placeholderGroup = null;
+  let stlMesh = null;
+  let lastStlKey = null;
+
+  rebuildPlaceholder();
+
+  // ── Sizing ─────────────────────────────────────────────────
+  function fitToContainer() {
+    const w = container.clientWidth || 320;
+    const h = container.clientHeight || 380;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  const ro = new ResizeObserver(fitToContainer);
+  ro.observe(container);
+  fitToContainer();
+
+  // ── Render loop ────────────────────────────────────────────
+  const clock = new THREE.Clock();
   let rafId = 0;
-  let lastT = performance.now();
-  function tick(t) {
-    const dt = Math.min(0.05, (t - lastT) / 1000);
-    lastT = t;
-    if (!dragging && !state.processing) yaw += dt * 0.35;
-    if (state.processing) scanPhase = (scanPhase + dt * 0.9) % 1;
-    render();
+  let materialBaseEmissive = material.emissiveIntensity;
+  function tick() {
     rafId = requestAnimationFrame(tick);
-  }
-  rafId = requestAnimationFrame(tick);
-
-  // Render all dynamic bits every frame. The cost is cheap — only a few dozen
-  // SVG nodes total — and lets us re-apply yaw/tilt without diffing.
-  function render() {
-    const ySquish = Math.abs(Math.sin(yaw)) * 0.65 + 0.35;   // 0.35..1
-    const lightShift = (Math.cos(yaw) + 1) / 2;               // 0..1
-    const { headScale, neckLength, headTilt, materialType, headColor, photoUrl, processing } = state;
-
-    // Rotate gradients slightly so highlights seem to follow the light as we rotate.
-    metalGrad.attr({ x1: `${lightShift * 100}%`, x2: `${(1 - lightShift) * 100}%` });
-    darkMetalGrad.attr({ x1: `${lightShift * 100}%`, x2: `${(1 - lightShift) * 100}%` });
-    brassGrad.attr({ x1: `${lightShift * 100}%`, x2: `${(1 - lightShift) * 100}%` });
-
-    drawStem(ySquish);
-    drawHead(ySquish, headScale, neckLength, headTilt, materialType, headColor, photoUrl);
-    drawScan(processing, headScale, neckLength);
-  }
-
-  function drawStem(sq) {
-    stemGroup.clear();
-    // Base flange
-    cylinder(stemGroup, { y: 175, h: 18, rTop: 38, rBot: 46, fill: 'url(#metal)', capFill: '#d6d9e2', sq });
-    // Lower locknut
-    cylinder(stemGroup, { y: 150, h: 22, rTop: 28, rBot: 28, fill: 'url(#brass)', capFill: '#e7ca74', sq, facets: 8 });
-    // Main shaft
-    cylinder(stemGroup, { y: 55,  h: 160, rTop: 20, rBot: 24, fill: 'url(#metal)', capFill: '#c7ccd8', sq });
-    // Threads
-    for (const y of [-26, -14, -2, 10, 22]) {
-      ellipseRing(stemGroup, 0, y, 20, sq);
+    if (state.processing && !stlMesh && placeholderGroup) {
+      const t = clock.getElapsedTime();
+      material.emissiveIntensity = materialBaseEmissive + 0.25 + Math.sin(t * 2.6) * 0.18;
+    } else if (material.emissiveIntensity !== materialBaseEmissive) {
+      material.emissiveIntensity = materialBaseEmissive;
     }
-    // Upper locknut
-    cylinder(stemGroup, { y: -44, h: 22, rTop: 26, rBot: 26, fill: 'url(#brass)', capFill: '#e7ca74', sq, facets: 8 });
-    // Valve core
-    cylinder(stemGroup, { y: -80, h: 44, rTop: 13, rBot: 18, fill: 'url(#darkmetal)', capFill: '#b0b5c2', sq });
+    controls.update();
+    renderer.render(scene, camera);
+  }
+  tick();
+
+  // ── Internals ──────────────────────────────────────────────
+  function applyMaterialPreset(mat, preset, hex) {
+    mat.color.set(hex);
+    if (preset === 'chrome') {
+      mat.metalness = 1.0;
+      mat.roughness = 0.06;
+      mat.emissive.set(0x101018);
+      mat.emissiveIntensity = 0.55;
+    } else if (preset === 'gloss') {
+      mat.metalness = 0.55;
+      mat.roughness = 0.2;
+      mat.emissive.set(0x000000);
+      mat.emissiveIntensity = 0;
+    } else {
+      mat.metalness = 0.06;
+      mat.roughness = 0.8;
+      mat.emissive.set(0x000000);
+      mat.emissiveIntensity = 0;
+    }
+    mat.needsUpdate = true;
   }
 
-  function drawHead(sq, scale, neck, tilt, material, color, photo) {
-    headGroup.clear();
-    const neckPx = (neck - 20) / 60 * 70 + 30;       // 30..100 px
-    const neckBaseY = -102;
-    const neckTopY = neckBaseY - neckPx;
-    const headR = 62 * scale;
-    const headY = neckTopY - headR + 6;
+  function rebuildPlaceholder() {
+    disposeGroup(placeholderGroup);
+    placeholderGroup = null;
+    if (stlMesh) return;
 
-    // Neck piece
-    cylinder(headGroup, {
-      y: (neckBaseY + neckTopY) / 2,
-      h: neckPx,
-      rTop: 14,
-      rBot: 17,
-      fill: 'url(#darkmetal)',
-      capFill: '#b0b5c2',
-      sq,
-    });
+    const group = new THREE.Group();
 
-    // Head sub-group (tilted).
-    const sub = headGroup.group().transform({ rotate: tilt, origin: [0, headY] });
+    // Stem cylinder — neckLength 20..80 → 0.8..2.4 units tall.
+    const stemH = 0.8 + ((state.neckLength - 20) / 60) * 1.6;
+    const stem = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.18, 0.22, stemH, 32),
+      material,
+    );
+    stem.position.y = -0.2;
+    group.add(stem);
 
-    // Head material gradient — rewritten each frame to follow color+material.
-    const light = shade(color, 0.55);
-    const base = color;
-    const dark = shade(color, -0.55);
-    const stops = (() => {
-      if (material === 'chrome') return [
-        [0, '#ffffff'], [0.18, base], [0.6, dark], [1, '#06070c'],
-      ];
-      if (material === 'gloss') return [
-        [0, light], [0.35, base], [1, dark],
-      ];
-      return [ // matte
-        [0, light], [0.55, base], [1, shade(color, -0.35)],
-      ];
-    })();
-    replaceStops(headGrad, stops);
+    // Base flange under the stem.
+    const flange = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.42, 0.5, 0.18, 32),
+      material,
+    );
+    flange.position.y = -0.2 - stemH / 2 - 0.09;
+    group.add(flange);
 
-    // Sphere silhouette
-    sub.circle(headR * 2).center(0, headY).fill('url(#head)');
-
-    // Optional photo inside the sphere.
-    if (photo) {
-      const clipId = `head-clip-${Math.abs(hash(photo))}`;
-      let clip = defs.findOne(`#${clipId}`);
-      if (!clip) {
-        clip = defs.clip().id(clipId);
-        clip.circle(headR * 2).center(0, headY);
-      } else {
-        clip.clear();
-        clip.circle(headR * 2).center(0, headY);
-      }
-      const img = sub.image(photo).size(headR * 2, headR * 2).move(-headR, headY - headR);
-      img.attr('preserveAspectRatio', 'xMidYMid slice');
-      img.attr('clip-path', `url(#${clipId})`);
-
-      // Material tint over the photo (chrome heavy, matte almost none).
-      const tintOpacity = material === 'chrome' ? 0.45 : material === 'gloss' ? 0.25 : 0.1;
-      sub.circle(headR * 2).center(0, headY).fill('url(#head)').opacity(tintOpacity);
+    // Thread rings.
+    for (let i = 0; i < 4; i++) {
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry(0.2, 0.012, 8, 32),
+        material,
+      );
+      ring.rotation.x = Math.PI / 2;
+      ring.position.y = -0.2 - stemH / 2 + 0.18 + i * 0.16;
+      group.add(ring);
     }
 
-    // Specular highlight — small bright ellipse top-left of sphere, shifts with yaw.
-    const hx = -headR * 0.35 + Math.sin(yaw) * headR * 0.4;
-    const hy = headY - headR * 0.4;
-    sub.ellipse(headR * 0.9, headR * 0.55)
-      .center(hx, hy)
-      .fill('#ffffff')
-      .opacity(material === 'chrome' ? 0.55 : material === 'gloss' ? 0.35 : 0.15);
+    // Head sphere — tilt-able sub-group.
+    const headR = 0.62 * state.headScale;
+    const headSub = new THREE.Group();
+    headSub.position.y = -0.2 + stemH / 2 + headR * 0.95;
+    headSub.rotation.z = THREE.MathUtils.degToRad(state.headTilt);
+    const head = new THREE.Mesh(
+      new THREE.SphereGeometry(headR, 48, 32),
+      material,
+    );
+    head.name = 'head';
+    headSub.add(head);
+    group.add(headSub);
 
-    // Neck stub under sphere (blends head into neck).
-    sub.path(
-      `M ${-headR * 0.38} ${headY + headR * 0.88}
-       Q 0 ${headY + headR * 1.1} ${headR * 0.38} ${headY + headR * 0.88}
-       L 18 ${neckTopY + 4}
-       L -18 ${neckTopY + 4} Z`
-    ).fill('url(#head)').opacity(0.85);
+    // Recenter group around y=0.
+    const box = new THREE.Box3().setFromObject(group);
+    const center = new THREE.Vector3();
+    box.getCenter(center);
+    group.position.y -= center.y;
 
-    // Store the head metrics for the scan ring.
-    headGroup.data('metrics', { headR, headY });
+    placeholderGroup = group;
+    modelRoot.add(group);
   }
 
-  function drawScan(active, scale, neck) {
-    scanGroup.clear();
-    if (!active) return;
-    const m = headGroup.data('metrics');
-    if (!m) return;
-    const ringY = m.headY - m.headR + (scanPhase * m.headR * 2);
-    const sx = Math.max(0.15, Math.sin(Math.PI * scanPhase));
-    const ring = scanGroup.ellipse(m.headR * 2 * sx, m.headR * 0.35)
-      .center(0, ringY)
-      .fill('none')
-      .stroke({ color: '#b4ff45', width: 2.4, opacity: 0.95 });
-    ring.filterWith((add) => add.gaussianBlur(1.5));
-    scanGroup.ellipse(m.headR * 2 * sx * 1.2, m.headR * 0.12)
-      .center(0, ringY)
-      .fill('#b4ff45')
-      .opacity(0.3);
+  function loadStl(data) {
+    const key = stlKey(data);
+    if (!key || key === lastStlKey) return;
+    lastStlKey = key;
+
+    const arrayBuffer = toArrayBuffer(data);
+    if (!arrayBuffer) {
+      console.warn('valve-stem-viewer: unsupported stlData type');
+      return;
+    }
+
+    let geo;
+    try {
+      geo = new STLLoader().parse(arrayBuffer);
+    } catch (err) {
+      console.error('STL parse failed', err);
+      return;
+    }
+    geo.computeVertexNormals();
+    geo.center();
+    geo.computeBoundingSphere();
+    const r = geo.boundingSphere?.radius || 1;
+    const scale = 1.5 / r;
+
+    disposeGroup(placeholderGroup);
+    placeholderGroup = null;
+    if (stlMesh) {
+      modelRoot.remove(stlMesh);
+      stlMesh.geometry.dispose();
+    }
+
+    const mesh = new THREE.Mesh(geo, material);
+    mesh.scale.setScalar(scale);
+    // STLs from TRELLIS are Z-up; Three.js convention is Y-up.
+    mesh.rotation.x = -Math.PI / 2;
+    modelRoot.add(mesh);
+    stlMesh = mesh;
+
+    // Reset framing on a fresh mesh.
+    controls.target.set(0, 0, 0);
+    camera.position.set(0, 1.4, 6);
+    controls.update();
+  }
+
+  function clearStl() {
+    lastStlKey = null;
+    if (stlMesh) {
+      modelRoot.remove(stlMesh);
+      stlMesh.geometry.dispose();
+      stlMesh = null;
+    }
+    rebuildPlaceholder();
   }
 
   return {
     update(patch) {
+      const prev = { ...state };
       Object.assign(state, patch);
-    },
-    setYaw(value) {
-      yaw = value;
+
+      if (prev.materialType !== state.materialType
+          || prev.headColor !== state.headColor) {
+        applyMaterialPreset(material, state.materialType, state.headColor);
+        materialBaseEmissive = material.emissiveIntensity;
+      }
+
+      const placeholderParamsChanged =
+        prev.headScale !== state.headScale
+        || prev.neckLength !== state.neckLength
+        || prev.headTilt !== state.headTilt;
+      if (!stlMesh && placeholderParamsChanged) rebuildPlaceholder();
+
+      if (state.stlData && state.stlData !== prev.stlData) {
+        loadStl(state.stlData);
+      } else if (!state.stlData && prev.stlData) {
+        clearStl();
+      }
+
+      controls.autoRotate = !state.processing && !userInteracting;
     },
     destroy() {
       cancelAnimationFrame(rafId);
-      node.removeEventListener('pointerdown', onDown);
-      node.removeEventListener('pointermove', onMove);
-      node.removeEventListener('pointerup', onUp);
-      node.removeEventListener('pointercancel', onUp);
-      node.removeEventListener('pointerleave', onUp);
-      draw.remove();
+      ro.disconnect();
+      controls.dispose();
+      disposeGroup(placeholderGroup);
+      if (stlMesh) stlMesh.geometry.dispose();
+      material.dispose();
+      floor.geometry.dispose();
+      floor.material.dispose();
+      renderer.dispose();
+      canvas.remove();
     },
   };
 }
 
-// ---- Helpers ---------------------------------------------------------------
+// ──────────────────────────────────────────────────────────────
+// Helpers
+// ──────────────────────────────────────────────────────────────
 
-function cylinder(group, { y, h, rTop, rBot, fill, capFill, sq, facets = 0 }) {
-  const topY = y - h / 2;
-  const botY = y + h / 2;
-  const ryTop = rTop * sq;
-  const ryBot = rBot * sq;
-  // Side path: cap-top arc → right side → cap-bot arc (front) → left side
-  const body = group.path(
-    `M ${-rTop} ${topY}
-     A ${rTop} ${ryTop} 0 0 0 ${rTop} ${topY}
-     L ${rBot} ${botY}
-     A ${rBot} ${ryBot} 0 0 1 ${-rBot} ${botY}
-     Z`
-  ).fill(fill);
-  if (facets > 0) body.stroke({ color: '#0008', width: 0.6, opacity: 0.4 });
-
-  // Top cap (visible ellipse on top)
-  group.ellipse(rTop * 2, ryTop * 2).center(0, topY).fill(capFill);
-}
-
-function ellipseRing(group, x, y, r, sq) {
-  const ry = Math.max(1.4, r * sq * 0.18);
-  group.ellipse(r * 2, ry * 2).center(x, y - 1).fill('#c9cedd');
-  group.ellipse(r * 2 - 3, ry * 2 - 1).center(x, y + 1).fill('#606776').opacity(0.9);
-}
-
-function mkLinearGradient(defs, id, stops) {
-  const g = defs.gradient('linear', (add) => {
-    for (const [o, c] of stops) add.stop(o, c);
+function disposeGroup(group) {
+  if (!group) return;
+  // Geometries are unique per-mesh; materials are shared and owned by
+  // createValveStemViewer (disposed in destroy()).
+  group.traverse((o) => {
+    if (o.geometry?.dispose) o.geometry.dispose();
   });
-  g.id(id);
-  g.from(0, 0).to(1, 0);
-  return g;
+  if (group.parent) group.parent.remove(group);
 }
 
-function mkRadialGradient(defs, id, stops) {
-  const g = defs.gradient('radial', (add) => {
-    for (const [o, c] of stops) add.stop(o, c);
-  });
-  g.id(id);
-  return g;
+function stlKey(data) {
+  if (!data) return null;
+  if (data instanceof ArrayBuffer) return `ab:${data.byteLength}`;
+  if (data instanceof Uint8Array)  return `u8:${data.byteLength}`;
+  if (typeof data === 'string')    return `s:${data.length}:${data.slice(0, 32)}`;
+  return null;
 }
 
-function replaceStops(gradient, stops) {
-  gradient.clear();
-  for (const [o, c] of stops) gradient.stop(o, c);
+function toArrayBuffer(data) {
+  if (data instanceof ArrayBuffer) return data;
+  if (data instanceof Uint8Array) {
+    return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+  }
+  if (typeof data === 'string') {
+    const b64 = data.indexOf(',') >= 0 ? data.slice(data.indexOf(',') + 1) : data;
+    // Try base64 first; fall back to treating the string as ASCII STL text.
+    if (looksLikeBase64(b64)) {
+      try {
+        const bin = atob(b64);
+        const buf = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+        return buf.buffer;
+      } catch {
+        // fall through
+      }
+    }
+    return new TextEncoder().encode(data).buffer;
+  }
+  return null;
 }
 
-// Hex color lighten/darken. amount in [-1, 1].
-function shade(hex, amount) {
-  const { r, g, b } = parseHex(hex);
-  const t = amount < 0 ? 0 : 255;
-  const p = Math.abs(amount);
-  const rr = Math.round((t - r) * p + r);
-  const gg = Math.round((t - g) * p + g);
-  const bb = Math.round((t - b) * p + b);
-  return `#${toHex(rr)}${toHex(gg)}${toHex(bb)}`;
-}
-
-function parseHex(hex) {
-  let h = hex.replace('#', '');
-  if (h.length === 3) h = h.split('').map((c) => c + c).join('');
-  const n = parseInt(h, 16);
-  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
-}
-
-function toHex(v) {
-  return Math.max(0, Math.min(255, v)).toString(16).padStart(2, '0');
-}
-
-function hash(str) {
-  let h = 0;
-  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0;
-  return h;
+function looksLikeBase64(s) {
+  // Cheap test — base64 STL is large and consists of [A-Za-z0-9+/=]. ASCII
+  // STL begins with the literal "solid" keyword, so it'll fail this test.
+  if (s.length < 32) return false;
+  const head = s.slice(0, 64);
+  return /^[A-Za-z0-9+/=\s]+$/.test(head) && !head.trimStart().startsWith('solid');
 }
