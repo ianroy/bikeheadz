@@ -90,6 +90,14 @@ RUN pip install --no-cache-dir "xformers==0.0.27.post2" --index-url https://down
     || pip install --no-cache-dir "xformers" \
     || echo "[build] direct xformers install also failed"
 RUN bash ./setup.sh --spconv        || echo "[build] spconv install failed; continuing"
+# Same case-mismatch trap as xformers/kaolin — setup.sh's PYTORCH_VERSION case
+# matches "2.4.0" literally but torch.__version__ is "2.4.0+cu121", so the
+# spconv-cu121 wheel never installs. decoder_mesh.py builds SparseSubdivideBlock3d
+# which calls sp.SparseConv3d, which imports spconv.pytorch — fatal at runtime
+# without this. Pin to spconv-cu121 to match the cuda 12.1 base image.
+RUN pip install --no-cache-dir spconv-cu121 \
+    || pip install --no-cache-dir spconv \
+    || echo "[build] direct spconv install also failed"
 RUN bash ./setup.sh --flash-attn    || echo "[build] flash-attn install failed; continuing"
 RUN bash ./setup.sh --diffoctreerast || echo "[build] diffoctreerast install failed; continuing"
 # Mesh / Gaussian Splatting / radiance-field decoders need these. setup.sh
@@ -106,6 +114,14 @@ RUN pip install --no-cache-dir kaolin -f https://nvidia-kaolin.s3.us-east-2.amaz
     || pip install --no-cache-dir kaolin \
     || echo "[build] direct kaolin install also failed"
 RUN bash ./setup.sh --nvdiffrast    || echo "[build] nvdiffrast install failed; continuing"
+# Same case-mismatch trap as xformers/kaolin/spconv — setup.sh's --nvdiffrast
+# branch falls through to "Unsupported PyTorch version" because of the
+# "2.4.0" vs "2.4.0+cu121" mismatch. nvdiffrast is needed by the mesh
+# decoder's nvdiffrast_context.py; without it, mesh extraction warns
+# "Cannot import nvdiffrast" and downstream rendering fails.
+RUN pip install --no-cache-dir "git+https://github.com/NVlabs/nvdiffrast.git" \
+    || pip install --no-cache-dir nvdiffrast \
+    || echo "[build] direct nvdiffrast install also failed"
 RUN bash ./setup.sh --mipgaussian   || echo "[build] mipgaussian install failed; continuing"
 
 # Best-effort install of common TRELLIS-internal deps that aren't always
