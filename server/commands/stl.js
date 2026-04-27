@@ -92,6 +92,14 @@ export const stlCommands = {
   },
 
   // Fetches an STL for a design the client has already purchased.
+  //
+  // Returns the STL as base64 (`stl_b64`) so binary STLs survive the JSON
+  // round-trip. The previous `stl: cached.stl.toString('utf8')` shape
+  // assumed ASCII STL — fine in 2024 when trimesh's default merge produced
+  // ASCII output, but the upcoming pipeline (3D_Pipeline.md Phase 2) emits
+  // binary STL via manifold3d, and `.toString('utf8')` corrupts those
+  // bytes. The client decodes base64 → Uint8Array → Blob in
+  // client/pages/checkout-return.js:triggerDownload.
   'stl.download': async ({ payload }) => {
     const { designId, sessionId } = payload || {};
     if (!designId) throw new Error('designId_required');
@@ -99,7 +107,7 @@ export const stlCommands = {
     if (!hasDb()) {
       const cached = await designStore.get(designId);
       if (!cached) throw new Error('design_not_found');
-      return { filename: cached.filename, stl: cached.stl.toString('utf8') };
+      return { filename: cached.filename, stl_b64: cached.stl.toString('base64') };
     }
 
     const { rows } = await db.query(
@@ -113,7 +121,7 @@ export const stlCommands = {
 
     const cached = await designStore.get(designId);
     if (!cached) throw new Error('design_expired');
-    return { filename: cached.filename, stl: cached.stl.toString('utf8') };
+    return { filename: cached.filename, stl_b64: cached.stl.toString('base64') };
   },
 };
 

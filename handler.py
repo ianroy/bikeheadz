@@ -51,7 +51,7 @@ os.environ.setdefault("SPARSE_ATTN_BACKEND", "xformers")
 # Version banner — prints unconditionally at module load time so we can
 # tell from the worker logs whether the running container is actually
 # the image tag we think it is.
-HANDLER_VERSION = "v0.1.24"
+HANDLER_VERSION = "v0.1.25"
 sys.stderr.write(f"[bikeheadz] handler.py {HANDLER_VERSION} booting (pid={os.getpid()})\n")
 sys.stderr.flush()
 
@@ -265,6 +265,32 @@ def _merge(head: trimesh.Trimesh, valve: trimesh.Trimesh,
 # ---- Handler ---------------------------------------------------------------
 
 
+_VALID_PIPELINE_VERSIONS = ("legacy", "v1")
+
+
+def _resolve_pipeline_version(inp):
+    """Pick the pipeline branch.
+
+    Per-request input overrides the env-var default. Unknown values
+    fall back to legacy and warn — the rollout strategy in
+    3D_Pipeline.md §9.5 relies on this being safe by default. Phase 0
+    plumbs the field but the v1 codepath is still a stub that runs
+    legacy logic; Phase 1 will replace that stub with
+    server/workers/pipeline.py:run_v1.
+    """
+    requested = (
+        inp.get("pipeline_version")
+        or os.environ.get("PIPELINE_VERSION")
+        or "legacy"
+    ).lower()
+    if requested not in _VALID_PIPELINE_VERSIONS:
+        sys.stderr.write(
+            f"[bikeheadz] unknown PIPELINE_VERSION={requested!r}; falling back to legacy\n"
+        )
+        return "legacy"
+    return requested
+
+
 def handler(job):
     inp = job.get("input") or {}
     try:
@@ -277,6 +303,8 @@ def handler(job):
         neck_length_mm = float(inp.get("neck_length_mm", 50.0))
         head_tilt_deg = float(inp.get("head_tilt_deg", 0.0))
         seed = int(inp.get("seed", 1))
+        pipeline_version = _resolve_pipeline_version(inp)
+        sys.stderr.write(f"[bikeheadz] pipeline_version={pipeline_version}\n")
 
         yield {"type": "progress", "step": "Loading TRELLIS pipeline…", "pct": 10}
         pipeline = _load_pipeline()
@@ -294,8 +322,18 @@ def handler(job):
         )
         head.fix_normals()
 
-        yield {"type": "progress", "step": "Scaling to valve dimensions…", "pct": 78}
-        merged = _merge(head, _VALVE_CAP, head_scale, neck_length_mm, head_tilt_deg)
+        # Branch on pipeline_version. Today both branches run _merge — the
+        # v1 path is a stub that Phase 1 replaces with the seven-stage
+        # pipeline. Keeping the branch live now means rolling out v1 is a
+        # one-file change; no env-var or wire-contract refactor needed.
+        if pipeline_version == "v1":
+            yield {"type": "progress", "step": "Running v1 pipeline (stub)…", "pct": 78}
+            # TODO(Phase 1+): replace with pipeline.run_v1(head, _VALVE_CAP,
+            # _NEGATIVE_CORE, head_scale, head_tilt_deg, request_ctx).
+            merged = _merge(head, _VALVE_CAP, head_scale, neck_length_mm, head_tilt_deg)
+        else:
+            yield {"type": "progress", "step": "Scaling to valve dimensions…", "pct": 78}
+            merged = _merge(head, _VALVE_CAP, head_scale, neck_length_mm, head_tilt_deg)
 
         yield {"type": "progress", "step": "Exporting STL…", "pct": 92}
         stl_bytes = merged.export(file_type="stl")
@@ -304,6 +342,7 @@ def handler(job):
             "type": "result",
             "triangles": int(len(merged.faces)),
             "stl_b64": base64.b64encode(stl_bytes).decode("ascii"),
+            "pipeline_version": pipeline_version,
         }
     except Exception as err:  # noqa: BLE001
         sys.stderr.write(traceback.format_exc())

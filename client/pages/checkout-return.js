@@ -71,8 +71,23 @@ export function CheckoutReturnPage({ socket, sessionId }) {
   }
 
   function triggerDownload(design) {
-    if (!design || !design.stl) return;
-    const blob = new Blob([design.stl], { type: 'model/stl' });
+    if (!design) return;
+    // The server now ships STL bytes as base64 (`stl_b64`) so binary STL
+    // from the new mesh pipeline survives the JSON round-trip. We
+    // continue to accept the legacy `stl` (utf8 ASCII string) field for
+    // designs generated before the cutover so users with old session
+    // storage don't see broken downloads.
+    let bytes;
+    if (typeof design.stl_b64 === 'string') {
+      const bin = atob(design.stl_b64);
+      bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    } else if (typeof design.stl === 'string') {
+      bytes = new TextEncoder().encode(design.stl);
+    } else {
+      return;
+    }
+    const blob = new Blob([bytes], { type: 'model/stl' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = design.filename || 'BikeHeadz_ValveStem.stl';

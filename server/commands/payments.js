@@ -90,10 +90,14 @@ export const paymentsCommands = {
     if (paid && designId) {
       const entry = await designStore.get(designId);
       if (entry) {
+        // STL is shipped as base64 to survive the JSON round-trip when
+        // the underlying bytes are binary (the upcoming pipeline emits
+        // binary STL via manifold3d — see 3D_Pipeline.md §8.9 + Phase 0
+        // task #1). The client decodes in checkout-return.js.
         design = {
           designId,
           filename: entry.filename,
-          stl: entry.stl.toString('utf8'),
+          stl_b64: entry.stl.toString('base64'),
         };
       }
     }

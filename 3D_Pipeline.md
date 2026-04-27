@@ -1,11 +1,24 @@
 # 3D Pipeline Plan — Photo → Printable Bike Valve Cap
 
-**Status:** Planning. Not implemented. Working assets are committed at
-`server/assets/` so the eventual implementation has known-good inputs and
-golden-output references to calibrate against.
+**Status:** ⚠️ **Phase −1 spike returned NO. Phase 1+ blocked on
+redesign.** See [`tools/spike_report.md`](tools/spike_report.md). Phase 0
+scaffolding (error taxonomy, calibrate script, ASCII-STL bug fix,
+`PIPELINE_VERSION` plumbing, test-corpus dir, pipeline package skeleton)
+is committed and works, but the actual stage implementations are gated
+on the new **Phase −0.5 redesign tasks** in §10. Specifically: the
+references are at the wrong scale (~7.6× too big), `valve_cap.stl` and
+`negative_core.stl` are not co-centred (33.78 mm xy offset), and the
+locked 0.25 mm clearance is actually 0.011 mm in the source files. These
+are *fixable* but require a human decision on which path to take.
 
 **Owner of this doc:** Pipeline architecture and the asset contracts. Anything
 inside `handler.py` past the TRELLIS call belongs here.
+
+**Reading order for someone catching up:**
+1. §0 (locked decisions) — what's already settled.
+2. [`tools/spike_report.md`](tools/spike_report.md) — what Phase −1 actually found.
+3. §10 Phase −0.5 — the redesign tasks blocking Phase 1+.
+4. §11 — open questions that fed the redesign.
 
 ---
 
@@ -925,53 +938,143 @@ Designed for incremental ship — each phase has a working app at the end,
 and each phase is gated behind `PIPELINE_VERSION` (§9.5) so rollback is
 seconds, not a rebuild.
 
-### Phase −1 — Spike (no app changes, half-day)
+### Phase −1 — Spike (no app changes, half-day) ✅ DONE — verdict NO
 
-Validate the architecture against the references **manually** before
-committing engineering effort.
+Validated the architecture against the references **manually** before
+committing engineering effort. Re-run via `python3 tools/spike_phase_minus_1.py`.
 
-1. Open a Jupyter notebook with `trimesh` + `manifold3d`.
-2. Load `reference/ian_head.stl`, `reference/nik_head.stl`,
-   `valve_cap.stl`, `negative_core.stl`.
-3. Run the inverse boolean: `reference − valve_cap`. Inspect the result —
-   should be a head with a clean socket. Confirm the socket geometry
-   matches what we expect Stage 3 to produce.
-4. Run `(reference − valve_cap) + valve_cap` and Hausdorff-diff against
-   the original reference. Result should be ≈0 mm. If not, the
-   negative-core / valve-cap pair don't share an origin and we have to
-   bake in a translation offset.
-5. Sanity-check the §6 calibration constants by hand on both references.
-   Bounding-box agreement between the two heads tells us the calibration
-   tolerance.
-6. Write a 1-page spike report.
+- [x] Loaded `reference/ian_head.stl`, `reference/nik_head.stl`,
+      `valve_cap.stl`, `negative_core.stl`. None watertight on load —
+      cap has Euler −51 (severely non-manifold); references have
+      Euler 0/6 with up to 3 disjoint bodies.
+- [x] Ran the inverse boolean: `reference − valve_cap`. Result was
+      structurally invalid: ian's carve landed inside the head bulk
+      at xy ≈ (0, 41) mm because the cap is **not co-centred with the
+      heads**; nik's carve missed the head geometry entirely (zero
+      holes). The references **do not contain a cap socket** —
+      they are plain head meshes, not post-pipeline goldens.
+- [x] Forward-diff `(head_only ∪ cap)` vs reference: nik max < 0.12 mm
+      (boolean was a no-op), ian max 3.88 mm (carve hit but in the
+      wrong place). Both numbers confirm the design assumption is
+      false.
+- [x] Sanity-checked §6 constants empirically. Heads measure ≈1.9 m
+      tall vs the spec's 250 mm — references are scaled-up by ~7.6×.
+- [x] Wrote `tools/spike_report.md` (1 page, with raw numbers in
+      `tools/spike_results.json`) and `tools/spike_phase_minus_1.py`
+      (re-runnable).
 
-**Done when:** the report says "yes, design works" with specific
-numbers, OR identifies a structural problem to redesign around.
+**Verdict:** ❌ NO. Three structural problems make Phase 1+ unbuildable:
 
-**If this fails, the rest of the plan does not start.** Do not skip.
+1. Reference scale is wrong by ~7.6× (1.9 m heads vs 250 mm target).
+2. `valve_cap.stl` and `negative_core.stl` are **not co-centred** —
+   33.78 mm xy offset, 1.34 mm z offset (vs the 0.5 mm tolerance
+   §11 Q1 demanded).
+3. Clearance drift: measured 0.011 mm radial vs locked 0.25 mm in §0
+   — cap is essentially interference-fit in the negative core.
 
-### Phase 0 — Calibration, contracts, and the binary-STL bug
+**Per the plan's own rule** — "If this fails, the rest of the plan
+does not start. Do not skip" — Phase 0 stage implementations are
+gated on **Phase −0.5 (redesign)** below.
 
-1. Fix the latent ASCII-STL assumption at
-   [server/commands/stl.js:98](server/commands/stl.js:98) — switch the
-   download path to `Buffer`-aware before any pipeline change touches
-   the wire. Without this, post-payment downloads will be corrupt the
-   moment binary STLs ship from the new pipeline.
-2. Write `tools/calibrate_pipeline.py`. Generate
-   `server/assets/pipeline_constants.json` from the references.
-3. Wire the JSON-diff CI check (§9.5 calibration regeneration).
-4. Land 5 entries in `server/assets/test_corpus/` (capture
-   `trellis_raw.stl` + `golden.stl` from manual TRELLIS runs in dev).
-5. Add `PIPELINE_VERSION` env var to handler.py; default `legacy`. No
-   logic branches on it yet.
+### Phase −0.5 — Redesign (new, gates Phase 0+)
 
-**Done when:** constants file exists, ASCII-STL bug is fixed, corpus
-has ≥5 entries, CI calibration check is green.
+Fix the structural problems the spike surfaced. Each is a discrete
+human decision, not a code change. Coordinate with whoever produced
+the references and the cap STLs.
 
-### Phase 1 — Stages 0, 1, 1.5, 2 (no full booleans yet)
+**−0.5.1 Reference scale.** Pick one:
+  - [ ] Re-export `reference/{ian,nik}_head.stl` at the correct scale
+        so the head height lands ≈ 50–80 mm (final part is ~30 mm tall;
+        head section is most of that).
+  - [ ] Add a `Stage 1.0 — auto-rescale` step that detects head height
+        and divides by 7.6 (or fits to `TARGET_HEAD_HEIGHT_MM`). This
+        is what `handler.py:_merge` already does informally; formalise
+        it. Less work but bakes the scale-bug into the pipeline.
+
+**−0.5.2 Cap ↔ negative-core alignment.** Pick one:
+  - [ ] Re-export `valve_cap.stl` and `negative_core.stl` so they share
+        an origin (XY centroid co-located within ≤0.5 mm, Z baseline at
+        z=0). Cleanest path; eliminates a runtime constant.
+  - [ ] Bake `NEGATIVE_CORE_OFFSET_FROM_CAP_MM = (-4.066, +33.535,
+        -1.336)` as a calibration constant in §6 and apply it whenever
+        the negative core is positioned. Faster but encodes a workaround.
+
+**−0.5.3 Clearance drift.** Pick one:
+  - [ ] Widen `negative_core.stl` by ~3% in xy (radial +0.12 mm, total
+        diameter +0.24 mm) so the spec'd 0.25 mm clearance is achieved.
+        Re-measure after.
+  - [ ] Widen at runtime via `manifold3d.Manifold.MinkowskiSum` (the
+        operation §7 mentions). Runtime widening means we can tune
+        clearance per material without re-exporting the asset.
+  - [ ] Accept the 0.011 mm interference fit. Threads will need warmth
+        or lubricant for assembly. **NOT recommended** for self-service
+        FDM users.
+
+**−0.5.4 References as goldens.** The spike showed the references are
+plain heads, not post-pipeline outputs. Decide:
+  - [ ] Re-supply references that include a real cap section (the
+        intent of the original "definition of done").
+  - [ ] Synthesize a calibration golden from a primitive (sphere head
+        + the actual `valve_cap.stl` glued at a known origin), use that
+        for calibration, and treat the human-head references purely
+        as smoke-test inputs (not goldens).
+
+**−0.5.5 Mesh-healing pre-pass.** Locked decision (no choice): the
+healing step §5 Stage 1.5 specifies must run *before* Stage 2's
+boolean, not just rely on manifold3d's silent auto-heal. Phase 1's
+implementation already plans this; mark explicitly that the legacy
+`_merge` skips it but v1 must not.
+
+**Done when:** all four numbered items above have a recorded decision
+(checked) AND any asset re-exports land in `server/assets/`. After that,
+re-run Phase −1 (just `python3 tools/spike_phase_minus_1.py`); the
+report should now read "verdict YES." Then proceed to Phase 0.
+
+### Phase 0 — Calibration, contracts, and the binary-STL bug ⏸ partial
+
+Five of six tasks are structural and ship-able regardless of the
+−0.5 outcomes; one waits.
+
+- [x] **Fix the latent ASCII-STL assumption** at
+      [server/commands/stl.js:98](server/commands/stl.js) and
+      [server/commands/payments.js:96](server/commands/payments.js) —
+      both now ship `stl_b64` (base64) instead of `stl` (utf8). Client
+      decoder at [client/pages/checkout-return.js](client/pages/checkout-return.js)
+      handles both for back-compat.
+- [x] **Wrote `tools/calibrate_pipeline.py`** — when run with valid
+      references, produces `server/assets/pipeline_constants.json`. On
+      the current broken references it exits non-zero with "produced an
+      empty mesh; the cap and reference may not share an origin", which
+      is exactly the right behavior. Re-run after Phase −0.5.
+- [ ] **Generate `pipeline_constants.json`** — blocked on Phase −0.5.
+- [ ] **Wire JSON-diff CI check** — blocked on the JSON existing.
+- [ ] **Land 5 entries in `server/assets/test_corpus/`** —
+      `server/assets/test_corpus/README.md` documents the layout and
+      capture procedure. Capturing actual entries needs the RunPod
+      endpoint warm + GPU-equipped dev box; not blocked on −0.5 but
+      not yet started.
+- [x] **Add `PIPELINE_VERSION` env var to `handler.py`**, default
+      `legacy`. Wired through [server/workers/runpod-client.js](server/workers/runpod-client.js)
+      so the Node side passes `pipeline_version` in the RunPod input.
+      Both `legacy` and `v1` branches exist; the `v1` branch is
+      currently a stub that calls `_merge` (Phase 1 will replace it
+      with `pipeline.run_v1`).
+- [x] **Pipeline package skeleton** at
+      [server/workers/pipeline/](server/workers/pipeline/) —
+      `__init__.py` (entry point + import contract), `errors.py`
+      (frozen `ErrorCode` enum + `PipelineError` with user-facing
+      copy), `constants.py` (lazy loader for the JSON). Not in §10
+      Phase 0's original task list but a prerequisite for Phase 1+.
+
+### Phase 1 — Stages 0, 1, 1.5, 2 (no full booleans yet) ⏸ BLOCKED
+
+Cannot start until Phase −0.5 closes. The boolean crop in Stage 2
+needs a sane scale and alignment; Stage 1 normalisation needs a real
+`TARGET_HEAD_HEIGHT_MM`; Stage 1.5 repair can be drafted but can't be
+end-to-end-tested without good references.
 
 1. Implement `stage0_validate`, `stage1_normalize`, `stage1_5_repair`,
-   `stage2_crop` in `server/workers/pipeline.py`.
+   `stage2_crop` in `server/workers/pipeline/stages.py`.
 2. Replace `_merge`'s scaling logic with these stages, gated on
    `PIPELINE_VERSION=v1`. Keep the `concatenate` glue for now (still
    not printable; that's fine — Phase 2 fixes it).
@@ -981,7 +1084,11 @@ has ≥5 entries, CI calibration check is green.
 heads sitting on top of the unmodified valve cap. Stage 0–2 telemetry
 in the logs (§9.5).
 
-### Phase 2 — Stages 3, 4, 5 (real booleans + print-prep)
+### Phase 2 — Stages 3, 4, 5 (real booleans + print-prep) ⏸ BLOCKED
+
+Cannot start until Phase −0.5 closes. The boolean union in Stage 4
+needs cap↔core registration solved (−0.5.2) and the clearance
+restored (−0.5.3) or the printed cap won't thread.
 
 1. Add `manifold3d` and `fast-simplification` to the Dockerfile.
 2. Add `negative_core.stl` to the Dockerfile COPY.
@@ -994,30 +1101,29 @@ in the logs (§9.5).
 **Done when:** 100% v1 traffic, single-shell watertight outputs at
 50–80K triangles matching the references when overlaid.
 
-### Phase 3 — Robustness
+### Phase 3 — Robustness ⏸ BLOCKED on Phase 2
 
-1. Define the error taxonomy as Python enum + Node-side handling +
-   user-facing copy:
-   - `no_face_detected`
-   - `low_image_quality`
-   - `head_pose_ambiguous`
-   - `non_manifold_input_unrepairable`
-   - `boolean_failed`
-   - `output_not_watertight`
-   - `output_dimensions_out_of_range`
-   - `triangle_budget_exceeded`
-   - `stage_timeout`
-2. Reject (don't silently degrade) inputs that fail validation. Each
-   rejection writes to the failure corpus (§9.5).
-3. Add `pymeshlab` (subprocess-isolated per §7) for hard-to-repair
-   inputs. Fall back to the MIT path if subprocess fails.
-4. Wire the telemetry schema (§9.5) to a real log aggregator.
+- [x] **Defined the error taxonomy** as a Python enum at
+      [server/workers/pipeline/errors.py](server/workers/pipeline/errors.py)
+      with `ErrorCode`, `PipelineError`, and per-code user-facing
+      copy. Codes match the §10 list (`no_face_detected`,
+      `low_image_quality`, `head_pose_ambiguous`,
+      `non_manifold_input_unrepairable`, `repair_timeout`,
+      `neck_not_found`, `boolean_failed`, `output_not_watertight`,
+      `output_dimensions_out_of_range`, `decimation_failed`,
+      `triangle_budget_exceeded`, `stage_timeout`, `total_timeout`,
+      `internal_error`). Schema versioned for forward compat.
+- [ ] Reject (don't silently degrade) inputs that fail validation.
+      Each rejection writes to the failure corpus (§9.5).
+- [ ] Add `pymeshlab` (subprocess-isolated per §7) for hard-to-repair
+      inputs. Fall back to the MIT path if subprocess fails.
+- [ ] Wire the telemetry schema (§9.5) to a real log aggregator.
 
 **Done when:** every failure path has a specific error code, a written
 user-facing message, and a corresponding entry in the failure corpus
 within a week of going live.
 
-### Phase 4 — Polish
+### Phase 4 — Polish ⏸ BLOCKED on Phase 3
 
 1. Mediapipe-based Stage 2 fallback (Approach B in §5 Stage 2) for
    tilted-head failures from the corpus.
@@ -1036,10 +1142,12 @@ and a slider tweak completes in < 5 s on a warm worker.
 
 ## 11. Open Questions (for the next iteration of this doc)
 
-1. **Origin of `valve_cap.stl` and `negative_core.stl`.** Are they
-   co-centered in their source coordinate frames? If yes, Stage 3 and
-   Stage 4 use the same translation matrix — clean. If not, we need a
-   one-time alignment offset baked in. Verify before Phase 0.
+1. **Origin of `valve_cap.stl` and `negative_core.stl`.** ✅ ANSWERED
+   by the Phase −1 spike: **NO, they are not co-centered.** Δ ≈
+   (−4.07, +33.54, −1.34) mm. Phase −0.5 task `−0.5.2` decides whether
+   to re-export the assets at a shared origin (clean) or bake the
+   offset as a runtime constant (faster). See
+   [`tools/spike_report.md`](tools/spike_report.md) Task 4.
 2. **TRELLIS up-axis.** Empirically — does TRELLIS reliably output Y-up,
    Z-up, or arbitrary? If reliable, we can skip the PCA orientation step.
    Quick check: run 10 photos through, plot the first principal component
@@ -1063,8 +1171,11 @@ in §0.)
 
 ---
 
-**Next action:** confirm §0 decisions (especially the FDM
-filament/profile/nozzle assumptions with the print vendor), then run
-**Phase −1 (the spike)** in §10. Everything else waits on the spike
-report. After the spike, refine §5, §8, and §10 with whatever the spike
-teaches us, and start Phase 0.
+**Next action:** the Phase −1 spike has run and returned NO — see
+[`tools/spike_report.md`](tools/spike_report.md). The five
+**Phase −0.5 redesign tasks** in §10 are the gating items. Each is a
+human decision (re-export an asset vs. bake a workaround vs. accept a
+trade-off); none can be automated. Once decisions are recorded
+(checkboxes in §10) and any asset re-exports are committed, re-run
+`python3 tools/spike_phase_minus_1.py` to confirm verdict YES, then
+proceed to Phase 0.

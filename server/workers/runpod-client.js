@@ -29,11 +29,19 @@ export async function runRunpod({ socket, commandId, imageBuf, settings }) {
     'Content-Type': 'application/json',
   };
 
+  // PIPELINE_VERSION is the rollout flag for the new mesh pipeline
+  // (3D_Pipeline.md §9.5). Acceptable values:
+  //   - "legacy" (default): handler.py runs the original `_merge`
+  //     concatenation. Always available, never broken.
+  //   - "v1": handler.py runs the seven-stage pipeline (validate,
+  //     normalize, repair, crop, subtract, union, print-prep).
+  // The handler treats unknown values as "legacy" and logs a warning.
   const input = {
     image_b64: imageBuf.toString('base64'),
     head_scale: Number(settings.headScale) || 1.0,
     neck_length_mm: Number(settings.neckLength) || 50,
     head_tilt_deg: Number(settings.headTilt) || 0,
+    pipeline_version: process.env.PIPELINE_VERSION || 'legacy',
     seed: 1,
   };
 
