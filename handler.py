@@ -36,11 +36,15 @@ from PIL import Image
 # TRELLIS is cloned into /opt/TRELLIS by the Dockerfile.
 sys.path.insert(0, "/opt/TRELLIS")
 os.environ.setdefault("SPCONV_ALGO", "native")
+# Force xformers attention backend; flash_attn install is best-effort in
+# the build (it commonly fails on CUDA/torch combinations) and TRELLIS's
+# default is to import flash_attn unconditionally otherwise.
+os.environ.setdefault("ATTN_BACKEND", "xformers")
 
 # Version banner — prints unconditionally at module load time so we can
 # tell from the worker logs whether the running container is actually
 # the image tag we think it is.
-HANDLER_VERSION = "v0.1.17"
+HANDLER_VERSION = "v0.1.18"
 sys.stderr.write(f"[bikeheadz] handler.py {HANDLER_VERSION} booting (pid={os.getpid()})\n")
 sys.stderr.flush()
 

@@ -18,6 +18,7 @@ FROM pytorch/pytorch:2.4.0-cuda12.1-cudnn9-devel
 ENV DEBIAN_FRONTEND=noninteractive \
     PIP_NO_CACHE_DIR=1 \
     SPCONV_ALGO=native \
+    ATTN_BACKEND=xformers \
     TORCH_HOME=/runpod-volume/torch \
     HF_HOME=/runpod-volume/hf \
     HUGGINGFACE_HUB_CACHE=/runpod-volume/hf \
