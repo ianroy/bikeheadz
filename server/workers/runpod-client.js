@@ -9,9 +9,14 @@ import { logger } from '../logger.js';
 //   RUNPOD_ENDPOINT_URL=https://api.runpod.ai/v2/<endpoint-id>
 //   RUNPOD_API_KEY=<bearer token>
 
-const POLL_INTERVAL_MS  = 800;
-const POLL_MAX_WAIT_MS  = 120_000;  // 2 min cap — cold-start + inference fits inside.
-const REQUEST_TIMEOUT_MS = 15_000;
+const POLL_INTERVAL_MS  = 1_500;
+// Cold-start TRELLIS is genuinely slow: pulling 2.5GB of safetensors plus
+// dinov2 (1.1GB) and u2net (176MB) on first invocation, then constructing
+// 4 decoders before the first frame. We've measured ~8 min end-to-end on a
+// fresh worker. Subsequent warm invocations are ~30-60s. Pick 12 min so a
+// queued job that has to spin up a brand-new worker still completes.
+const POLL_MAX_WAIT_MS  = 720_000;
+const REQUEST_TIMEOUT_MS = 30_000;
 
 export function runpodEnabled() {
   return !!process.env.RUNPOD_ENDPOINT_URL && !!process.env.RUNPOD_API_KEY;
