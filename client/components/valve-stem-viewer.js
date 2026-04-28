@@ -13,7 +13,9 @@ import { STLLoader } from 'three/addons/loaders/STLLoader.js';
 // State keys:
 //   headScale    — 0.5..1.5  scales the placeholder head sphere
 //   neckLength   — 20..80    mm; scales the placeholder stem cylinder
-//   headTilt     — -15..15   degrees; rotates the placeholder head
+//   headTilt     — -30..30   degrees; pitches the placeholder head
+//                  (positive = chin up). Matches the v1 pipeline's
+//                  Stage-1 X-axis pitch, used to position the Stage 2 cut.
 //   materialType — 'matte' | 'gloss' | 'chrome'
 //   headColor    — CSS hex; tints the model
 //   processing   — boolean; pauses auto-rotate and pulses the placeholder head
@@ -210,7 +212,11 @@ export function createValveStemViewer({ container, initial = {} }) {
     const headR = 0.62 * state.headScale;
     const headSub = new THREE.Group();
     headSub.position.y = -0.2 + stemH / 2 + headR * 0.95;
-    headSub.rotation.z = THREE.MathUtils.degToRad(state.headTilt);
+    // Pitch around X (chin up positive) — matches the v1 pipeline's
+    // Stage-1 head_tilt_deg semantics so the placeholder previews the
+    // user's slider. Three.js scene is Y-up; X-axis rotation tilts
+    // the head forward/back from the camera's perspective.
+    headSub.rotation.x = THREE.MathUtils.degToRad(state.headTilt);
     const head = new THREE.Mesh(
       new THREE.SphereGeometry(headR, 48, 32),
       material,

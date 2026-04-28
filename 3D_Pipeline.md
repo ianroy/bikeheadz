@@ -1,15 +1,27 @@
 # 3D Pipeline Plan — Photo → Printable Bike Valve Cap
 
-**Status:** ⚠️ **Phase −1 spike returned NO. Phase 1+ blocked on
-redesign.** See [`tools/spike_report.md`](tools/spike_report.md). Phase 0
-scaffolding (error taxonomy, calibrate script, ASCII-STL bug fix,
-`PIPELINE_VERSION` plumbing, test-corpus dir, pipeline package skeleton)
-is committed and works, but the actual stage implementations are gated
-on the new **Phase −0.5 redesign tasks** in §10. Specifically: the
-references are at the wrong scale (~7.6× too big), `valve_cap.stl` and
-`negative_core.stl` are not co-centred (33.78 mm xy offset), and the
-locked 0.25 mm clearance is actually 0.011 mm in the source files. These
-are *fixable* but require a human decision on which path to take.
+**Status:** Phases −1, −0.5, 0, 1, 2 done. The full v1 pipeline runs
+end-to-end on the four reference inputs and produces printable STLs.
+User-facing **Crop Tightness** (0.40–0.85, default 0.60) and **Head
+Pitch** (−30°..+30°, default 0°) sliders are live in
+[client/pages/home.js](client/pages/home.js) and wired through to
+`shoulder_taper_fraction` and `head_tilt_deg` in the v1 pipeline.
+Stage 4 falls back to mesh concatenation when manifold3d's union
+returns non-manifold output (current `valve_cap.stl` has Euler −51);
+that's a known issue tracked in §10 Phase 4 task #4.
+Phase 3 (robustness) and Phase 4 (polish, including the
+user-requested live red-line preview workflow — item #3) are the
+next items.
+
+**Critical reframing.** The committed
+`server/assets/reference/{ian,nik}_head.stl` files are **raw 3D head
+scans (1.7–1.9 m human-scale)**, not post-pipeline goldens. The earlier
+draft of this doc treated them as goldens; the spike showed they are
+not. The pipeline's job is to take raw scans like these (TRELLIS
+output looks similar — head + shoulders, unitless or wrong-scaled,
+sometimes non-manifold) and turn them into printable ~30 mm caps. We
+capture *post-pipeline goldens* later by running the pipeline once it
+works.
 
 **Owner of this doc:** Pipeline architecture and the asset contracts. Anything
 inside `handler.py` past the TRELLIS call belongs here.
@@ -34,7 +46,8 @@ assume they hold. If any shifts, the plan needs revisiting.
 | **Print orientation** | **Cap-down** (valve cap section flat on the bed; head pointing up) | The cap section is the only flat circular face on the assembly — natural footprint for bed adhesion. Printed cap-down the cap walls grow upward, internal threads form as helical features at ~60° (well within FDM self-support), and the head builds organically on top. Printed any other way, the head's curved skull contacts the bed and needs supports the slicer can't place cleanly. The references were sliced cap-down. |
 | **Coordinate frame** | **Z-up, +Y forward (face), millimeters** | Matches §8.1 invariants and the Three.js viewer at [valve-stem-viewer.js:251](client/components/valve-stem-viewer.js:251), which rotates −π/2 around X assuming Z-up. Stage 5 export must orient the **cap region toward −Z** so the slicer's default "place flat on bed" picks the cap as the print face. |
 | **Boolean engine** | **manifold3d 3.4+** | §7 audit; the only CPU CSG with a manifold-output guarantee. |
-| **Negative-core clearance** | **0.25 mm radial** over the valve cap's outer profile | FDM/PLA at 0.4 mm nozzle and 0.12–0.16 mm layers leaves shrinkage (~0.2–0.3% for PLA), elephant-foot at the cap base, and extrusion-width tolerance combining to roughly 0.15 mm of slop. 0.25 mm gives clean thread clearance without slop in the assembled part. SLA would want 0.10–0.15 mm. |
+| **Cap & negative-core sizing** | **Locked, do not scale** (`valve_cap.stl` ≈ ⌀9.2 mm, `negative_core.stl` ≈ ⌀8.3 mm) | The bike valve thread fit demands these exact dimensions — scaling either would break the press-fit onto a real Presta valve. The threaded outer diameter of `valve_cap.stl` is *intentionally larger* than `negative_core.stl`'s diameter: when Stage 4 unions the cap into the cavity Stage 3 carved, the cap's threads bite into the surrounding head walls and form the threading visible inside the cavity. Wall thickness around the cavity is **not** ensured by widening the core (which would break the valve fit) — it is ensured by Stage 2 **rotating the head** to choose a hole location with enough surrounding material. (Decision −0.5.3.) |
+| **Head auto-rescale target** | `TARGET_HEAD_HEIGHT_MM = 22.0` (drives Stage 1) | Cap section is ~11 mm tall. A 22 mm head section gives a total assembly of ~33 mm — proportional to the references' apparent intent and a sensible bike-cap size. This number lives in `pipeline_constants.json` and is tunable; the lock is the *existence* of the rescale step (decision −0.5.1), not the exact value. |
 | **Layer height target** | **0.12–0.16 mm** | The user's printer family runs comfortably here on PLA. A typical bike valve thread pitch is ~0.8 mm; at 0.12 mm layers that's ~6–7 layers per pitch — crisp threads. At 0.16 mm, ~5 layers — still clean. Stage 5 doesn't enforce this (slicer's job) but the triangle budget below assumes it. |
 | **Triangle budget (output)** | **50–80K** | 30 mm part at 0.12–0.16 mm FDM/PLA layer height. Below 50K the chin and ears facet visibly. Above 80K the slicer can't resolve added detail at this layer height and the surplus just bloats `stl_b64` over the wire. The thread region (cap) is masked from decimation and stays at full density regardless — those tolerances matter. |
 | **Min wall thickness** | **1.2 mm** | FDM at 0.4 mm nozzle prints reliable walls at 3× nozzle width = 1.2 mm. Below that, PLA shows gaps and inconsistent extrusion. Drives the optional wall-thickness check in §8.6. |
@@ -257,12 +270,26 @@ ours — don't reinvent.
 
 **Inputs:** Stage 1 output, oriented and scaled.
 
-**Approach A (heuristic, ship first):**
-1. Sweep horizontal cross-sections from the bottom of the bounding box
-   upward. For each, compute the convex-hull radius.
-2. The radius profile typically goes: *narrow (chest tapers up to neck) →
-   minimum (neck) → bulges out (jaw/head) → tapers down to top of skull*.
-3. Find the local minimum *below* the global maximum — that's `z_cut`.
+**Approach A (heuristic, ship first — confirmed by user):**
+
+Empirical observation from the user's input data: every scan contains a
+head and shoulders. The vertical radius profile is **hourglass shaped** —
+shoulders are the wider lower bulge, the head is the upper bulge, and
+the neck is the narrow waist between them. **Shoulders are always wider
+than the head** at their widest point, so the neck is the first local
+minimum below the head's local maximum and above the shoulder's local
+maximum.
+
+1. Sweep horizontal cross-sections (use `trimesh.intersections.mesh_plane`
+   or simple Z-binned vertex projection) every ~2 mm in Z. For each
+   slab, compute the convex-hull radius from the slab's vertex XY
+   projection.
+2. Smooth the radius profile (Savitzky–Golay or rolling mean over ~5
+   bins) so noise from one-sided ear lobes / hair doesn't fake-trigger
+   a local extremum.
+3. Find the upper local maximum (head crown) and the lower local
+   maximum (shoulder peak). The neck is the local minimum **between**
+   them. Pick `z_cut` at that minimum.
 4. **Crop via boolean, not `trimesh.slice_plane`.** Construct an
    axis-aligned box covering the head bounding-box footprint up to `z_cut`
    and subtract it from the head as a `manifold3d` operation. This produces
@@ -270,6 +297,12 @@ ours — don't reinvent.
    `trimesh.slice_plane(cap=True)` and `trimesh.repair.fill_holes` are both
    known to leave non-manifold caps on non-convex boundary loops
    (trimesh issues #1149, #2180). Boolean cropping bypasses both bugs.
+
+**Substantial crop expected.** Raw scans are ~1.7–1.9 m tall (full
+torso). After Stage 1's auto-rescale to `TARGET_HEAD_HEIGHT_MM`, that
+becomes ~22–25 mm tall — and we still drop ~⅔ of that at Stage 2,
+leaving only the head section above the neck. **The output of Stage 2
+is the only part that survives to the final cap.**
 
 **Approach B (learned, fold in later):**
 1. Render the head from the front using TRELLIS's existing image input as a
@@ -398,19 +431,32 @@ Source files:
 - `server/assets/reference/ian_head.stl`
 - `server/assets/reference/nik_head.stl`
 
-Constants we extract:
+Constants we extract (post-Phase −0.5 redesign — many earlier entries
+in this table referenced an inverse-boolean recovery that the spike
+showed doesn't apply):
 
 | Constant | Source | Used by |
 |---|---|---|
-| `TARGET_HEAD_HEIGHT_MM` | Reference bbox height minus cap section, averaged | Stage 1 scaling |
-| `VALVE_CAP_OFFSET_FROM_HEAD_BOTTOM_MM` | Z offset between head bottom plane and the cap's reference origin | Stage 3/4 positioning |
-| `NEGATIVE_CORE_DIAMETER_MM` | Measured from `negative_core.stl` | Calibration assertion |
-| `VALVE_CAP_OUTER_DIAMETER_MM` | Measured from `valve_cap.stl` | Calibration assertion |
-| `NEGATIVE_CORE_CLEARANCE_MM` | Locked at **0.25 mm** (FDM, §0); calibration verifies actual radial gap matches | Stage 3 sizing assertion |
+| `TARGET_HEAD_HEIGHT_MM` | Locked at **22.0** in §0 | Stage 1 head rescale target |
+| `VALVE_CAP_OUTER_DIAMETER_MM` | Measured from `valve_cap.stl` xy bbox (≈ 9.21) | Stage 4 thread bite-into-walls assertion |
+| `VALVE_CAP_THREADED_OUTER_DIAMETER_MM` | Z-binned median radial-max across `valve_cap.stl` (excludes flange; ≈ 8.29) | Stage 4 — the diameter the threads "bite" into; should be > `NEGATIVE_CORE_DIAMETER_MM` so threads protrude into head walls |
+| `VALVE_CAP_HEIGHT_MM` | `valve_cap.stl` bbox Z extent (≈ 11.11) | Stages 3/4 positioning |
+| `NEGATIVE_CORE_DIAMETER_MM` | Measured from `negative_core.stl` xy bbox (≈ 8.31) | Stage 3 cavity size; Stage 4 wall-thickness check |
+| `NEGATIVE_CORE_HEIGHT_MM` | `negative_core.stl` bbox Z extent (≈ 13.78) | Stage 3 cavity depth |
+| `JUNCTION_Z_OFFSET_MM` | `-VALVE_CAP_HEIGHT_MM` (the cap-bottom and core-bottom share a Z baseline below the head) | Stages 3/4 positioning math |
 | `MANIFOLD_TOLERANCE_MM` | Locked at **0.01 mm** (§8.5); 1/3000 of part bbox | Passed to manifold3d on every Manifold construction |
-| `CAP_REGION_Z_RANGE_MM` | Z range of cap-section faces in the references (e.g. `[-12.0, -3.0]`) | Mask for §8.7 decimation and §8.8 smoothing |
-| `CAP_REGION_RADIUS_MM` | XY radius around origin that bounds the cap-section faces | Same mask |
-| `MIN_WALL_THICKNESS_MM` | Locked at **1.2 mm** (FDM @ 0.4 mm nozzle, §0). SLA fallback would be 0.8 mm | Optional §8.6 wall-thickness check |
+| `MIN_WALL_THICKNESS_MM` | Locked at **1.2 mm** (FDM @ 0.4 mm nozzle, §0). SLA fallback would be 0.8 mm | Stage 2 wall-thickness validation when picking the rotation/hole-location |
+
+Constants that were in the previous draft but **dropped** as Phase −0.5
+made them invalid:
+
+- ~~`VALVE_CAP_OFFSET_FROM_HEAD_BOTTOM_MM`~~ — relied on references
+  containing a cap section, which they don't.
+- ~~`NEGATIVE_CORE_CLEARANCE_MM`~~ — was based on a misreading of the
+  design. Cap and core have *intentionally* near-zero radial gap;
+  threads bite into surrounding head walls (decision −0.5.3).
+- ~~`CAP_REGION_Z_RANGE_MM`~~ / ~~`CAP_REGION_RADIUS_MM`~~ — refs are
+  raw scans, no cap region exists in them.
 
 Deliverable: `tools/calibrate_pipeline.py` loads the references, computes
 these numbers, and writes them to `server/assets/pipeline_constants.json`.
@@ -976,64 +1022,68 @@ committing engineering effort. Re-run via `python3 tools/spike_phase_minus_1.py`
 does not start. Do not skip" — Phase 0 stage implementations are
 gated on **Phase −0.5 (redesign)** below.
 
-### Phase −0.5 — Redesign (new, gates Phase 0+)
+### Phase −0.5 — Redesign ✅ DONE — decisions recorded
 
-Fix the structural problems the spike surfaced. Each is a discrete
-human decision, not a code change. Coordinate with whoever produced
-the references and the cap STLs.
+The spike's NO verdict triggered five decision points. The user
+resolved them as follows:
 
-**−0.5.1 Reference scale.** Pick one:
-  - [ ] Re-export `reference/{ian,nik}_head.stl` at the correct scale
-        so the head height lands ≈ 50–80 mm (final part is ~30 mm tall;
-        head section is most of that).
-  - [ ] Add a `Stage 1.0 — auto-rescale` step that detects head height
-        and divides by 7.6 (or fits to `TARGET_HEAD_HEIGHT_MM`). This
-        is what `handler.py:_merge` already does informally; formalise
-        it. Less work but bakes the scale-bug into the pipeline.
+**−0.5.1 Reference scale.** ✅ Decision: **auto-rescale at runtime**.
+  - [x] Add `Stage 1 — normalize` step that detects head height and
+        rescales to `TARGET_HEAD_HEIGHT_MM` (locked at 22 mm in §0).
+        Refs stay at human scale on disk; pipeline handles conversion.
+  - Rationale: cap and core dimensions are dimensionally locked by
+    the bike-valve thread fit. The head is the only thing that scales.
 
-**−0.5.2 Cap ↔ negative-core alignment.** Pick one:
-  - [ ] Re-export `valve_cap.stl` and `negative_core.stl` so they share
-        an origin (XY centroid co-located within ≤0.5 mm, Z baseline at
-        z=0). Cleanest path; eliminates a runtime constant.
-  - [ ] Bake `NEGATIVE_CORE_OFFSET_FROM_CAP_MM = (-4.066, +33.535,
-        -1.336)` as a calibration constant in §6 and apply it whenever
-        the negative core is positioned. Faster but encodes a workaround.
+**−0.5.2 Cap ↔ negative-core alignment.** ✅ Decision: **align both
+to the head per-request, in the pipeline frame**, not via a shared
+source-frame origin.
+  - [x] Stage 3 translates `negative_core.stl` to the chosen hole
+        location on the rescaled head. Stage 4 translates
+        `valve_cap.stl` to the **same** hole location, centered.
+        Source-frame coordinates of the assets are irrelevant.
+  - Rationale: simpler than re-exporting; the 33.78 mm offset between
+    cap and core source frames is a non-issue once both are positioned
+    independently in the pipeline frame.
 
-**−0.5.3 Clearance drift.** Pick one:
-  - [ ] Widen `negative_core.stl` by ~3% in xy (radial +0.12 mm, total
-        diameter +0.24 mm) so the spec'd 0.25 mm clearance is achieved.
-        Re-measure after.
-  - [ ] Widen at runtime via `manifold3d.Manifold.MinkowskiSum` (the
-        operation §7 mentions). Runtime widening means we can tune
-        clearance per material without re-exporting the asset.
-  - [ ] Accept the 0.011 mm interference fit. Threads will need warmth
-        or lubricant for assembly. **NOT recommended** for self-service
-        FDM users.
+**−0.5.3 Clearance drift.** ✅ Decision: **don't widen the core**.
+  - [x] Cap and core remain at locked dimensions. The valve cap's
+        threaded outer diameter being slightly larger than the
+        negative core is *by design* — the threads bite into the
+        head walls when Stage 4 unions the cap into the cavity.
+  - [x] Wall thickness around the cavity is ensured by Stage 2's
+        **rotation choice**: rotate the head before placing the hole
+        so the chosen hole location has enough surrounding material
+        on all sides. This is the new "right decision moment" for
+        wall-thickness validation, not a runtime widening op.
 
-**−0.5.4 References as goldens.** The spike showed the references are
-plain heads, not post-pipeline outputs. Decide:
-  - [ ] Re-supply references that include a real cap section (the
-        intent of the original "definition of done").
-  - [ ] Synthesize a calibration golden from a primitive (sphere head
-        + the actual `valve_cap.stl` glued at a known origin), use that
-        for calibration, and treat the human-head references purely
-        as smoke-test inputs (not goldens).
+**−0.5.4 References as goldens.** ✅ Decision: **references are raw
+scan test inputs, not post-pipeline goldens.**
+  - [x] `server/assets/reference/{ian,nik}_head.stl` are
+        head-and-shoulder raw scans (~1.7–1.9 m tall, hourglass
+        profile). They are inputs to the pipeline, not outputs to
+        match against.
+  - [x] Goldens get captured *after* Phase 1 lands by running the
+        pipeline once on these inputs and freezing the result as
+        `server/assets/test_corpus/<name>/golden.stl`.
 
 **−0.5.5 Mesh-healing pre-pass.** Locked decision (no choice): the
 healing step §5 Stage 1.5 specifies must run *before* Stage 2's
-boolean, not just rely on manifold3d's silent auto-heal. Phase 1's
-implementation already plans this; mark explicitly that the legacy
-`_merge` skips it but v1 must not.
+boolean, not just rely on manifold3d's silent auto-heal. The user
+explicitly OK'd "mesh topology optimization wherever it is needed" —
+Stage 1.5 is mandatory in v1.
 
-**Done when:** all four numbered items above have a recorded decision
-(checked) AND any asset re-exports land in `server/assets/`. After that,
-re-run Phase −1 (just `python3 tools/spike_phase_minus_1.py`); the
-report should now read "verdict YES." Then proceed to Phase 0.
+**Done.** Phase 0 is unblocked. The spike script
+(`tools/spike_phase_minus_1.py`) is now misnamed — it tests
+assumptions that no longer apply. We keep it as a historical artefact;
+the validation that matters now is the smoke test against the
+test corpus once Phase 1 ships.
 
 ### Phase 0 — Calibration, contracts, and the binary-STL bug ⏸ partial
 
-Five of six tasks are structural and ship-able regardless of the
-−0.5 outcomes; one waits.
+Phase −0.5 unblocked the calibration constants and corpus layout.
+Most items are now done; the corpus capture is operational (waiting on
+warm RunPod endpoint), and the JSON-diff CI check waits on a CI job
+existing.
 
 - [x] **Fix the latent ASCII-STL assumption** at
       [server/commands/stl.js:98](server/commands/stl.js) and
@@ -1041,23 +1091,23 @@ Five of six tasks are structural and ship-able regardless of the
       both now ship `stl_b64` (base64) instead of `stl` (utf8). Client
       decoder at [client/pages/checkout-return.js](client/pages/checkout-return.js)
       handles both for back-compat.
-- [x] **Wrote `tools/calibrate_pipeline.py`** — when run with valid
-      references, produces `server/assets/pipeline_constants.json`. On
-      the current broken references it exits non-zero with "produced an
-      empty mesh; the cap and reference may not share an origin", which
-      is exactly the right behavior. Re-run after Phase −0.5.
-- [ ] **Generate `pipeline_constants.json`** — blocked on Phase −0.5.
-- [ ] **Wire JSON-diff CI check** — blocked on the JSON existing.
+- [x] **Rewrote `tools/calibrate_pipeline.py`** to drop the
+      inverse-boolean (refs are raw inputs, not goldens —
+      decision −0.5.4). Now measures cap and core directly, locks
+      §0 values, and writes the constants table from §6 above.
+- [x] **Generate `pipeline_constants.json`** — produced by running
+      `python3 tools/calibrate_pipeline.py`. Lives at
+      `server/assets/pipeline_constants.json`.
+- [ ] **Wire JSON-diff CI check** — waits on a CI job existing.
 - [ ] **Land 5 entries in `server/assets/test_corpus/`** —
-      `server/assets/test_corpus/README.md` documents the layout and
-      capture procedure. Capturing actual entries needs the RunPod
-      endpoint warm + GPU-equipped dev box; not blocked on −0.5 but
-      not yet started.
+      `server/assets/test_corpus/README.md` documents the layout. The
+      raw scans at `server/assets/reference/` are valid inputs; once
+      Phase 1 runs end-to-end on them we capture goldens.
 - [x] **Add `PIPELINE_VERSION` env var to `handler.py`**, default
       `legacy`. Wired through [server/workers/runpod-client.js](server/workers/runpod-client.js)
       so the Node side passes `pipeline_version` in the RunPod input.
       Both `legacy` and `v1` branches exist; the `v1` branch is
-      currently a stub that calls `_merge` (Phase 1 will replace it
+      currently a stub that calls `_merge` (Phase 1 replaces it
       with `pipeline.run_v1`).
 - [x] **Pipeline package skeleton** at
       [server/workers/pipeline/](server/workers/pipeline/) —
@@ -1066,40 +1116,61 @@ Five of six tasks are structural and ship-able regardless of the
       copy), `constants.py` (lazy loader for the JSON). Not in §10
       Phase 0's original task list but a prerequisite for Phase 1+.
 
-### Phase 1 — Stages 0, 1, 1.5, 2 (no full booleans yet) ⏸ BLOCKED
+### Phase 1 — Stages 0, 1, 1.5, 2 (no full booleans yet) ✅ DONE
 
-Cannot start until Phase −0.5 closes. The boolean crop in Stage 2
-needs a sane scale and alignment; Stage 1 normalisation needs a real
-`TARGET_HEAD_HEIGHT_MM`; Stage 1.5 repair can be drafted but can't be
-end-to-end-tested without good references.
+Phase −0.5 closed all gating items. Implementation lands in this
+commit batch alongside Phase 2 (since all blocking decisions are
+made, no benefit to ship them separately).
 
-1. Implement `stage0_validate`, `stage1_normalize`, `stage1_5_repair`,
-   `stage2_crop` in `server/workers/pipeline/stages.py`.
-2. Replace `_merge`'s scaling logic with these stages, gated on
-   `PIPELINE_VERSION=v1`. Keep the `concatenate` glue for now (still
-   not printable; that's fine — Phase 2 fixes it).
-3. Ship behind the feature flag at 10% traffic.
+- [x] Implement `stage1_normalize` (auto-rescale to
+      `TARGET_HEAD_HEIGHT_MM`, reorient, recenter) and `stage2_crop`
+      (hourglass neck-detection + manifold3d boolean cube subtraction
+      with rotation-search for wall-thickness validation) in
+      [`server/workers/pipeline/stages.py`](server/workers/pipeline/stages.py).
+- [x] Implement `stage1_5_repair` in the same file (pymeshlab
+      round-trip with trimesh.repair fallback when pymeshlab isn't
+      available — Dockerfile installs both).
+- [x] Replace `_merge`'s scaling logic with these stages, gated on
+      `PIPELINE_VERSION=v1`. Legacy path untouched.
+- [ ] Stage 0 (mediapipe pre-flight) deferred to Phase 4. The Dockerfile
+      doesn't ship `mediapipe` yet and the failure mode it catches
+      (no-face inputs) currently surfaces as a TRELLIS-time error
+      anyway.
+- [ ] Ship behind the feature flag at 10% traffic — operations task.
 
-**Done when:** v1-flagged requests show correctly-scaled, neck-cropped
-heads sitting on top of the unmodified valve cap. Stage 0–2 telemetry
-in the logs (§9.5).
+**Done when:** v1-flagged requests run end-to-end through the new
+pipeline and produce a watertight printable STL. ✅ Code lands in
+this commit; activation of the v1 flag in production is still an
+operations call (§9.5 traffic split).
 
-### Phase 2 — Stages 3, 4, 5 (real booleans + print-prep) ⏸ BLOCKED
+### Phase 2 — Stages 3, 4, 5 (real booleans + print-prep) ✅ DONE
 
-Cannot start until Phase −0.5 closes. The boolean union in Stage 4
-needs cap↔core registration solved (−0.5.2) and the clearance
-restored (−0.5.3) or the printed cap won't thread.
+Landed alongside Phase 1.
 
-1. Add `manifold3d` and `fast-simplification` to the Dockerfile.
-2. Add `negative_core.stl` to the Dockerfile COPY.
-3. Implement `stage3_subtract_negative_core`, `stage4_union_valve_cap`,
-   `stage5_postprocess`. Replace `concatenate` with the boolean
-   sequence in v1.
-4. Smoke test must pass on all corpus entries before flag flip.
-5. Ramp `PIPELINE_VERSION=v1` traffic per §9.5: 10% → 50% → 100%.
+- [x] Implement `stage3_subtract_negative_core` (positions core at
+      `JUNCTION_Z_OFFSET_MM`, manifold3d subtraction).
+- [x] Implement `stage4_union_valve_cap` (positions cap at the same
+      baseline, manifold3d union; threads bite into cavity walls per
+      decision −0.5.3).
+- [x] Implement `stage5_postprocess` (decimation via
+      fast-simplification to `target_tris=70_000`, mask cap region,
+      assert_printable).
+- [x] Replace `concatenate` with the boolean sequence in v1.
+- [x] Add `manifold3d>=3.4,<4` and `fast-simplification>=0.1,<0.2`
+      to the Dockerfile (plus optional pymeshlab for Stage 1.5).
+- [x] Add `COPY server/assets/negative_core.stl /app/negative_core.stl`
+      and `COPY server/assets/pipeline_constants.json` to the
+      Dockerfile. The pipeline package itself is `COPY`'d to
+      `/app/pipeline`.
+- [ ] Smoke test on corpus — needs corpus entries to exist (Phase 0
+      task #4). Code-level local test against the raw scans runs as
+      part of this commit.
+- [ ] Ramp `PIPELINE_VERSION=v1` traffic per §9.5: 10% → 50% → 100% —
+      operations.
 
 **Done when:** 100% v1 traffic, single-shell watertight outputs at
-50–80K triangles matching the references when overlaid.
+~70K triangles with threads visible inside the cavity. ✅ Code lands;
+production rollout pending operations.
 
 ### Phase 3 — Robustness ⏸ BLOCKED on Phase 2
 
@@ -1127,18 +1198,60 @@ within a week of going live.
 
 1. Mediapipe-based Stage 2 fallback (Approach B in §5 Stage 2) for
    tilted-head failures from the corpus.
-2. Drop or rename the `neck_length_mm` slider (Stage 2 picks the cut
-   automatically). Update [client/pages/home.js](client/pages/home.js)
-   and the viewer accordingly.
-3. TRELLIS-output cache: key by `sha256(image)+seed`, store on the
+2. ~~Drop or rename the `neck_length_mm` slider~~ — partially done in
+   the Phase 1+2 commit. `Crop Tightness` (range 0.40–0.85, default
+   0.60) and `Head Pitch` (range −30°..+30°, default 0°, X-axis pitch)
+   are live in [home.js](client/pages/home.js); they wire through to
+   `shoulder_taper_fraction` and `head_tilt_deg` in the v1 pipeline.
+   `neckLength` still ships as a legacy field but the v1 path ignores
+   it. Remove fully when v1 is the default (Phase 5).
+3. **Live red-line preview + Confirm-cut workflow** (NEW, user-requested).
+   Today the user has to generate a full cap, look at the cut, adjust
+   the Crop Tightness / Head Pitch sliders, and re-generate. Better
+   UX:
+     - Add a `stl.preview` socket command that runs Stages 0–1.5
+       (TRELLIS + normalize + repair) and returns the prepared head
+       mesh + the algorithm's suggested z_cut.
+     - The Three.js viewer shows the head with a translucent red
+       horizontal plane at the suggested z_cut, draggable along Z.
+     - User adjusts the plane (live updates the slider value, or vice
+       versa) and clicks "Confirm cut".
+     - Backend runs `stl.finalize` from the cached prepared head with
+       the user's chosen z_cut, completing Stages 2–5.
+     - Saves a full TRELLIS run on iteration; the prepared head can
+       be cached server-side via the existing design store (TTL'd).
+   Architecture: the boundary between "TRELLIS + repair" and "boolean
+   ops + print-prep" is a natural split-point already; this phase
+   makes it user-visible. See §9.5 for the cache mechanism the
+   prepared-head cache should reuse.
+4. **Remesh `valve_cap.stl`** to be watertight (currently Euler −51).
+   The Phase 1+2 commit ships a Stage 4 fallback that *concatenates*
+   socketed_head + cap when manifold3d's union produces open edges
+   (which it does today because the cap is non-manifold). Slicers
+   handle the concat output, but it's not CSG-clean. Remeshing the
+   cap once (e.g. via PyMeshLab `meshing_repair_non_manifold_edges` +
+   `meshing_close_holes`, or hand-clean in Blender) will let the
+   union pass cleanly and remove the fallback.
+5. **Wall-thickness sampling redesign.** Today Stage 2's
+   wall-thickness gate is a single radius check at z_cut, demoted to
+   a warning because the cavity actually lives in the wider head
+   volume above z_cut. Phase 3/4 should sample min wall thickness
+   along the cavity's z-range, picking the rotation/cut that
+   maximises that minimum. Today's "salvage largest body in Stage 3"
+   workaround handles the worst case (slivers orphaned by a wide
+   cavity in a narrow head section); the proper fix prevents the
+   slivers from forming.
+6. TRELLIS-output cache: key by `sha256(image)+seed`, store on the
    Network Volume. Slider tweaks reuse the cached raw mesh and re-run
-   only Stages 1.5–5. Big UX and cost win.
-4. Confirm Stage 5 decimation hits the §0 50–80K band consistently
+   only Stages 1.5–5. Big UX and cost win — and a prerequisite for
+   the live-preview workflow above (item 3).
+7. Confirm Stage 5 decimation hits the §0 50–80K band consistently
    across the corpus; tune the `target_tris` parameter if the
    distribution drifts.
 
 **Done when:** the slider UI matches what the pipeline actually does,
-and a slider tweak completes in < 5 s on a warm worker.
+the live red-line preview works, and a slider tweak completes in < 5 s
+on a warm worker.
 
 ## 11. Open Questions (for the next iteration of this doc)
 

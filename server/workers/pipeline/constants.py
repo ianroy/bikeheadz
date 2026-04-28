@@ -45,17 +45,29 @@ class Constants:
     a field here without updating the calibrate script (or vice versa)
     is a CI failure — see ``tools/calibrate_pipeline.py`` and the §6
     drift-check.
+
+    Schema reflects the post-Phase −0.5 design: refs are raw inputs
+    (no cap-region constants), there's no core/cap "clearance" (cap
+    intentionally larger than core; threads bite into head walls),
+    and head height is auto-rescaled to TARGET_HEAD_HEIGHT_MM.
     """
 
+    # Locked design (§0).
     TARGET_HEAD_HEIGHT_MM: float
-    VALVE_CAP_OFFSET_FROM_HEAD_BOTTOM_MM: float
-    NEGATIVE_CORE_DIAMETER_MM: float
-    VALVE_CAP_OUTER_DIAMETER_MM: float
-    NEGATIVE_CORE_CLEARANCE_MM: float
     MANIFOLD_TOLERANCE_MM: float
-    CAP_REGION_Z_RANGE_MM: Tuple[float, float]
-    CAP_REGION_RADIUS_MM: float
     MIN_WALL_THICKNESS_MM: float
+
+    # Measured cap.
+    VALVE_CAP_OUTER_DIAMETER_MM: float
+    VALVE_CAP_THREADED_OUTER_DIAMETER_MM: float
+    VALVE_CAP_HEIGHT_MM: float
+
+    # Measured negative core.
+    NEGATIVE_CORE_DIAMETER_MM: float
+    NEGATIVE_CORE_HEIGHT_MM: float
+
+    # Derived: cap-bottom and core-bottom share Z baseline below head.
+    JUNCTION_Z_OFFSET_MM: float
 
 
 def _resolve_path() -> str:
@@ -93,13 +105,7 @@ def load() -> Constants:
             f"[pipeline.constants] ignoring unknown keys in constants.json: "
             f"{sorted(extra)}\n"
         )
-    # Normalise CAP_REGION_Z_RANGE_MM into a tuple of two floats.
-    z_range = raw["CAP_REGION_Z_RANGE_MM"]
-    if isinstance(z_range, list):
-        if len(z_range) != 2:
-            raise ValueError("CAP_REGION_Z_RANGE_MM must be [zmin, zmax]")
-        raw = {**raw, "CAP_REGION_Z_RANGE_MM": (float(z_range[0]), float(z_range[1]))}
-    return Constants(**{k: raw[k] for k in expected})
+    return Constants(**{k: float(raw[k]) for k in expected})
 
 
 # Cached constants — loaded on first call to `get()`. We don't load at

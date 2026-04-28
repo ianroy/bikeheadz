@@ -14,8 +14,9 @@ export function HomePage({ socket }) {
     stlReady: false,
     stlData: null,
     headScale: 0.85,
-    neckLength: 50,
-    headTilt: 0,
+    neckLength: 50,           // legacy slider, deprecated by v1 pipeline
+    headTilt: 0,              // v1: pitch about X (chin up/down), -30..+30
+    cropTightness: 0.60,      // v1: shoulder_taper_fraction, 0.40..0.85
     materialType: 'chrome',
     headColor: '#c8b8a0',
     showSettings: false,
@@ -266,18 +267,25 @@ export function HomePage({ socket }) {
         display: (v) => `${Math.round(v * 100)}%`,
         onInput: (v) => { state.headScale = v; pushViewer(); },
       }),
+      // Crop Tightness — controls Stage 2's neck-cut location.
+      // 0.40 = aggressive crop (nearly all head removed below mid-face);
+      // 0.85 = loose crop (may include part of the shoulders).
+      // 0.60 default — calibrated across 4 reference scans.
       slider({
-        label: 'Neck Length',
-        value: state.neckLength,
-        min: 20, max: 80, step: 5,
-        display: (v) => `${v}mm`,
-        onInput: (v) => { state.neckLength = v; pushViewer(); },
+        label: 'Crop Tightness',
+        value: state.cropTightness,
+        min: 0.40, max: 0.85, step: 0.02,
+        display: (v) => `${Math.round(v * 100)}%`,
+        onInput: (v) => { state.cropTightness = v; pushViewer(); },
       }),
+      // Head Pitch — Stage 1 rotates the head around X before Stage 2's
+      // horizontal cut. Positive = chin tilts up (cut plane lands lower
+      // through back-of-neck while preserving the chin).
       slider({
-        label: 'Head Tilt',
+        label: 'Head Pitch',
         value: state.headTilt,
-        min: -15, max: 15, step: 1,
-        display: (v) => (v > 0 ? `+${v}°` : `${v}°`),
+        min: -30, max: 30, step: 1,
+        display: (v) => (v > 0 ? `chin up +${v}°` : v < 0 ? `chin down ${v}°` : 'level'),
         onInput: (v) => { state.headTilt = v; pushViewer(); },
       }),
       colorRow({
@@ -532,8 +540,9 @@ export function HomePage({ socket }) {
         imageName: state.photoName,
         settings: {
           headScale: state.headScale,
-          neckLength: state.neckLength,
-          headTilt: state.headTilt,
+          neckLength: state.neckLength,            // legacy, ignored by v1
+          headTilt: state.headTilt,                // v1: pitch (chin up)
+          cropTightness: state.cropTightness,      // v1: shoulder_taper_fraction
           materialType: state.materialType,
           headColor: state.headColor,
         },

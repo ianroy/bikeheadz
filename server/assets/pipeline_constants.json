@@ -1,0 +1,44 @@
+{
+  "version": 2,
+  "generated_at": "2026-04-27T23:35:50.762749+00:00",
+  "source_assets": {
+    "valve_cap": {
+      "path": "server/assets/valve_cap.stl",
+      "sha256": "9d76b7d622a8f9d2740775268bc407e791d1eb1c923f7e6f5cd81641c428e4c3",
+      "tris": 7436,
+      "watertight": false
+    },
+    "negative_core": {
+      "path": "server/assets/negative_core.stl",
+      "sha256": "9a8075530105fe66bbee41aba7f119c910bbceaee027d9da3a6754f8668d7901",
+      "tris": 288,
+      "watertight": false
+    },
+    "references": [
+      {
+        "path": "server/assets/reference/ian_head.stl",
+        "sha256": "657df781d62220525bf1ee4f524bb9ab69e15ecb42ff962aad6eaf9697567241",
+        "tris": 200000,
+        "watertight": false
+      },
+      {
+        "path": "server/assets/reference/nik_head.stl",
+        "sha256": "74b5bdf23c14171107dc4d83fc0fd59c48978b32146eb27f3a450c5e967a12b4",
+        "tris": 200000,
+        "watertight": false
+      }
+    ]
+  },
+  "constants": {
+    "TARGET_HEAD_HEIGHT_MM": 22.0,
+    "MANIFOLD_TOLERANCE_MM": 0.01,
+    "MIN_WALL_THICKNESS_MM": 1.2,
+    "VALVE_CAP_OUTER_DIAMETER_MM": 9.208999633789062,
+    "VALVE_CAP_THREADED_OUTER_DIAMETER_MM": 8.8720270688682,
+    "VALVE_CAP_HEIGHT_MM": 11.111999511718757,
+    "NEGATIVE_CORE_DIAMETER_MM": 8.310445070266724,
+    "NEGATIVE_CORE_HEIGHT_MM": 13.783177375793459,
+    "JUNCTION_Z_OFFSET_MM": -11.111999511718757
+  },
+  "calibration_notes": []
+}

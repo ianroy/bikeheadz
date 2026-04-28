@@ -39,8 +39,9 @@ export async function runRunpod({ socket, commandId, imageBuf, settings }) {
   const input = {
     image_b64: imageBuf.toString('base64'),
     head_scale: Number(settings.headScale) || 1.0,
-    neck_length_mm: Number(settings.neckLength) || 50,
-    head_tilt_deg: Number(settings.headTilt) || 0,
+    neck_length_mm: Number(settings.neckLength) || 50, // legacy slider, deprecated by v1
+    head_tilt_deg: Number(settings.headTilt) || 0,     // v1: pitch about +X (chin up)
+    shoulder_taper_fraction: clamp(Number(settings.cropTightness) || 0.60, 0.40, 0.85),
     pipeline_version: process.env.PIPELINE_VERSION || 'legacy',
     seed: 1,
   };
@@ -128,3 +129,7 @@ async function fetchJson(url, options = {}) {
 
 function trimSlash(u) { return u.replace(/\/+$/, ''); }
 function sleep(ms)    { return new Promise((r) => setTimeout(r, ms)); }
+function clamp(v, lo, hi) {
+  if (Number.isNaN(v)) return lo;
+  return Math.max(lo, Math.min(hi, v));
+}

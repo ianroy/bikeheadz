@@ -51,7 +51,7 @@ os.environ.setdefault("SPARSE_ATTN_BACKEND", "xformers")
 # Version banner — prints unconditionally at module load time so we can
 # tell from the worker logs whether the running container is actually
 # the image tag we think it is.
-HANDLER_VERSION = "v0.1.25"
+HANDLER_VERSION = "v0.1.26"
 sys.stderr.write(f"[bikeheadz] handler.py {HANDLER_VERSION} booting (pid={os.getpid()})\n")
 sys.stderr.flush()
 
@@ -221,7 +221,38 @@ def _load_valve_cap():
     return mesh
 
 
+# Loaded once at module import; never mutated. Per request the v1
+# pipeline reconstructs Manifold instances from these (per §8.5).
 _VALVE_CAP = _load_valve_cap()
+
+
+# v1 pipeline assets — `negative_core.stl` lives next to `valve_cap.stl`
+# in the Dockerfile COPY (post-Phase 0). Loaded lazily on first v1
+# request so legacy invocations don't pay the I/O cost.
+NEGATIVE_CORE_PATH = os.environ.get("NEGATIVE_CORE_PATH", "/app/negative_core.stl")
+_NEGATIVE_CORE = None
+
+
+def _load_negative_core():
+    global _NEGATIVE_CORE
+    if _NEGATIVE_CORE is None:
+        if not os.path.exists(NEGATIVE_CORE_PATH):
+            raise FileNotFoundError(
+                f"negative_core.stl not found at {NEGATIVE_CORE_PATH}; "
+                "the Dockerfile must COPY server/assets/negative_core.stl /app/negative_core.stl."
+            )
+        m = trimesh.load_mesh(NEGATIVE_CORE_PATH)
+        if isinstance(m, trimesh.Scene):
+            m = trimesh.util.concatenate(tuple(m.geometry.values()))
+        _NEGATIVE_CORE = m
+    return _NEGATIVE_CORE
+
+
+# Ensure the v1 pipeline package is importable. Dockerfile copies it to
+# /app/pipeline; on local-dev (where there is no Dockerfile) we let
+# Python's normal cwd-based resolution find it.
+if "/app" not in sys.path and os.path.isdir("/app/pipeline"):
+    sys.path.insert(0, "/app")
 
 
 # ---- Head ↔ valve merge (same math as server/workers/trellis_generate.py) --
@@ -300,8 +331,14 @@ def handler(job):
             return
 
         head_scale = float(inp.get("head_scale", 1.0))
-        neck_length_mm = float(inp.get("neck_length_mm", 50.0))
+        neck_length_mm = float(inp.get("neck_length_mm", 50.0))  # legacy
         head_tilt_deg = float(inp.get("head_tilt_deg", 0.0))
+        shoulder_taper_fraction = float(inp.get("shoulder_taper_fraction", 0.60))
+        # Clamp the user-facing knobs so a malformed UI can't break the
+        # pipeline (e.g. negative shoulder_taper would cut at a phantom
+        # location below z_min).
+        shoulder_taper_fraction = max(0.40, min(0.85, shoulder_taper_fraction))
+        head_tilt_deg = max(-30.0, min(30.0, head_tilt_deg))
         seed = int(inp.get("seed", 1))
         pipeline_version = _resolve_pipeline_version(inp)
         sys.stderr.write(f"[bikeheadz] pipeline_version={pipeline_version}\n")
@@ -322,15 +359,31 @@ def handler(job):
         )
         head.fix_normals()
 
-        # Branch on pipeline_version. Today both branches run _merge — the
-        # v1 path is a stub that Phase 1 replaces with the seven-stage
-        # pipeline. Keeping the branch live now means rolling out v1 is a
-        # one-file change; no env-var or wire-contract refactor needed.
+        # Branch on pipeline_version.
         if pipeline_version == "v1":
-            yield {"type": "progress", "step": "Running v1 pipeline (stub)…", "pct": 78}
-            # TODO(Phase 1+): replace with pipeline.run_v1(head, _VALVE_CAP,
-            # _NEGATIVE_CORE, head_scale, head_tilt_deg, request_ctx).
-            merged = _merge(head, _VALVE_CAP, head_scale, neck_length_mm, head_tilt_deg)
+            yield {"type": "progress", "step": "Running v1 mesh pipeline…", "pct": 78}
+            try:
+                from pipeline import run_v1, PipelineError
+            except ImportError as e:
+                sys.stderr.write(f"[bikeheadz] v1 pipeline not importable: {e}\n")
+                yield {"type": "error", "error": f"v1_pipeline_unavailable: {e}"}
+                return
+            try:
+                merged = run_v1(
+                    head,
+                    _VALVE_CAP,
+                    _load_negative_core(),
+                    head_scale=head_scale,
+                    head_tilt_deg=head_tilt_deg,
+                    shoulder_taper_fraction=shoulder_taper_fraction,
+                    progress=None,  # TODO(Phase 4): thread progress frames out via a queue
+                )
+            except PipelineError as e:
+                # Surface the error with the user-facing copy and the
+                # stable code so the Node side can branch on it.
+                sys.stderr.write(traceback.format_exc())
+                yield e.to_frame()
+                return
         else:
             yield {"type": "progress", "step": "Scaling to valve dimensions…", "pct": 78}
             merged = _merge(head, _VALVE_CAP, head_scale, neck_length_mm, head_tilt_deg)
