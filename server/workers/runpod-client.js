@@ -82,10 +82,15 @@ export async function runRunpod({ socket, commandId, imageBuf, settings }) {
           payload: { step: out.step, pct: out.pct },
         });
       } else if (out.type === 'result') {
-        if (typeof out.stl_b64 !== 'string') {
-          throw new Error('runpod_result_missing_stl');
+        // Modern handler (v0.1.32+) splits the result across two
+        // channels to dodge RunPod's ~1 MB per-frame /job-stream cap:
+        // a tiny metadata frame here (triangles, version) signals
+        // completion, and the STL bytes come back via /status as the
+        // generator's return value. We only consume stl_b64 here for
+        // backwards-compat with handlers <v0.1.32 that inlined it.
+        if (typeof out.stl_b64 === 'string') {
+          stlBytes = Buffer.from(out.stl_b64, 'base64');
         }
-        stlBytes = Buffer.from(out.stl_b64, 'base64');
       } else if (out.type === 'error') {
         throw new Error(`runpod_worker_error:${out.error}`);
       }

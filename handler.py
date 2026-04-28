@@ -51,7 +51,7 @@ os.environ.setdefault("SPARSE_ATTN_BACKEND", "xformers")
 # Version banner — prints unconditionally at module load time so we can
 # tell from the worker logs whether the running container is actually
 # the image tag we think it is.
-HANDLER_VERSION = "v0.1.31"
+HANDLER_VERSION = "v0.1.32"
 sys.stderr.write(f"[bikeheadz] handler.py {HANDLER_VERSION} booting (pid={os.getpid()})\n")
 sys.stderr.flush()
 
@@ -661,10 +661,32 @@ def handler(job):
             "timings": timings,
         })
 
+        # Two-channel result delivery so we don't run into RunPod's
+        # /job-stream per-frame size cap (~1 MB):
+        #
+        # 1. Yield a small "result" frame (metadata only, no STL bytes).
+        #    runpod-client.js sees `type: "result"` and breaks out of the
+        #    progress loop. <100 bytes — sails under the cap.
+        # 2. Return the heavy STL via the generator's return value.
+        #    RunPod stores the final returned value in the job's /status
+        #    output, which has a much larger budget. runpod-client.js
+        #    already has a `/status/<jobId>` fallback that decodes
+        #    `output.stl_b64`.
+        #
+        # Earlier handlers yielded stl_b64 inline, which produced
+        # `Failed to return job results | 400 Bad Request` from
+        # /job-stream and silently dropped the result. Two-channel
+        # split keeps the wire format compatible with the existing
+        # client (the safety-net path becomes the primary path).
+        stl_b64 = base64.b64encode(stl_bytes).decode("ascii")
         yield {
             "type": "result",
             "triangles": int(len(merged.faces)),
-            "stl_b64": base64.b64encode(stl_bytes).decode("ascii"),
+            "pipeline_version": pipeline_version,
+        }
+        return {
+            "stl_b64": stl_b64,
+            "triangles": int(len(merged.faces)),
             "pipeline_version": pipeline_version,
         }
     except Exception as err:  # noqa: BLE001
