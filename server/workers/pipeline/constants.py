@@ -31,10 +31,27 @@ from typing import Tuple
 #   1. PIPELINE_CONSTANTS_PATH env var (test/dev override)
 #   2. /app/pipeline_constants.json (Dockerfile COPY destination)
 #   3. <repo>/server/assets/pipeline_constants.json (local dev)
-DEFAULT_CANDIDATES = (
-    "/app/pipeline_constants.json",
-    str(Path(__file__).resolve().parents[3] / "server/assets/pipeline_constants.json"),
-)
+#
+# The dev-fallback path uses parents[3], which is valid for the dev
+# layout (server/workers/pipeline/constants.py — four levels up = repo
+# root) but IndexErrors on the production worker, where the file lives
+# at /app/pipeline/constants.py (only two parent levels). Wrap the
+# resolution in a try/except so module import never crashes; on the
+# worker we just rely on /app/pipeline_constants.json (Dockerfile COPY).
+def _dev_fallback_path() -> str | None:
+    try:
+        return str(
+            Path(__file__).resolve().parents[3]
+            / "server/assets/pipeline_constants.json"
+        )
+    except (IndexError, OSError):
+        return None
+
+
+_DEV_FALLBACK = _dev_fallback_path()
+DEFAULT_CANDIDATES: Tuple[str, ...] = ("/app/pipeline_constants.json",)
+if _DEV_FALLBACK:
+    DEFAULT_CANDIDATES = DEFAULT_CANDIDATES + (_DEV_FALLBACK,)
 
 
 @dataclass(frozen=True)
