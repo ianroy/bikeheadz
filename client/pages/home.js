@@ -14,7 +14,6 @@ export function HomePage({ socket }) {
     stlReady: false,
     stlData: null,
     headScale: 0.85,
-    neckLength: 50,           // legacy slider, deprecated by v1 pipeline
     headTilt: 0,              // v1: pitch about X (chin up/down), -30..+30
     cropTightness: 0.60,      // v1: shoulder_taper_fraction, 0.40..0.85
     targetHeadHeightMm: 30,   // v1: TARGET_HEAD_HEIGHT_MM override, 22..42
@@ -203,7 +202,6 @@ export function HomePage({ socket }) {
     container: viewerCanvas,
     initial: {
       headScale: state.headScale,
-      neckLength: state.neckLength,
       headTilt: state.headTilt,
       materialType: state.materialType,
       headColor: state.headColor,
@@ -215,7 +213,6 @@ export function HomePage({ socket }) {
   function pushViewer() {
     viewer.update({
       headScale: state.headScale,
-      neckLength: state.neckLength,
       headTilt: state.headTilt,
       materialType: state.materialType,
       headColor: state.headColor,
@@ -564,7 +561,6 @@ export function HomePage({ socket }) {
         imageName: state.photoName,
         settings: {
           headScale: state.headScale,
-          neckLength: state.neckLength,                       // legacy, ignored by v1
           headTilt: state.headTilt,                           // v1: pitch (chin up)
           cropTightness: state.cropTightness,                 // v1: shoulder_taper_fraction
           targetHeadHeightMm: state.targetHeadHeightMm,       // v1: TARGET_HEAD_HEIGHT_MM

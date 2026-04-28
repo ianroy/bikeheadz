@@ -1200,17 +1200,23 @@ user-facing message, and a corresponding entry in the failure corpus
 within a week of going live. ✅ Code paths landed; observation period
 starts when v1 traffic ramps.
 
-### Phase 4 — Polish ⏸ BLOCKED on Phase 3
+### Phase 4 — Polish ⏳ in flight
 
 1. Mediapipe-based Stage 2 fallback (Approach B in §5 Stage 2) for
    tilted-head failures from the corpus.
-2. ~~Drop or rename the `neck_length_mm` slider~~ — partially done in
-   the Phase 1+2 commit. `Crop Tightness` (range 0.40–0.85, default
-   0.60) and `Head Pitch` (range −30°..+30°, default 0°, X-axis pitch)
-   are live in [home.js](client/pages/home.js); they wire through to
-   `shoulder_taper_fraction` and `head_tilt_deg` in the v1 pipeline.
-   `neckLength` still ships as a legacy field but the v1 path ignores
-   it. Remove fully when v1 is the default (Phase 5).
+2. ~~Drop or rename the `neck_length_mm` slider~~ ✅ DONE. The slider
+   is removed from [home.js](client/pages/home.js); the legacy
+   field is no longer sent in the request payload. Two more sliders
+   shipped in its place:
+   - **Head Height** (22–42 mm, default 30 mm) → `TARGET_HEAD_HEIGHT_MM`
+   - **Cap Protrusion** (0–25%, default 10%) → `CAP_PROTRUSION_FRACTION`
+   Plus the existing **Crop Tightness** (0.40–0.85, default 0.60) and
+   **Head Pitch** (−30°..+30°, default 0°). All four are wired
+   through `runpod-client.js` → `handler.py` → `run_v1` as per-request
+   overrides via `dataclasses.replace` on the loaded `Constants`.
+   The legacy `neck_length_mm` is still accepted by the legacy
+   `handler.py:_merge` path for `PIPELINE_VERSION=legacy` requests
+   but has no effect on v1.
 3. **Live red-line preview + Confirm-cut workflow** (NEW, user-requested).
    Today the user has to generate a full cap, look at the cut, adjust
    the Crop Tightness / Head Pitch sliders, and re-generate. Better
@@ -1247,10 +1253,17 @@ starts when v1 traffic ramps.
    workaround handles the worst case (slivers orphaned by a wide
    cavity in a narrow head section); the proper fix prevents the
    slivers from forming.
-6. TRELLIS-output cache: key by `sha256(image)+seed`, store on the
-   Network Volume. Slider tweaks reuse the cached raw mesh and re-run
-   only Stages 1.5–5. Big UX and cost win — and a prerequisite for
-   the live-preview workflow above (item 3).
+6. **TRELLIS-output cache** ✅ DONE.
+   [handler.py](handler.py) caches raw TRELLIS meshes by
+   `sha256(image_b64 + "|" + seed)` to
+   `/runpod-volume/cache/trellis/<key>.stl` with a 24-hour TTL.
+   Slider tweaks (head height, crop tightness, pitch, protrusion)
+   skip the ~5 min GPU stage entirely on a cache hit and run only
+   Stages 1–5 against the cached raw mesh. Telemetry includes
+   `trellis_cache_hit` so we can measure hit rate. Tunable via
+   `TRELLIS_CACHE_DIR` and `TRELLIS_CACHE_TTL_S` env vars; both
+   no-op safely on local dev (no `/runpod-volume`). Prerequisite for
+   the live-preview workflow above (item 3) is now cleared.
 7. Confirm Stage 5 decimation hits the §0 50–80K band consistently
    across the corpus; tune the `target_tris` parameter if the
    distribution drifts.

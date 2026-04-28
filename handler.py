@@ -314,6 +314,76 @@ _VALID_PIPELINE_VERSIONS = ("legacy", "v1")
 
 _FAILURE_BASE = os.environ.get("FAILURE_CORPUS_DIR", "/runpod-volume/failures")
 
+# TRELLIS-output cache (Phase 4 #6).
+#
+# Slider tweaks (Crop Tightness, Head Pitch, Head Height, Cap Protrusion)
+# don't change what TRELLIS produces — only the post-processing. Caching
+# the raw TRELLIS mesh by sha256(image_b64)+seed lets repeated requests
+# from the same input skip the ~5-minute GPU stage entirely on a warm
+# worker. Cache lives on the Network Volume so it survives worker
+# recycles. TTL: 24 h (matches the design store's TTL — once a user has
+# their cap, they don't need it cached longer).
+_TRELLIS_CACHE_DIR = os.environ.get(
+    "TRELLIS_CACHE_DIR", "/runpod-volume/cache/trellis"
+)
+_TRELLIS_CACHE_TTL_S = int(os.environ.get("TRELLIS_CACHE_TTL_S", str(24 * 3600)))
+
+
+def _trellis_cache_key(image_b64, seed):
+    """sha256 of the bytes of (image+seed). Truncated to 32 hex for
+    filesystem-friendly path lengths."""
+    import hashlib as _h
+    payload = image_b64.encode("ascii", errors="ignore") + f"|{seed}".encode("ascii")
+    return _h.sha256(payload).hexdigest()[:32]
+
+
+def _trellis_cache_path(key):
+    """Per-key path; returns None if the cache root can't be created."""
+    if not key:
+        return None
+    if not os.path.isdir(os.path.dirname(_TRELLIS_CACHE_DIR)):
+        return None
+    try:
+        os.makedirs(_TRELLIS_CACHE_DIR, exist_ok=True)
+    except OSError:
+        return None
+    return os.path.join(_TRELLIS_CACHE_DIR, f"{key}.stl")
+
+
+def _trellis_cache_load(image_b64, seed):
+    """Returns a trimesh.Trimesh from disk if a fresh cache hit, else None."""
+    key = _trellis_cache_key(image_b64, seed)
+    path = _trellis_cache_path(key)
+    if not path or not os.path.exists(path):
+        return None
+    try:
+        age = (
+            __import__("time").time() - os.path.getmtime(path)
+        )
+        if age > _TRELLIS_CACHE_TTL_S:
+            return None
+        mesh = trimesh.load_mesh(path)
+        if isinstance(mesh, trimesh.Scene):
+            mesh = trimesh.util.concatenate(tuple(mesh.geometry.values()))
+        sys.stderr.write(f"[trellis-cache] HIT key={key[:12]}\n")
+        return mesh
+    except Exception as exc:  # noqa: BLE001
+        sys.stderr.write(f"[trellis-cache] load failed: {exc}\n")
+        return None
+
+
+def _trellis_cache_save(image_b64, seed, mesh):
+    """Persist the raw TRELLIS mesh to the cache. Best-effort; errors are logged."""
+    key = _trellis_cache_key(image_b64, seed)
+    path = _trellis_cache_path(key)
+    if not path:
+        return
+    try:
+        mesh.export(path, file_type="stl")
+        sys.stderr.write(f"[trellis-cache] SAVED key={key[:12]}\n")
+    except Exception as exc:  # noqa: BLE001
+        sys.stderr.write(f"[trellis-cache] save failed: {exc}\n")
+
 
 def _failure_corpus_dir(job_id):
     """Per-job directory for writing failure artefacts. Returns None if
@@ -427,25 +497,41 @@ def handler(job):
         pipeline_version = _resolve_pipeline_version(inp)
         sys.stderr.write(f"[bikeheadz] pipeline_version={pipeline_version}\n")
 
-        yield {"type": "progress", "step": "Loading TRELLIS pipeline…", "pct": 10}
-        t = _time.perf_counter()
-        pipeline = _load_pipeline()
-        timings["pipeline_load_ms"] = int((_time.perf_counter() - t) * 1000)
+        # Try the TRELLIS-output cache first. If the same image (+seed)
+        # came through within the TTL, we already have its raw mesh on
+        # the Network Volume and can skip the ~5 min GPU stage entirely.
+        # Slider tweaks are the dominant repeat case.
+        cached_head = _trellis_cache_load(image_b64, seed)
+        if cached_head is not None:
+            yield {"type": "progress", "step": "Using cached TRELLIS output…", "pct": 65}
+            head = cached_head
+            timings["trellis_cache_hit"] = True
+            timings["pipeline_load_ms"] = 0
+            timings["trellis_ms"] = 0
+        else:
+            yield {"type": "progress", "step": "Loading TRELLIS pipeline…", "pct": 10}
+            t = _time.perf_counter()
+            pipeline = _load_pipeline()
+            timings["pipeline_load_ms"] = int((_time.perf_counter() - t) * 1000)
 
-        yield {"type": "progress", "step": "Analyzing facial geometry…", "pct": 30}
-        t = _time.perf_counter()
-        img = Image.open(io.BytesIO(base64.b64decode(image_b64))).convert("RGB")
-        outputs = pipeline.run(img, seed=seed)
-        timings["trellis_ms"] = int((_time.perf_counter() - t) * 1000)
+            yield {"type": "progress", "step": "Analyzing facial geometry…", "pct": 30}
+            t = _time.perf_counter()
+            img = Image.open(io.BytesIO(base64.b64decode(image_b64))).convert("RGB")
+            outputs = pipeline.run(img, seed=seed)
+            timings["trellis_ms"] = int((_time.perf_counter() - t) * 1000)
 
-        yield {"type": "progress", "step": "Extracting head mesh…", "pct": 65}
-        mesh_result = outputs["mesh"][0]
-        head = trimesh.Trimesh(
-            vertices=np.asarray(mesh_result.vertices),
-            faces=np.asarray(mesh_result.faces),
-            process=True,
-        )
-        head.fix_normals()
+            yield {"type": "progress", "step": "Extracting head mesh…", "pct": 65}
+            mesh_result = outputs["mesh"][0]
+            head = trimesh.Trimesh(
+                vertices=np.asarray(mesh_result.vertices),
+                faces=np.asarray(mesh_result.faces),
+                process=True,
+            )
+            head.fix_normals()
+            # Cache the freshly-generated raw head for next time. This
+            # is best-effort; failures don't break the pipeline.
+            _trellis_cache_save(image_b64, seed, head)
+            timings["trellis_cache_hit"] = False
         timings["raw_head_tris"] = int(len(head.faces))
 
         # Branch on pipeline_version.
