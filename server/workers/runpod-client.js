@@ -68,6 +68,14 @@ export async function runRunpod({ socket, commandId, imageBuf, settings }) {
   const deadline = Date.now() + POLL_MAX_WAIT_MS;
   let stlBytes = null;
   let lastStatus = startRes.status || 'IN_QUEUE';
+  // Chunk reassembly buffer for the v0.1.33+ handler protocol.
+  // RunPod's /job-stream per-frame cap is ~1 MB; the worker splits
+  // the base64 STL into ≤700 KB `result_chunk` frames + a final
+  // `result` frame with metadata. We index by `chunk.index` so order
+  // doesn't matter (frames may arrive across multiple poll batches).
+  const stlChunks = [];
+  let stlChunkTotal = null;
+  let stlBytesLen = null;
 
   while (Date.now() < deadline) {
     const chunk = await fetchJson(`${base}/stream/${jobId}`, { headers: auth });
@@ -81,18 +89,42 @@ export async function runRunpod({ socket, commandId, imageBuf, settings }) {
           name: 'stl.generate.progress',
           payload: { step: out.step, pct: out.pct },
         });
+      } else if (out.type === 'result_chunk') {
+        // v0.1.33+ chunked-delivery protocol. Each chunk is a slice
+        // of the base64 STL; assemble at completion.
+        if (typeof out.data === 'string' && Number.isInteger(out.index)) {
+          stlChunks[out.index] = out.data;
+          if (Number.isInteger(out.total)) stlChunkTotal = out.total;
+        }
       } else if (out.type === 'result') {
-        // Modern handler (v0.1.32+) splits the result across two
-        // channels to dodge RunPod's ~1 MB per-frame /job-stream cap:
-        // a tiny metadata frame here (triangles, version) signals
-        // completion, and the STL bytes come back via /status as the
-        // generator's return value. We only consume stl_b64 here for
-        // backwards-compat with handlers <v0.1.32 that inlined it.
+        // Three handler eras live here:
+        //   ≤v0.1.31: stl_b64 inlined (HTTP 400 — never actually arrives).
+        //   v0.1.32:  metadata only, STL via /status return value (broken — SDK drops it).
+        //   v0.1.33+: metadata only, STL came in via prior result_chunk frames.
         if (typeof out.stl_b64 === 'string') {
           stlBytes = Buffer.from(out.stl_b64, 'base64');
+        } else if (Number.isInteger(out.chunks)) {
+          stlChunkTotal = out.chunks;
+          if (Number.isInteger(out.stl_bytes_len)) stlBytesLen = out.stl_bytes_len;
         }
       } else if (out.type === 'error') {
         throw new Error(`runpod_worker_error:${out.error}`);
+      }
+    }
+
+    // After processing this poll batch, attempt chunk assembly if we
+    // have all of them. Doing this inside the loop (rather than only
+    // at COMPLETED) gives us the bytes a poll-cycle earlier when the
+    // generator yields the chunks before status flips.
+    if (!stlBytes && stlChunkTotal && stlChunks.filter(Boolean).length === stlChunkTotal) {
+      const stl_b64 = stlChunks.join('');
+      stlBytes = Buffer.from(stl_b64, 'base64');
+      if (stlBytesLen !== null && stlBytes.length !== stlBytesLen) {
+        logger.warn({
+          msg: 'runpod.stl_size_mismatch',
+          expected: stlBytesLen,
+          actual: stlBytes.length,
+        });
       }
     }
 

@@ -51,7 +51,7 @@ os.environ.setdefault("SPARSE_ATTN_BACKEND", "xformers")
 # Version banner — prints unconditionally at module load time so we can
 # tell from the worker logs whether the running container is actually
 # the image tag we think it is.
-HANDLER_VERSION = "v0.1.32"
+HANDLER_VERSION = "v0.1.33"
 sys.stderr.write(f"[bikeheadz] handler.py {HANDLER_VERSION} booting (pid={os.getpid()})\n")
 sys.stderr.flush()
 
@@ -661,33 +661,40 @@ def handler(job):
             "timings": timings,
         })
 
-        # Two-channel result delivery so we don't run into RunPod's
-        # /job-stream per-frame size cap (~1 MB):
+        # Chunked result delivery: each yielded frame must stay under
+        # RunPod's /job-stream per-frame size cap (~1 MB). A typical
+        # binary STL of 50–80 K triangles is ~3–5 MB raw / ~4–7 MB as
+        # base64 — well over the cap when sent inline.
         #
-        # 1. Yield a small "result" frame (metadata only, no STL bytes).
-        #    runpod-client.js sees `type: "result"` and breaks out of the
-        #    progress loop. <100 bytes — sails under the cap.
-        # 2. Return the heavy STL via the generator's return value.
-        #    RunPod stores the final returned value in the job's /status
-        #    output, which has a much larger budget. runpod-client.js
-        #    already has a `/status/<jobId>` fallback that decodes
-        #    `output.stl_b64`.
-        #
-        # Earlier handlers yielded stl_b64 inline, which produced
-        # `Failed to return job results | 400 Bad Request` from
-        # /job-stream and silently dropped the result. Two-channel
-        # split keeps the wire format compatible with the existing
-        # client (the safety-net path becomes the primary path).
+        # v0.1.31 inlined stl_b64 in a single yield → HTTP 400 from
+        # /job-stream, result silently dropped.
+        # v0.1.32 split the yield from a generator return → confirmed
+        # the worker stops 400'ing, but RunPod's serverless SDK
+        # iterates the generator with a plain for-loop and discards
+        # the StopIteration return value. /status output ends up
+        # without stl_b64.
+        # v0.1.33 (this): split the b64 into N chunks well under the
+        # cap, yield each as a `result_chunk` frame, then yield a
+        # final `result` frame with metadata + chunk count. The
+        # client assembles by index. No reliance on /status or
+        # generator return semantics.
         stl_b64 = base64.b64encode(stl_bytes).decode("ascii")
+        CHUNK_SIZE = 700_000  # bytes of base64 per frame (well under 1 MB)
+        total_chunks = (len(stl_b64) + CHUNK_SIZE - 1) // CHUNK_SIZE
+        for idx in range(total_chunks):
+            chunk = stl_b64[idx * CHUNK_SIZE : (idx + 1) * CHUNK_SIZE]
+            yield {
+                "type": "result_chunk",
+                "index": idx,
+                "total": total_chunks,
+                "data": chunk,
+            }
         yield {
             "type": "result",
             "triangles": int(len(merged.faces)),
             "pipeline_version": pipeline_version,
-        }
-        return {
-            "stl_b64": stl_b64,
-            "triangles": int(len(merged.faces)),
-            "pipeline_version": pipeline_version,
+            "chunks": total_chunks,
+            "stl_bytes_len": len(stl_bytes),
         }
     except Exception as err:  # noqa: BLE001
         sys.stderr.write(
