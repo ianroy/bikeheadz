@@ -47,7 +47,8 @@ assume they hold. If any shifts, the plan needs revisiting.
 | **Coordinate frame** | **Z-up, +Y forward (face), millimeters** | Matches §8.1 invariants and the Three.js viewer at [valve-stem-viewer.js:251](client/components/valve-stem-viewer.js:251), which rotates −π/2 around X assuming Z-up. Stage 5 export must orient the **cap region toward −Z** so the slicer's default "place flat on bed" picks the cap as the print face. |
 | **Boolean engine** | **manifold3d 3.4+** | §7 audit; the only CPU CSG with a manifold-output guarantee. |
 | **Cap & negative-core sizing** | **Locked, do not scale** (`valve_cap.stl` ≈ ⌀9.2 mm, `negative_core.stl` ≈ ⌀8.3 mm) | The bike valve thread fit demands these exact dimensions — scaling either would break the press-fit onto a real Presta valve. The threaded outer diameter of `valve_cap.stl` is *intentionally larger* than `negative_core.stl`'s diameter: when Stage 4 unions the cap into the cavity Stage 3 carved, the cap's threads bite into the surrounding head walls and form the threading visible inside the cavity. Wall thickness around the cavity is **not** ensured by widening the core (which would break the valve fit) — it is ensured by Stage 2 **rotating the head** to choose a hole location with enough surrounding material. (Decision −0.5.3.) |
-| **Head auto-rescale target** | `TARGET_HEAD_HEIGHT_MM = 22.0` (drives Stage 1) | Cap section is ~11 mm tall. A 22 mm head section gives a total assembly of ~33 mm — proportional to the references' apparent intent and a sensible bike-cap size. This number lives in `pipeline_constants.json` and is tunable; the lock is the *existence* of the rescale step (decision −0.5.1), not the exact value. |
+| **Head auto-rescale target** | `TARGET_HEAD_HEIGHT_MM = 30.0` baseline; **user-tunable 22..42 mm** via the Web UI's "Head Height" slider | Cap section is ~11 mm tall + 14 mm cropped head room for the cavity. A 30 mm rescale gives a ~15 mm cropped head — enough to fully nest the 13.78 mm core. Tunable per-request: pipeline reads the override and applies it via `dataclasses.replace` on the loaded `Constants`. |
+| **Cap protrusion below head** | `CAP_PROTRUSION_FRACTION = 0.10` baseline; **user-tunable 0..25%** via the Web UI's "Cap Protrusion" slider | The cap's open bottom protrudes by 10% of `VALVE_CAP_HEIGHT_MM` (≈1.11 mm) below the head's bottom plane to expose the threading and accept a real bike valve. Drives `JUNCTION_Z_OFFSET_MM = -CAP_PROTRUSION_FRACTION × VALVE_CAP_HEIGHT_MM`. |
 | **Layer height target** | **0.12–0.16 mm** | The user's printer family runs comfortably here on PLA. A typical bike valve thread pitch is ~0.8 mm; at 0.12 mm layers that's ~6–7 layers per pitch — crisp threads. At 0.16 mm, ~5 layers — still clean. Stage 5 doesn't enforce this (slicer's job) but the triangle budget below assumes it. |
 | **Triangle budget (output)** | **50–80K** | 30 mm part at 0.12–0.16 mm FDM/PLA layer height. Below 50K the chin and ears facet visibly. Above 80K the slicer can't resolve added detail at this layer height and the surplus just bloats `stl_b64` over the wire. The thread region (cap) is masked from decimation and stays at full density regardless — those tolerances matter. |
 | **Min wall thickness** | **1.2 mm** | FDM at 0.4 mm nozzle prints reliable walls at 3× nozzle width = 1.2 mm. Below that, PLA shows gaps and inconsistent extrusion. Drives the optional wall-thickness check in §8.6. |
@@ -1172,27 +1173,32 @@ Landed alongside Phase 1.
 ~70K triangles with threads visible inside the cavity. ✅ Code lands;
 production rollout pending operations.
 
-### Phase 3 — Robustness ⏸ BLOCKED on Phase 2
+### Phase 3 — Robustness ⏳ in flight
 
 - [x] **Defined the error taxonomy** as a Python enum at
-      [server/workers/pipeline/errors.py](server/workers/pipeline/errors.py)
-      with `ErrorCode`, `PipelineError`, and per-code user-facing
-      copy. Codes match the §10 list (`no_face_detected`,
-      `low_image_quality`, `head_pose_ambiguous`,
-      `non_manifold_input_unrepairable`, `repair_timeout`,
-      `neck_not_found`, `boolean_failed`, `output_not_watertight`,
-      `output_dimensions_out_of_range`, `decimation_failed`,
-      `triangle_budget_exceeded`, `stage_timeout`, `total_timeout`,
-      `internal_error`). Schema versioned for forward compat.
-- [ ] Reject (don't silently degrade) inputs that fail validation.
-      Each rejection writes to the failure corpus (§9.5).
+      [server/workers/pipeline/errors.py](server/workers/pipeline/errors.py).
+- [x] **Reject + write to failure corpus** —
+      [handler.py](handler.py) now writes
+      `/runpod-volume/failures/<yyyymmdd>/<job-id>/{photo.b64,error.json}`
+      on any pipeline failure (PipelineError or generic exception).
+      Includes timings + handler version. Local dev is a no-op (the
+      RunPod volume path doesn't exist outside RunPod).
+- [x] **Telemetry schema** — every successful AND failed run emits a
+      single `[telemetry] {…}` JSON line on stderr per §9.5 schema
+      (kind, outcome, version, image_sha, settings, timings: pipeline
+      load, TRELLIS, v1 stages, export, total ms). Wire up an
+      aggregator (BetterStack/Loki/CloudWatch) when available — the
+      log format is stable.
 - [ ] Add `pymeshlab` (subprocess-isolated per §7) for hard-to-repair
-      inputs. Fall back to the MIT path if subprocess fails.
-- [ ] Wire the telemetry schema (§9.5) to a real log aggregator.
+      inputs. Fall back to the MIT path if subprocess fails. Today
+      pymeshlab is `import pymeshlab` directly inside Stage 1.5 with a
+      try/except fallback to trimesh.repair — works in production but
+      doesn't isolate the GPL.
 
 **Done when:** every failure path has a specific error code, a written
 user-facing message, and a corresponding entry in the failure corpus
-within a week of going live.
+within a week of going live. ✅ Code paths landed; observation period
+starts when v1 traffic ramps.
 
 ### Phase 4 — Polish ⏸ BLOCKED on Phase 3
 

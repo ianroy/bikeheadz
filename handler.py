@@ -51,7 +51,7 @@ os.environ.setdefault("SPARSE_ATTN_BACKEND", "xformers")
 # Version banner — prints unconditionally at module load time so we can
 # tell from the worker logs whether the running container is actually
 # the image tag we think it is.
-HANDLER_VERSION = "v0.1.26"
+HANDLER_VERSION = "v0.1.27"
 sys.stderr.write(f"[bikeheadz] handler.py {HANDLER_VERSION} booting (pid={os.getpid()})\n")
 sys.stderr.flush()
 
@@ -299,6 +299,73 @@ def _merge(head: trimesh.Trimesh, valve: trimesh.Trimesh,
 _VALID_PIPELINE_VERSIONS = ("legacy", "v1")
 
 
+# ---- Failure corpus & telemetry --------------------------------------------
+#
+# Phase 3 §9.5 commits: every pipeline error writes the input photo plus a
+# structured error.json to /runpod-volume/failures/<yyyymmdd>/<job-id>/
+# so we can triage in batches. Every successful run emits a single
+# structured JSON log line at completion with per-stage timing — that's
+# what an aggregator (BetterStack/Loki/etc.) ingests once we wire one up.
+#
+# These functions are no-ops on local dev (where /runpod-volume doesn't
+# exist); the corpus writes only fire on the actual RunPod worker. The
+# telemetry log line goes to stderr regardless so it shows up in any
+# `docker logs` / RunPod console.
+
+_FAILURE_BASE = os.environ.get("FAILURE_CORPUS_DIR", "/runpod-volume/failures")
+
+
+def _failure_corpus_dir(job_id):
+    """Per-job directory for writing failure artefacts. Returns None if
+    the parent path doesn't exist (so we don't blow up on local dev)."""
+    parent = _FAILURE_BASE
+    if not os.path.isdir(os.path.dirname(parent)):
+        return None
+    import datetime as _dt
+    today = _dt.datetime.now(_dt.timezone.utc).strftime("%Y%m%d")
+    day_dir = os.path.join(parent, today)
+    job_dir = os.path.join(day_dir, str(job_id) if job_id else "no-job-id")
+    try:
+        os.makedirs(job_dir, exist_ok=True)
+    except OSError:
+        return None
+    return job_dir
+
+
+def _write_failure(job_id, image_b64, *, code, stage, message, extra=None):
+    """Write the input photo + error.json into the per-job failure dir."""
+    import json as _json
+    import datetime as _dt
+    job_dir = _failure_corpus_dir(job_id)
+    if not job_dir:
+        return
+    try:
+        if image_b64:
+            with open(os.path.join(job_dir, "photo.b64"), "w", encoding="utf-8") as fh:
+                fh.write(image_b64)
+        with open(os.path.join(job_dir, "error.json"), "w", encoding="utf-8") as fh:
+            _json.dump({
+                "ts": _dt.datetime.now(_dt.timezone.utc).isoformat(),
+                "code": code,
+                "stage": stage,
+                "message": message,
+                "handler_version": HANDLER_VERSION,
+                "extra": extra or {},
+            }, fh, indent=2)
+    except OSError as exc:
+        sys.stderr.write(f"[failure-corpus] write failed: {exc}\n")
+
+
+def _emit_telemetry(record):
+    """One JSON-encoded line on stderr per request."""
+    import json as _json
+    try:
+        sys.stderr.write("[telemetry] " + _json.dumps(record) + "\n")
+        sys.stderr.flush()
+    except Exception as exc:  # noqa: BLE001
+        sys.stderr.write(f"[telemetry] encode failed: {exc}\n")
+
+
 def _resolve_pipeline_version(inp):
     """Pick the pipeline branch.
 
@@ -323,9 +390,17 @@ def _resolve_pipeline_version(inp):
 
 
 def handler(job):
+    import time as _time
+    t_start = _time.perf_counter()
+    timings = {}
+    job_id = job.get("id") or None
     inp = job.get("input") or {}
+    image_b64 = inp.get("image_b64")
+    image_sha = None
+    if image_b64:
+        import hashlib as _h
+        image_sha = _h.sha256(image_b64.encode("ascii", errors="ignore")).hexdigest()[:16]
     try:
-        image_b64 = inp.get("image_b64")
         if not image_b64:
             yield {"type": "error", "error": "image_b64 required"}
             return
@@ -353,11 +428,15 @@ def handler(job):
         sys.stderr.write(f"[bikeheadz] pipeline_version={pipeline_version}\n")
 
         yield {"type": "progress", "step": "Loading TRELLIS pipeline…", "pct": 10}
+        t = _time.perf_counter()
         pipeline = _load_pipeline()
+        timings["pipeline_load_ms"] = int((_time.perf_counter() - t) * 1000)
 
         yield {"type": "progress", "step": "Analyzing facial geometry…", "pct": 30}
+        t = _time.perf_counter()
         img = Image.open(io.BytesIO(base64.b64decode(image_b64))).convert("RGB")
         outputs = pipeline.run(img, seed=seed)
+        timings["trellis_ms"] = int((_time.perf_counter() - t) * 1000)
 
         yield {"type": "progress", "step": "Extracting head mesh…", "pct": 65}
         mesh_result = outputs["mesh"][0]
@@ -367,6 +446,7 @@ def handler(job):
             process=True,
         )
         head.fix_normals()
+        timings["raw_head_tris"] = int(len(head.faces))
 
         # Branch on pipeline_version.
         if pipeline_version == "v1":
@@ -375,9 +455,12 @@ def handler(job):
                 from pipeline import run_v1, PipelineError
             except ImportError as e:
                 sys.stderr.write(f"[bikeheadz] v1 pipeline not importable: {e}\n")
+                _write_failure(job_id, image_b64, code="v1_pipeline_unavailable",
+                              stage="import", message=str(e))
                 yield {"type": "error", "error": f"v1_pipeline_unavailable: {e}"}
                 return
             try:
+                t = _time.perf_counter()
                 merged = run_v1(
                     head,
                     _VALVE_CAP,
@@ -389,18 +472,51 @@ def handler(job):
                     cap_protrusion_fraction=cap_protrusion_fraction,
                     progress=None,  # TODO(Phase 4): thread progress frames out via a queue
                 )
+                timings["v1_pipeline_ms"] = int((_time.perf_counter() - t) * 1000)
             except PipelineError as e:
                 # Surface the error with the user-facing copy and the
-                # stable code so the Node side can branch on it.
+                # stable code so the Node side can branch on it. Also
+                # write the input to the failure corpus for offline
+                # triage (§9.5).
                 sys.stderr.write(traceback.format_exc())
+                _write_failure(
+                    job_id, image_b64,
+                    code=e.code.value, stage=e.stage,
+                    message=e.detail or str(e),
+                    extra={"timings": timings},
+                )
                 yield e.to_frame()
                 return
         else:
             yield {"type": "progress", "step": "Scaling to valve dimensions…", "pct": 78}
+            t = _time.perf_counter()
             merged = _merge(head, _VALVE_CAP, head_scale, neck_length_mm, head_tilt_deg)
+            timings["legacy_merge_ms"] = int((_time.perf_counter() - t) * 1000)
 
         yield {"type": "progress", "step": "Exporting STL…", "pct": 92}
+        t = _time.perf_counter()
         stl_bytes = merged.export(file_type="stl")
+        timings["export_ms"] = int((_time.perf_counter() - t) * 1000)
+        timings["final_tris"] = int(len(merged.faces))
+        timings["total_ms"] = int((_time.perf_counter() - t_start) * 1000)
+
+        # Single structured log line for the run. §9.5 telemetry schema.
+        _emit_telemetry({
+            "kind": "stl.generate",
+            "outcome": "success",
+            "version": pipeline_version,
+            "handler_version": HANDLER_VERSION,
+            "job_id": job_id,
+            "image_sha": image_sha,
+            "settings": {
+                "head_scale": head_scale,
+                "head_tilt_deg": head_tilt_deg,
+                "shoulder_taper_fraction": shoulder_taper_fraction,
+                "target_head_height_mm": target_head_height_mm,
+                "cap_protrusion_fraction": cap_protrusion_fraction,
+            },
+            "timings": timings,
+        })
 
         yield {
             "type": "result",
@@ -410,6 +526,22 @@ def handler(job):
         }
     except Exception as err:  # noqa: BLE001
         sys.stderr.write(traceback.format_exc())
+        _write_failure(
+            job_id, image_b64,
+            code="internal_error", stage="handler",
+            message=str(err),
+            extra={"timings": timings},
+        )
+        _emit_telemetry({
+            "kind": "stl.generate",
+            "outcome": "internal_error",
+            "version": pipeline_version if "pipeline_version" in dir() else None,
+            "handler_version": HANDLER_VERSION,
+            "job_id": job_id,
+            "image_sha": image_sha,
+            "error": str(err),
+            "timings": timings,
+        })
         yield {"type": "error", "error": str(err)}
 
 
