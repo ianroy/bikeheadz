@@ -28,11 +28,22 @@ ENV DEBIAN_FRONTEND=noninteractive \
     TORCH_CUDA_ARCH_LIST="7.0 7.5 8.0 8.6 8.9 9.0+PTX"
 
 # System deps for building CUDA extensions + image/mesh libs at runtime.
+#
+# pymeshlab's filter plugins are dlopen'd at MeshSet construction. The
+# `meshing_*` family (incl. meshing_close_holes used by Stage 1.5) lives
+# in libfilter_meshing.so, which has a hard link against libOpenGL.so.0.
+# That symbol comes from `libopengl0` (the GLVND demux library), NOT
+# from libgl1. Without it, pymeshlab silently registers a MeshSet with
+# the meshing-family attributes missing → AttributeError at runtime.
+# `libegl1` is its peer and is sometimes pulled in by the same
+# transitive dlopen path.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         git \
         build-essential \
         ninja-build \
         libgl1 \
+        libopengl0 \
+        libegl1 \
         libglib2.0-0 \
         curl \
         ca-certificates \

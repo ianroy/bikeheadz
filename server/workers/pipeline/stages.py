@@ -65,6 +65,23 @@ except Exception:  # noqa: BLE001
 
 try:
     import pymeshlab as _ml  # type: ignore[import-not-found]
+    # Probe for the `meshing_*` filter family. pymeshlab dlopens its
+    # filter plugins at MeshSet construction; if libOpenGL.so.0 is
+    # missing, libfilter_meshing.so silently fails to register and the
+    # MeshSet ends up without `meshing_close_holes` etc — surfaces only
+    # at first call as AttributeError. We'd rather know at import time
+    # so the runtime path can deterministically pick the trimesh
+    # fallback instead of crashing mid-pipeline.
+    _probe_ms = _ml.MeshSet()
+    if not hasattr(_probe_ms, "meshing_close_holes"):
+        sys.stderr.write(
+            "[pipeline.stages] pymeshlab imported but meshing_* filters "
+            "not registered (likely libfilter_meshing.so failed to load — "
+            "missing libOpenGL.so.0?). Disabling pymeshlab path; Stage 1.5 "
+            "will use trimesh.repair fallback.\n"
+        )
+        _ml = None  # type: ignore[assignment]
+    del _probe_ms
 except Exception:  # noqa: BLE001
     _ml = None  # type: ignore[assignment]
     sys.stderr.write(
