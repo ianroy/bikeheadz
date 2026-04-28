@@ -51,7 +51,7 @@ os.environ.setdefault("SPARSE_ATTN_BACKEND", "xformers")
 # Version banner — prints unconditionally at module load time so we can
 # tell from the worker logs whether the running container is actually
 # the image tag we think it is.
-HANDLER_VERSION = "v0.1.28"
+HANDLER_VERSION = "v0.1.29"
 sys.stderr.write(f"[bikeheadz] handler.py {HANDLER_VERSION} booting (pid={os.getpid()})\n")
 sys.stderr.flush()
 
@@ -437,16 +437,39 @@ def _emit_telemetry(record):
 
 
 def _to_numpy(x):
-    """np.asarray() that handles CUDA torch tensors.
+    """np.asarray() that handles CUDA torch tensors and common wrappers.
 
-    TRELLIS' mesh decoder returns its vertices/faces as CUDA tensors
-    in recent versions. ``np.asarray(cuda_tensor)`` raises
-    ``TypeError: can't convert cuda:0 device type tensor to numpy``.
-    Detach (drop autograd) → CPU → numpy. Falls through unchanged
-    for anything that's already a numpy array or array-like.
+    TRELLIS returns CUDA tensors. np.asarray(cuda_tensor) raises
+    `TypeError: can't convert cuda:0 device type tensor to numpy`.
+    Walk through several layers in priority order:
+
+    1. Already a numpy array — return as-is.
+    2. torch.Tensor — detach + cpu + numpy.
+    3. Has `.numpy()` callable (rare, but covers some custom types).
+    4. Sequence with at least one tensor element — recurse over them.
+    5. Anything else — np.asarray().
+
+    The recursive case handles `vertices` shapes returned as a
+    `[tensor]` list, which trips np.asarray exactly the same way.
     """
-    if hasattr(x, "detach") and hasattr(x, "cpu"):
-        return x.detach().cpu().numpy()
+    if isinstance(x, np.ndarray):
+        return x
+    try:
+        import torch
+        if isinstance(x, torch.Tensor):
+            return x.detach().cpu().numpy()
+    except ImportError:
+        pass
+    if callable(getattr(x, "numpy", None)) and hasattr(x, "cpu"):
+        try:
+            return x.detach().cpu().numpy()
+        except Exception:  # noqa: BLE001
+            pass
+    if isinstance(x, (list, tuple)) and x and any(
+        hasattr(el, "detach") and hasattr(el, "cpu") for el in x
+    ):
+        # mixed list with at least one tensor — convert each then stack
+        return np.asarray([_to_numpy(el) for el in x])
     return np.asarray(x)
 
 
@@ -536,12 +559,32 @@ def handler(job):
 
             yield {"type": "progress", "step": "Extracting head mesh…", "pct": 65}
             mesh_result = outputs["mesh"][0]
+            sys.stderr.write(
+                f"[bikeheadz] mesh_result type={type(mesh_result).__name__}, "
+                f"vertices type={type(getattr(mesh_result, 'vertices', None)).__name__}, "
+                f"faces type={type(getattr(mesh_result, 'faces', None)).__name__}\n"
+            )
+            sys.stderr.flush()
+            try:
+                vertices_np = _to_numpy(mesh_result.vertices)
+                faces_np = _to_numpy(mesh_result.faces)
+            except Exception as exc:  # noqa: BLE001
+                sys.stderr.write(
+                    f"[bikeheadz] _to_numpy crash: {type(exc).__name__}: {exc}\n"
+                )
+                sys.stderr.flush()
+                raise
+            sys.stderr.write(
+                f"[bikeheadz] mesh tensors → numpy: "
+                f"verts shape={vertices_np.shape}, faces shape={faces_np.shape}\n"
+            )
+            sys.stderr.flush()
             head = trimesh.Trimesh(
-                vertices=_to_numpy(mesh_result.vertices),
-                faces=_to_numpy(mesh_result.faces),
-                process=True,
+                vertices=vertices_np, faces=faces_np, process=True,
             )
             head.fix_normals()
+            sys.stderr.write(f"[bikeheadz] head built: {len(head.faces)} tris\n")
+            sys.stderr.flush()
             # Cache the freshly-generated raw head for next time. This
             # is best-effort; failures don't break the pipeline.
             _trellis_cache_save(image_b64, seed, head)
@@ -625,7 +668,11 @@ def handler(job):
             "pipeline_version": pipeline_version,
         }
     except Exception as err:  # noqa: BLE001
+        sys.stderr.write(
+            f"[bikeheadz] CRASH {type(err).__name__}: {err}\n"
+        )
         sys.stderr.write(traceback.format_exc())
+        sys.stderr.flush()
         _write_failure(
             job_id, image_b64,
             code="internal_error", stage="handler",
