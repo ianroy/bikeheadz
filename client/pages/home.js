@@ -17,6 +17,8 @@ export function HomePage({ socket }) {
     neckLength: 50,           // legacy slider, deprecated by v1 pipeline
     headTilt: 0,              // v1: pitch about X (chin up/down), -30..+30
     cropTightness: 0.60,      // v1: shoulder_taper_fraction, 0.40..0.85
+    targetHeadHeightMm: 30,   // v1: TARGET_HEAD_HEIGHT_MM override, 22..42
+    capProtrusionPct: 10,     // v1: CAP_PROTRUSION_FRACTION override, 0..25 (%)
     materialType: 'chrome',
     headColor: '#c8b8a0',
     showSettings: false,
@@ -260,6 +262,28 @@ export function HomePage({ socket }) {
     Object.assign(settingsInner.style, { background: '#111120', borderColor: '#1e1e35' });
 
     settingsInner.append(
+      // Head Height — TARGET_HEAD_HEIGHT_MM, the size the rescaled head
+      // is normalized to before booleans. Drives the final part's
+      // overall vertical dimension. Default 30 mm. Cap & core need
+      // ~14 mm of cropped head to fit, so the practical floor is 22.
+      slider({
+        label: 'Head Height',
+        value: state.targetHeadHeightMm,
+        min: 22, max: 42, step: 1,
+        display: (v) => `${v} mm`,
+        onInput: (v) => { state.targetHeadHeightMm = v; pushViewer(); },
+      }),
+      // Cap Protrusion — fraction of cap height visible below the head's
+      // bottom face. Creates the bike-valve entry opening. 0 = cap
+      // entirely inside head (no opening); 25 = significant exposed
+      // threading. 10% default.
+      slider({
+        label: 'Cap Protrusion',
+        value: state.capProtrusionPct,
+        min: 0, max: 25, step: 1,
+        display: (v) => `${v}%`,
+        onInput: (v) => { state.capProtrusionPct = v; pushViewer(); },
+      }),
       slider({
         label: 'Head Scale',
         value: state.headScale,
@@ -540,9 +564,11 @@ export function HomePage({ socket }) {
         imageName: state.photoName,
         settings: {
           headScale: state.headScale,
-          neckLength: state.neckLength,            // legacy, ignored by v1
-          headTilt: state.headTilt,                // v1: pitch (chin up)
-          cropTightness: state.cropTightness,      // v1: shoulder_taper_fraction
+          neckLength: state.neckLength,                       // legacy, ignored by v1
+          headTilt: state.headTilt,                           // v1: pitch (chin up)
+          cropTightness: state.cropTightness,                 // v1: shoulder_taper_fraction
+          targetHeadHeightMm: state.targetHeadHeightMm,       // v1: TARGET_HEAD_HEIGHT_MM
+          capProtrusionPct: state.capProtrusionPct,           // v1: CAP_PROTRUSION_FRACTION (× 100)
           materialType: state.materialType,
           headColor: state.headColor,
         },

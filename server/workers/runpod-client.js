@@ -42,6 +42,12 @@ export async function runRunpod({ socket, commandId, imageBuf, settings }) {
     neck_length_mm: Number(settings.neckLength) || 50, // legacy slider, deprecated by v1
     head_tilt_deg: Number(settings.headTilt) || 0,     // v1: pitch about +X (chin up)
     shoulder_taper_fraction: clamp(Number(settings.cropTightness) || 0.60, 0.40, 0.85),
+    // Two new v1 overrides: target head height in mm (drives Stage 1
+    // rescale) and cap protrusion as a fraction (drives the bike-valve
+    // entry opening). Sliders ship pct (0..25); convert to fraction
+    // here so the wire format matches the pipeline's Constants schema.
+    target_head_height_mm: clamp(Number(settings.targetHeadHeightMm) || 30, 22, 42),
+    cap_protrusion_fraction: clamp((Number(settings.capProtrusionPct) || 10) / 100, 0.0, 0.25),
     pipeline_version: process.env.PIPELINE_VERSION || 'legacy',
     seed: 1,
   };

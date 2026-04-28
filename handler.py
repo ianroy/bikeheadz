@@ -334,11 +334,20 @@ def handler(job):
         neck_length_mm = float(inp.get("neck_length_mm", 50.0))  # legacy
         head_tilt_deg = float(inp.get("head_tilt_deg", 0.0))
         shoulder_taper_fraction = float(inp.get("shoulder_taper_fraction", 0.60))
+        # Two new sliders — see 3D_Pipeline.md §0. Both are also passed
+        # to run_v1 as per-request Constants overrides; defaults match
+        # the locked values in pipeline_constants.json.
+        target_head_height_mm = inp.get("target_head_height_mm")
+        cap_protrusion_fraction = inp.get("cap_protrusion_fraction")
         # Clamp the user-facing knobs so a malformed UI can't break the
         # pipeline (e.g. negative shoulder_taper would cut at a phantom
         # location below z_min).
         shoulder_taper_fraction = max(0.40, min(0.85, shoulder_taper_fraction))
         head_tilt_deg = max(-30.0, min(30.0, head_tilt_deg))
+        if target_head_height_mm is not None:
+            target_head_height_mm = max(22.0, min(42.0, float(target_head_height_mm)))
+        if cap_protrusion_fraction is not None:
+            cap_protrusion_fraction = max(0.0, min(0.25, float(cap_protrusion_fraction)))
         seed = int(inp.get("seed", 1))
         pipeline_version = _resolve_pipeline_version(inp)
         sys.stderr.write(f"[bikeheadz] pipeline_version={pipeline_version}\n")
@@ -376,6 +385,8 @@ def handler(job):
                     head_scale=head_scale,
                     head_tilt_deg=head_tilt_deg,
                     shoulder_taper_fraction=shoulder_taper_fraction,
+                    target_head_height_mm=target_head_height_mm,
+                    cap_protrusion_fraction=cap_protrusion_fraction,
                     progress=None,  # TODO(Phase 4): thread progress frames out via a queue
                 )
             except PipelineError as e:

@@ -80,6 +80,8 @@ def run_v1(
     head_scale: float = 1.0,
     head_tilt_deg: float = 0.0,
     shoulder_taper_fraction: float = 0.60,
+    target_head_height_mm: Optional[float] = None,
+    cap_protrusion_fraction: Optional[float] = None,
     progress: Optional[Callable[[str, int], None]] = None,
 ) -> trimesh.Trimesh:
     """Run the v1 mesh pipeline end-to-end.
@@ -107,6 +109,15 @@ def run_v1(
         User knob; controls Stage 2's neck-cut location on the
         shoulders→head taper. 0.40 = aggressive crop, 0.85 = loose.
         Default 0.60 (calibrated across 4 test scans).
+    target_head_height_mm
+        User knob; overrides Constants.TARGET_HEAD_HEIGHT_MM. The size
+        the rescaled head normalizes to in Stage 1. None = use the
+        loaded constant (30 mm). Range 22..42.
+    cap_protrusion_fraction
+        User knob; overrides Constants.CAP_PROTRUSION_FRACTION. The
+        fraction of the cap that sticks out below the head's bottom
+        plane to expose the bike-valve entry. None = use the loaded
+        constant (0.10 = 10%). Range 0.0..0.25.
     progress
         Optional callback ``(step_label, pct) -> None`` invoked at each
         stage boundary. Use it to bridge to the RunPod progress frames.
@@ -123,6 +134,23 @@ def run_v1(
         Any stage failure — see ``errors.ErrorCode`` for the taxonomy.
     """
     C = _get_constants()
+
+    # Apply per-request overrides without mutating the cached Constants.
+    # `dataclasses.replace` produces a new frozen instance — the loaded
+    # base stays clean for the next request. Any value the caller passes
+    # as None is left at its loaded-constant default.
+    overrides = {}
+    if target_head_height_mm is not None:
+        overrides["TARGET_HEAD_HEIGHT_MM"] = float(target_head_height_mm)
+    if cap_protrusion_fraction is not None:
+        cpf = float(cap_protrusion_fraction)
+        overrides["CAP_PROTRUSION_FRACTION"] = cpf
+        # JUNCTION_Z_OFFSET_MM is derived from CAP_PROTRUSION_FRACTION ×
+        # VALVE_CAP_HEIGHT_MM. Keep them in sync per-request.
+        overrides["JUNCTION_Z_OFFSET_MM"] = -cpf * C.VALVE_CAP_HEIGHT_MM
+    if overrides:
+        from dataclasses import replace as _replace
+        C = _replace(C, **overrides)
 
     def _emit(stage_label: str, pct: int) -> None:
         if progress is not None:
