@@ -51,7 +51,7 @@ os.environ.setdefault("SPARSE_ATTN_BACKEND", "xformers")
 # Version banner — prints unconditionally at module load time so we can
 # tell from the worker logs whether the running container is actually
 # the image tag we think it is.
-HANDLER_VERSION = "v0.1.27"
+HANDLER_VERSION = "v0.1.28"
 sys.stderr.write(f"[bikeheadz] handler.py {HANDLER_VERSION} booting (pid={os.getpid()})\n")
 sys.stderr.flush()
 
@@ -436,6 +436,20 @@ def _emit_telemetry(record):
         sys.stderr.write(f"[telemetry] encode failed: {exc}\n")
 
 
+def _to_numpy(x):
+    """np.asarray() that handles CUDA torch tensors.
+
+    TRELLIS' mesh decoder returns its vertices/faces as CUDA tensors
+    in recent versions. ``np.asarray(cuda_tensor)`` raises
+    ``TypeError: can't convert cuda:0 device type tensor to numpy``.
+    Detach (drop autograd) → CPU → numpy. Falls through unchanged
+    for anything that's already a numpy array or array-like.
+    """
+    if hasattr(x, "detach") and hasattr(x, "cpu"):
+        return x.detach().cpu().numpy()
+    return np.asarray(x)
+
+
 def _resolve_pipeline_version(inp):
     """Pick the pipeline branch.
 
@@ -523,8 +537,8 @@ def handler(job):
             yield {"type": "progress", "step": "Extracting head mesh…", "pct": 65}
             mesh_result = outputs["mesh"][0]
             head = trimesh.Trimesh(
-                vertices=np.asarray(mesh_result.vertices),
-                faces=np.asarray(mesh_result.faces),
+                vertices=_to_numpy(mesh_result.vertices),
+                faces=_to_numpy(mesh_result.faces),
                 process=True,
             )
             head.fix_normals()
