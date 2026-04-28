@@ -56,6 +56,9 @@ class Constants:
     TARGET_HEAD_HEIGHT_MM: float
     MANIFOLD_TOLERANCE_MM: float
     MIN_WALL_THICKNESS_MM: float
+    # Fraction of VALVE_CAP_HEIGHT_MM the cap protrudes below the head's
+    # bottom plane — creates the bike-valve entry opening.
+    CAP_PROTRUSION_FRACTION: float
 
     # Measured cap.
     VALVE_CAP_OUTER_DIAMETER_MM: float
@@ -66,7 +69,8 @@ class Constants:
     NEGATIVE_CORE_DIAMETER_MM: float
     NEGATIVE_CORE_HEIGHT_MM: float
 
-    # Derived: cap-bottom and core-bottom share Z baseline below head.
+    # Derived: cap-bottom and core-bottom Z baseline relative to head's
+    # bottom plane (z=0). Equals -CAP_PROTRUSION_FRACTION × VALVE_CAP_HEIGHT_MM.
     JUNCTION_Z_OFFSET_MM: float
 
 

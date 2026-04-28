@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "generated_at": "2026-04-27T23:35:50.762749+00:00",
+  "generated_at": "2026-04-28T00:26:50.615402+00:00",
   "source_assets": {
     "valve_cap": {
       "path": "server/assets/valve_cap.stl",
@@ -30,15 +30,16 @@
     ]
   },
   "constants": {
-    "TARGET_HEAD_HEIGHT_MM": 22.0,
+    "TARGET_HEAD_HEIGHT_MM": 30.0,
     "MANIFOLD_TOLERANCE_MM": 0.01,
     "MIN_WALL_THICKNESS_MM": 1.2,
+    "CAP_PROTRUSION_FRACTION": 0.1,
     "VALVE_CAP_OUTER_DIAMETER_MM": 9.208999633789062,
     "VALVE_CAP_THREADED_OUTER_DIAMETER_MM": 8.8720270688682,
     "VALVE_CAP_HEIGHT_MM": 11.111999511718757,
     "NEGATIVE_CORE_DIAMETER_MM": 8.310445070266724,
     "NEGATIVE_CORE_HEIGHT_MM": 13.783177375793459,
-    "JUNCTION_Z_OFFSET_MM": -11.111999511718757
+    "JUNCTION_Z_OFFSET_MM": -1.1111999511718758
   },
   "calibration_notes": []
 }

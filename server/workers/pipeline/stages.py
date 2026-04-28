@@ -534,11 +534,14 @@ def stage3_subtract_negative_core(
 ) -> trimesh.Trimesh:
     """Carve the cavity for the valve-cap threads.
 
-    Positioning: the core's bottom sits at JUNCTION_Z_OFFSET_MM
-    (= -VALVE_CAP_HEIGHT_MM ≈ -11.11 mm), so it extends from −11.11 mm
-    up to −11.11 + NEGATIVE_CORE_HEIGHT_MM (≈ +2.67 mm). The top
-    ~2.67 mm sticks up *into* the head's bottom volume — that's where
-    the cavity gets carved.
+    Positioning (post-Phase-2 redesign per user feedback): the core
+    nests INSIDE the head with its bottom flush at z=0 (the head's
+    bottom plane = bike-valve entry plane). Core extends from z=0 up
+    to z=NEGATIVE_CORE_HEIGHT_MM (≈ 13.78 mm). The cropped head must
+    be at least that tall — guaranteed by TARGET_HEAD_HEIGHT_MM=30.0
+    minus a typical 50% Stage 2 crop = ~15 mm. Result of the subtract
+    is a head with a vertical cylindrical cavity drilled up from its
+    bottom face. Nothing extends below the head's bottom plane.
     """
     core = negative_core.copy()
     # Recentre the core at xy=(0,0). The source frame's xy is
@@ -590,21 +593,25 @@ def stage4_union_valve_cap(
 ) -> trimesh.Trimesh:
     """Union the threaded cap into the cavity.
 
-    Cap baseline matches the core: bottom at JUNCTION_Z_OFFSET_MM
-    (= -VALVE_CAP_HEIGHT_MM ≈ -11.11 mm), top at z=0. Cap protrudes
-    *below* the head's bottom plane — that's the visible threaded
-    section. The slightly larger threaded outer diameter
+    Cap baseline matches the core (post-Phase-2 redesign): bottom at
+    JUNCTION_Z_OFFSET_MM = 0 (head's bottom plane), top at z =
+    VALVE_CAP_HEIGHT_MM (≈ 11.11 mm). Cap is *fully contained* within
+    the head's volume — no part of it protrudes below z=0. The cap's
+    open bottom is coplanar with the head's bottom face, so a real
+    bike valve threading up from below enters the cap directly.
+    The slightly larger threaded outer diameter
     (VALVE_CAP_THREADED_OUTER_DIAMETER_MM ≈ 8.87 mm vs the core's
     8.31 mm) means the cap's threads carve into the head walls inside
     the carved cavity, forming the internal threading.
     """
     cap = valve_cap.copy()
     # Repair the cap before the boolean. valve_cap.stl has Euler -51
-    # (severely non-manifold internal threads) — manifold3d will
-    # *consume* it via auto-heal but the result of the union is then
-    # also non-manifold (Stage 4 fails its watertight assertion).
-    # Round-trip through the same trimesh primitives Stage 1.5 uses
-    # cleans the cap topology enough that the union output passes.
+    # (severely non-manifold internal threads). Light repair won't
+    # make manifold3d's union produce a single watertight body —
+    # Phase 4 task #4 owns the proper fix (remesh the asset). Until
+    # then we lightly clean and accept that Stage 4 may fall back to
+    # mesh concatenation (which slicers handle even though the result
+    # has 2 bodies).
     trimesh.repair.fix_inversion(cap)
     trimesh.repair.fix_normals(cap)
     cap.merge_vertices()

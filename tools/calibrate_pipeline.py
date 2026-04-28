@@ -87,9 +87,24 @@ REFERENCE_PATHS = [
 # place. If you change a §0 value, change it here and regenerate.
 
 LOCKED = {
-    "TARGET_HEAD_HEIGHT_MM": 22.0,        # §0 — head section after rescale
+    # §0 — head height after Stage 1 rescale. Bumped from 22 to 30 mm
+    # so the cropped head (~50% of the rescale = ~15 mm) is tall
+    # enough to fully contain the cap (11.11 mm) and core (13.78 mm)
+    # without either sticking up too far into the head's hair region.
+    # User constraint: "they both MUST exist within the border of the
+    # head shape" — cap and core nest inside the head's lower half,
+    # not stacked below it.
+    "TARGET_HEAD_HEIGHT_MM": 30.0,
     "MANIFOLD_TOLERANCE_MM": 0.01,        # §8.5 — manifold3d numeric tolerance
     "MIN_WALL_THICKNESS_MM": 1.2,         # §0 — FDM @ 0.4 mm nozzle
+    # Fraction of VALVE_CAP_HEIGHT_MM that the cap+core protrude
+    # *below* the head's bottom plane. The user's reasoning: this
+    # creates the opening at the bottom of the assembly so a real
+    # bike-tire valve can interface with the threading. 0.10 = 10%
+    # ≈ 1.11 mm protrusion, enough for the threaded interior to
+    # accept the valve without exposing too much "stem" outside the
+    # decorative head silhouette.
+    "CAP_PROTRUSION_FRACTION": 0.10,
 }
 
 
@@ -210,10 +225,19 @@ def validate(constants: dict, *, strict: bool) -> list[str]:
             "the cap mesh."
         )
 
-    # JUNCTION_Z_OFFSET_MM should equal -VALVE_CAP_HEIGHT_MM.
+    # JUNCTION_Z_OFFSET_MM should equal
+    # -CAP_PROTRUSION_FRACTION × VALVE_CAP_HEIGHT_MM (cap & core
+    # protrude below the head by that fraction so the bike valve has
+    # a clean entry).
     cap_h = constants["VALVE_CAP_HEIGHT_MM"]
-    if abs(constants["JUNCTION_Z_OFFSET_MM"] - (-cap_h)) > 1e-3:
-        errors.append("JUNCTION_Z_OFFSET_MM must equal -VALVE_CAP_HEIGHT_MM")
+    expected_offset = -float(LOCKED["CAP_PROTRUSION_FRACTION"]) * cap_h
+    if abs(constants["JUNCTION_Z_OFFSET_MM"] - expected_offset) > 1e-3:
+        errors.append(
+            f"JUNCTION_Z_OFFSET_MM must equal "
+            f"-CAP_PROTRUSION_FRACTION × VALVE_CAP_HEIGHT_MM "
+            f"(expected {expected_offset:.3f}, got "
+            f"{constants['JUNCTION_Z_OFFSET_MM']:.3f})"
+        )
 
     # Negative core height should be at least cap height (otherwise the
     # cavity is shallower than the cap, meaning the cap can't fit).
@@ -223,6 +247,20 @@ def validate(constants: dict, *, strict: bool) -> list[str]:
             f"NEGATIVE_CORE_HEIGHT_MM ({core_h:.3f}) < "
             f"VALVE_CAP_HEIGHT_MM ({cap_h:.3f}); cavity is shallower "
             "than the cap it must contain."
+        )
+
+    # Post-Phase-2 redesign: the cropped head must be tall enough to
+    # fully contain the negative core (which is taller than the cap).
+    # Stage 2 keeps roughly 50% of the rescaled head, so:
+    #     0.5 × TARGET_HEAD_HEIGHT_MM > NEGATIVE_CORE_HEIGHT_MM + 1 mm headroom
+    target_h = constants["TARGET_HEAD_HEIGHT_MM"]
+    expected_cropped = 0.5 * target_h
+    if expected_cropped < core_h + 1.0:
+        notes.append(
+            f"TARGET_HEAD_HEIGHT_MM={target_h} → ~{expected_cropped:.1f} mm "
+            f"cropped head, but NEGATIVE_CORE_HEIGHT_MM={core_h:.2f}. "
+            f"Bump TARGET_HEAD_HEIGHT_MM to ≥{2*(core_h+1.0):.0f} mm for "
+            "the core to fit fully inside the head."
         )
 
     if errors:
@@ -267,9 +305,13 @@ def build(strict: bool) -> dict:
         **cap_m,
         # Measured core geometry.
         **core_m,
-        # Derived: cap-bottom and core-bottom share a Z baseline; the
-        # rescaled head sits directly on top.
-        "JUNCTION_Z_OFFSET_MM": -cap_m["VALVE_CAP_HEIGHT_MM"],
+        # Derived: where the cap and core's BOTTOM faces sit, relative
+        # to the cropped head's bottom plane (which is z=0). Slightly
+        # negative — cap and core protrude below the head by
+        # CAP_PROTRUSION_FRACTION × VALVE_CAP_HEIGHT_MM. This creates
+        # the opening at the very bottom of the printed assembly that
+        # accepts the bike valve's threading.
+        "JUNCTION_Z_OFFSET_MM": -float(LOCKED["CAP_PROTRUSION_FRACTION"]) * cap_m["VALVE_CAP_HEIGHT_MM"],
     }
 
     notes = validate(constants, strict=strict)
