@@ -51,7 +51,7 @@ os.environ.setdefault("SPARSE_ATTN_BACKEND", "xformers")
 # Version banner — prints unconditionally at module load time so we can
 # tell from the worker logs whether the running container is actually
 # the image tag we think it is.
-HANDLER_VERSION = "v0.1.33"
+HANDLER_VERSION = "v0.1.34"
 sys.stderr.write(f"[bikeheadz] handler.py {HANDLER_VERSION} booting (pid={os.getpid()})\n")
 sys.stderr.flush()
 
@@ -724,7 +724,16 @@ def handler(job):
 # Register at module import time — RunPod Hub's handler detector scans for
 # a top-level `runpod.serverless.start(...)`, so keeping this inside an
 # `if __name__ == "__main__":` guard hides it and the Hub checklist stays red.
+#
+# return_aggregate_stream=False: with True, the SDK collects every yielded
+# frame into one array and POSTs it back to RunPod's /job-stream endpoint
+# with isStream=false at generator-finish. Our chunked-STL frames push
+# that aggregate well past RunPod's per-request size cap, which surfaces
+# as `Failed to return job results. | 400, message='Bad Request'` in
+# worker logs and `runpod_no_result` on the client. Streaming mode keeps
+# /stream/{id} polling delivery (which already works for progress and
+# result_chunk frames) and drops the broken aggregate POST.
 runpod.serverless.start({
     "handler": handler,
-    "return_aggregate_stream": True,
+    "return_aggregate_stream": False,
 })

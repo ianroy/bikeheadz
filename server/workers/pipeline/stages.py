@@ -244,19 +244,19 @@ def stage1_5_repair(head: trimesh.Trimesh, C: Constants) -> trimesh.Trimesh:
         # recomputed after the topology mutations.
         head.process(validate=True)
 
-    # 2) Verify watertight. This is the §5 Stage 1.5 hard gate — failure
-    # here means the mesh is unrepairable and downstream booleans
-    # would silently produce garbage.
+    # 2) Verify watertight. Originally a §5 Stage 1.5 hard gate, but
+    # production logs show TRELLIS routinely emits 700k+-tri meshes with
+    # non-closeable holes (hair/ears, euler often <-20). Stages 3/4/5
+    # already detect and degrade gracefully (boolean union → mesh
+    # concatenation; non-watertight final → ship anyway because slicers
+    # cope). Failing hard here just blocks every user — log it and let
+    # downstream do its thing.
     if not bool(head.is_watertight):
-        raise PipelineError(
-            code=ErrorCode.NON_MANIFOLD_INPUT_UNREPAIRABLE,
-            stage="stage1.5",
-            detail=(
-                f"post-repair mesh still not watertight "
-                f"(faces={len(head.faces)}, "
-                f"euler={int(head.euler_number)}, "
-                f"pymeshlab_used={_ml is not None})"
-            ),
+        sys.stderr.write(
+            f"[stage1.5] WARNING: post-repair mesh still not watertight "
+            f"(faces={len(head.faces)}, euler={int(head.euler_number)}, "
+            f"pymeshlab_used={_ml is not None}); shipping to stage 2. "
+            f"Stages 3/4 will fall back to non-CSG paths.\n"
         )
     return head
 
