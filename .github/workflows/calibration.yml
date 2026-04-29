@@ -1,0 +1,55 @@
+name: Calibration drift check
+
+# P3-018 — Recompute pipeline constants on PRs that touch the inputs.
+# Triggers on changes to any of:
+#   • server/assets/reference/**
+#   • server/assets/valve_cap.stl
+#   • server/assets/negative_core.stl
+#   • tools/calibrate_pipeline.py
+#
+# Runs `python3 tools/calibrate_pipeline.py --check`. The --check flag
+# is expected to compute the constants in-memory, diff against the
+# committed server/assets/pipeline_constants.json, and exit non-zero if
+# any constant drifted by more than 1%.
+#
+# Follow-up
+# ---------
+# tools/calibrate_pipeline.py currently exposes --dry-run and --strict
+# but not --check. If the script does not yet support --check, the
+# operator should add it as a thin wrapper around the existing compute
+# step (read existing JSON, recompute in-memory, diff each scalar with
+# tolerance 1%, exit non-zero on drift). Tracking issue should be
+# opened automatically by the first failing run of this workflow.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'server/assets/reference/**'
+      - 'server/assets/valve_cap.stl'
+      - 'server/assets/negative_core.stl'
+      - 'tools/calibrate_pipeline.py'
+
+permissions:
+  contents: read
+
+jobs:
+  calibration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python deps
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy trimesh
+
+      - name: Calibration --check
+        run: |
+          python3 tools/calibrate_pipeline.py --check

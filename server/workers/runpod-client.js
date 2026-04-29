@@ -1,4 +1,5 @@
 import { logger } from '../logger.js';
+import { recordHandlerVersion } from '../replica-drift.js';
 
 // Drop-in replacement for the local Python worker. Talks to a RunPod
 // Serverless endpoint that runs handler.py at the repo root. The wire format
@@ -83,6 +84,14 @@ export async function runRunpod({ socket, commandId, imageBuf, settings }) {
     for (const frame of frames) {
       const out = frame?.output;
       if (!out || typeof out !== 'object') continue;
+      // P4-018 — drift detection. Worker boot frames or any frame that
+      // includes the handler_version string get fed into the ring buffer.
+      // We don't gate on out.type so the next handler revision can ship
+      // boot-style metadata without us missing it.
+      if (out.type === 'boot' || typeof out.handler_version === 'string') {
+        const v = typeof out.handler_version === 'string' ? out.handler_version : null;
+        if (v) recordHandlerVersion(v, jobId);
+      }
       if (out.type === 'progress') {
         socket.emit('command', {
           id: commandId,
