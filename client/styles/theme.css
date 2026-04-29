@@ -230,3 +230,44 @@
     --paper-edge: #3A352B;
   }
 }
+
+/* P6-011 — AAA opt-in via [data-contrast="aaa"] on <html>.
+ *
+ * Note: BikeHeadz tokens use `--brand` (signal red) and `--ink-muted`
+ * rather than `--brand-red`/`--muted` — so the AAA overrides target
+ * the actual token names. We also introduce `--brand-red` and `--gold`
+ * aliases the spec asked for, available in both modes for future use. */
+:root {
+  --brand-red: #C71F1F;             /* alias for --brand, AAA-friendlier hue */
+  --gold:      #7C5E1F;             /* warm metallic accent */
+}
+:root[data-contrast="aaa"] {
+  --brand:     #A4111A;
+  --brand-red: #A4111A;
+  --brand-dim: #7A0C13;
+  --primary:   #A4111A;
+  --accent:    #A4111A;
+  --gold:      #5C4716;
+  --muted-foreground: #4F463D;
+  --ink:       #0A0907;
+  --ink-soft:  #1F1B17;
+  --ink-muted: #4F463D;
+  --foreground: #0A0907;
+}
+
+/* P6-011 — forced-colors (Windows high-contrast). System-keyword colors
+ * (CanvasText / Canvas / GrayText) defer to OS theming, which is the
+ * intended behavior for forced-colors mode. */
+@media (forced-colors: active) {
+  :root {
+    --brand:     CanvasText;
+    --brand-red: CanvasText;
+    --ink:       CanvasText;
+    --ink-soft:  CanvasText;
+    --ink-muted: GrayText;
+    --muted-foreground: GrayText;
+    --paper:     Canvas;
+    --background: Canvas;
+    --foreground: CanvasText;
+  }
+}
