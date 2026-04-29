@@ -3,11 +3,16 @@ import { createServer } from 'node:http';
 import { Server as SocketIOServer } from 'socket.io';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import helmet from 'helmet';
 import { logger } from './logger.js';
 import { initCommandRegistry, dispatchCommand } from './commands/index.js';
-import { initDb, closeDb } from './db.js';
-import { logStripeConfig } from './stripe-client.js';
-import { startExpiryJob } from './design-store.js';
+import { initDb, closeDb, db, hasDb } from './db.js';
+import { logStripeConfig, getStripe, webhookEnabled, stripeEnabled } from './stripe-client.js';
+import { startExpiryJob, designStore } from './design-store.js';
+import { initSentry, captureException } from './sentry.js';
+import { attachUserFromCookie, consumeForHttpRedirect, seedAdmins } from './commands/auth.js';
+import { runpodEnabled, pingRunpod } from './workers/runpod-client.js';
+import { sendEmail } from './email.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -15,6 +20,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3000;
 const STATIC_DIR = process.env.STATIC_DIR || path.resolve(__dirname, '..', 'dist');
 const CORS_ORIGIN = process.env.CORS_ORIGIN || true;
+const METRICS_TOKEN = process.env.METRICS_TOKEN || '';
 
 const app = express();
 const httpServer = createServer(app);
@@ -24,37 +30,363 @@ const io = new SocketIOServer(httpServer, {
   maxHttpBufferSize: 12 * 1024 * 1024,
 });
 
-// Required for Digital Ocean App Platform health checks.
-app.get('/health', (_req, res) => res.json({ status: 'ok', uptime: process.uptime() }));
+// ── P0-007 — security headers via helmet. CSP allows self + ws/wss for
+// socket.io and Stripe Checkout's top-level redirect. Stripe.js (inline
+// element) would need additional `script-src` whitelisting; revisit when
+// P2-014 lands.
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", 'https://js.stripe.com'],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", 'data:', 'blob:', 'https://images.unsplash.com', 'https://*.stripe.com'],
+        fontSrc: ["'self'", 'data:'],
+        connectSrc: [
+          "'self'",
+          'ws:',
+          'wss:',
+          'https://api.stripe.com',
+          'https://*.ingest.sentry.io',
+        ],
+        frameSrc: ["'self'", 'https://js.stripe.com', 'https://hooks.stripe.com'],
+        workerSrc: ["'self'", 'blob:'],
+        objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+      },
+    },
+    crossOriginEmbedderPolicy: false, // Three.js + WebAssembly need cross-origin assets to load
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+  })
+);
+
+app.disable('x-powered-by');
+app.set('trust proxy', true);
+
+// ── Cookie parsing (used by /auth/consume) ────────────────────────────────
+app.use((req, _res, next) => {
+  const header = req.headers.cookie;
+  req.cookies = {};
+  if (!header) return next();
+  for (const item of header.split(/;\s*/)) {
+    const eq = item.indexOf('=');
+    if (eq < 0) continue;
+    req.cookies[item.slice(0, eq).trim()] = decodeURIComponent(item.slice(eq + 1));
+  }
+  next();
+});
+
+// ── P2-001 — Stripe webhook (raw body required for signature verification).
+// Mounted before express.json so the raw body is preserved.
+if (webhookEnabled()) {
+  app.post('/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+    const sig = req.headers['stripe-signature'];
+    const stripe = getStripe();
+    const secret = process.env.STRIPE_WEBHOOK_SECRET;
+    if (!stripe || !secret) {
+      logger.warn({ msg: 'stripe.webhook_disabled_runtime' });
+      return res.status(503).send('stripe_not_configured');
+    }
+    let event;
+    try {
+      event = stripe.webhooks.constructEvent(req.body, sig, secret);
+    } catch (err) {
+      logger.warn({ msg: 'stripe.webhook_signature_invalid', err: err.message });
+      return res.status(400).send(`bad_signature: ${err.message}`);
+    }
+    try {
+      await handleStripeEvent(event);
+      res.json({ ok: true });
+    } catch (err) {
+      logger.error({ msg: 'stripe.webhook_handler_failed', err: err.message });
+      captureException(err, { tags: { source: 'stripe.webhook' } });
+      res.status(500).json({ ok: false });
+    }
+  });
+}
+
+app.use(express.json({ limit: '12mb' }));
+
+// ── /health (DO App Platform), enriched with RunPod ping (P0-011).
+let runpodCache = { reachable: null, lastChecked: 0, latencyMs: null };
+app.get('/health', async (_req, res) => {
+  const out = { status: 'ok', uptime: process.uptime() };
+  if (runpodEnabled()) {
+    if (Date.now() - runpodCache.lastChecked > 60_000) {
+      runpodCache = await pingRunpod().catch(() => ({
+        reachable: false,
+        latencyMs: null,
+        lastChecked: Date.now(),
+      }));
+      runpodCache.lastChecked = Date.now();
+    }
+    out.runpod = runpodCache;
+  }
+  res.json(out);
+});
+
+// ── P0-011 / P4-002 — Prometheus metrics endpoint, behind METRICS_TOKEN.
+const metrics = {
+  cmd_total: new Map(),
+  cmd_error_total: new Map(),
+  active_sockets: 0,
+  stl_latency_ms: [],
+};
+app.get('/metrics', (req, res) => {
+  if (METRICS_TOKEN) {
+    const auth = req.headers.authorization || '';
+    if (!auth.startsWith('Bearer ') || auth.slice(7) !== METRICS_TOKEN) {
+      return res.status(401).send('unauthorized');
+    }
+  }
+  res.set('Content-Type', 'text/plain; version=0.0.4');
+  const lines = [];
+  lines.push('# HELP bikeheadz_active_sockets active socket.io connections');
+  lines.push('# TYPE bikeheadz_active_sockets gauge');
+  lines.push(`bikeheadz_active_sockets ${metrics.active_sockets}`);
+  lines.push('# HELP bikeheadz_command_total command count by name');
+  lines.push('# TYPE bikeheadz_command_total counter');
+  for (const [name, n] of metrics.cmd_total) {
+    lines.push(`bikeheadz_command_total{name="${name}"} ${n}`);
+  }
+  lines.push('# HELP bikeheadz_command_error_total command error count by name');
+  lines.push('# TYPE bikeheadz_command_error_total counter');
+  for (const [name, n] of metrics.cmd_error_total) {
+    lines.push(`bikeheadz_command_error_total{name="${name}"} ${n}`);
+  }
+  lines.push('# HELP bikeheadz_stl_latency_ms last 100 stl.generate latencies');
+  lines.push('# TYPE bikeheadz_stl_latency_ms summary');
+  if (metrics.stl_latency_ms.length) {
+    const sorted = [...metrics.stl_latency_ms].sort((a, b) => a - b);
+    lines.push(`bikeheadz_stl_latency_ms{quantile="0.5"} ${sorted[Math.floor(sorted.length * 0.5)]}`);
+    lines.push(`bikeheadz_stl_latency_ms{quantile="0.95"} ${sorted[Math.floor(sorted.length * 0.95)] || 0}`);
+    lines.push(`bikeheadz_stl_latency_ms_count ${sorted.length}`);
+  }
+  res.send(lines.join('\n') + '\n');
+});
+
+// ── P1-001 — Magic-link redirect endpoint. Sets the HttpOnly cookie and
+// 302s into the SPA at the requested redirect path. This is one of the
+// few "real" HTTP surfaces — same exception class as the Stripe webhook.
+app.get('/auth/consume', async (req, res) => {
+  const token = String(req.query.token || '');
+  const redirect = String(req.query.redirect || '/account');
+  const safeRedirect = redirect.startsWith('/') && !redirect.startsWith('//') ? redirect : '/account';
+  try {
+    const ip = req.ip;
+    const userAgent = req.get('user-agent');
+    const out = await consumeForHttpRedirect({ token, ip, userAgent });
+    res.setHeader('Set-Cookie', out.cookie);
+    res.redirect(302, safeRedirect);
+  } catch (err) {
+    logger.warn({ msg: 'auth.consume_failed', err: err.message });
+    res.redirect(302, `/?auth=expired`);
+  }
+});
+
+// ── P1-001 — POST endpoint for SPA to clear the cookie on logout.
+app.post('/auth/logout', (_req, res) => {
+  res.setHeader('Set-Cookie', `bh_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`);
+  res.json({ ok: true });
+});
+
+// ── X-008 — RFC 9116 security.txt + /security page is rendered by the SPA.
+app.get('/.well-known/security.txt', (_req, res) => {
+  const expires = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
+  res.set('Content-Type', 'text/plain');
+  res.send(
+    [
+      'Contact: mailto:security@bikeheadz.app',
+      'Preferred-Languages: en',
+      `Expires: ${expires}`,
+      'Acknowledgments: https://bikeheadz.app/security',
+      'Policy: https://bikeheadz.app/security',
+      'Canonical: https://bikeheadz.app/.well-known/security.txt',
+    ].join('\n') + '\n'
+  );
+});
+
+// ── X-010 — robots.txt + sitemap.xml.
+app.get('/robots.txt', (_req, res) => {
+  res.set('Content-Type', 'text/plain');
+  const base = process.env.APP_URL || 'https://bikeheadz.app';
+  res.send(
+    [
+      'User-agent: *',
+      'Allow: /',
+      'Disallow: /admin',
+      'Disallow: /account',
+      'Disallow: /checkout/return',
+      'Disallow: /.well-known/',
+      `Sitemap: ${base.replace(/\/$/, '')}/sitemap.xml`,
+    ].join('\n') + '\n'
+  );
+});
+
+app.get('/sitemap.xml', (_req, res) => {
+  const base = (process.env.APP_URL || 'https://bikeheadz.app').replace(/\/$/, '');
+  const lastmod = new Date().toISOString().slice(0, 10);
+  const urls = ['/', '/pricing', '/how-it-works', '/help', '/showcase', '/security', '/terms', '/privacy'];
+  res.set('Content-Type', 'application/xml');
+  res.send(
+    `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n` +
+      urls
+        .map(
+          (u) =>
+            `  <url><loc>${base}${u}</loc><lastmod>${lastmod}</lastmod><changefreq>weekly</changefreq></url>`
+        )
+        .join('\n') +
+      `\n</urlset>\n`
+  );
+});
 
 // Serve the built client. SPA fallback for deep links.
 app.use(express.static(STATIC_DIR, { maxAge: '1h', index: false }));
-app.get('*', (_req, res) => res.sendFile(path.join(STATIC_DIR, 'index.html')));
+
+// X-011 — Custom 404 / 500 pages. Both use the SPA shell so the workshop
+// palette + header render; specific routes (`/404`, `/500`) are handled in
+// the client router.
+app.use((err, _req, res, _next) => {
+  if (res.headersSent) return;
+  const incidentId = Math.random().toString(36).slice(2, 10);
+  captureException(err, { tags: { incidentId } });
+  logger.error({ msg: 'http.error', err: err.message, incidentId });
+  res
+    .status(500)
+    .sendFile(path.join(STATIC_DIR, 'index.html'), {
+      headers: { 'X-Incident-Id': incidentId },
+    });
+});
+
+app.get('*', (_req, res) => {
+  res.sendFile(path.join(STATIC_DIR, 'index.html'));
+});
 
 // Command registry — single source of truth for socket.io two-way commands.
 const registry = initCommandRegistry();
 
+// P1-002 — attach user from cookie at handshake time so command handlers
+// can use socket.data.user without an extra round-trip.
+io.use(async (socket, next) => {
+  try {
+    await attachUserFromCookie(socket);
+    next();
+  } catch (err) {
+    logger.warn({ msg: 'auth.handshake_failed', err: err.message });
+    next();
+  }
+});
+
 io.on('connection', (socket) => {
-  logger.info({ msg: 'socket.connect', id: socket.id, addr: socket.handshake.address });
+  metrics.active_sockets++;
+  logger.info({
+    msg: 'socket.connect',
+    id: socket.id,
+    addr: socket.handshake.address,
+    user: socket.data?.user?.id || null,
+  });
 
   socket.on('command', async (msg) => {
+    if (msg && typeof msg.name === 'string') {
+      metrics.cmd_total.set(msg.name, (metrics.cmd_total.get(msg.name) || 0) + 1);
+    }
+    const started = Date.now();
     await dispatchCommand(registry, socket, msg);
+    if (msg?.name === 'stl.generate') {
+      const ms = Date.now() - started;
+      metrics.stl_latency_ms.push(ms);
+      if (metrics.stl_latency_ms.length > 100) metrics.stl_latency_ms.shift();
+    }
   });
 
   socket.on('disconnect', (reason) => {
+    metrics.active_sockets = Math.max(0, metrics.active_sockets - 1);
     logger.info({ msg: 'socket.disconnect', id: socket.id, reason });
   });
 });
+
+// ── Stripe webhook event router. ──────────────────────────────────────────
+async function handleStripeEvent(event) {
+  switch (event.type) {
+    case 'checkout.session.completed': {
+      const session = event.data.object;
+      if (!hasDb()) return;
+      await db.query(
+        `UPDATE purchases
+            SET status = 'paid',
+                paid_at = COALESCE(paid_at, NOW()),
+                stripe_payment_id = COALESCE(stripe_payment_id, $2),
+                customer_email = COALESCE(customer_email, $3),
+                shipping_address = COALESCE(shipping_address, $4)
+          WHERE stripe_session_id = $1`,
+        [
+          session.id,
+          typeof session.payment_intent === 'string' ? session.payment_intent : null,
+          session.customer_details?.email || null,
+          session.shipping_details ? JSON.stringify(session.shipping_details) : null,
+        ]
+      );
+      logger.info({ msg: 'stripe.webhook.paid', sessionId: session.id });
+
+      // Email STL on webhook delivery so the user gets it even if they
+      // never come back to /checkout/return (P2-008).
+      const designId = session.metadata?.designId;
+      if (designId && session.customer_details?.email) {
+        const entry = await designStore.get(designId);
+        if (entry) {
+          sendEmail({
+            to: session.customer_details.email,
+            template: 'order-stl',
+            data: {
+              email: session.customer_details.email,
+              designId,
+              product: session.metadata?.product || 'stl_download',
+              amount: ((session.amount_total || 0) / 100).toFixed(2),
+              currency: (session.currency || 'usd').toUpperCase(),
+            },
+            attachments: [{ filename: entry.filename, content: entry.stl, contentType: 'model/stl' }],
+          }).catch((err) => logger.warn({ msg: 'stripe.webhook.email_failed', err: err.message }));
+        }
+      }
+      break;
+    }
+    case 'checkout.session.expired': {
+      const session = event.data.object;
+      if (!hasDb()) return;
+      await db.query(
+        `UPDATE purchases SET status = 'expired' WHERE stripe_session_id = $1 AND status = 'pending'`,
+        [session.id]
+      );
+      break;
+    }
+    case 'charge.refunded': {
+      const charge = event.data.object;
+      if (!hasDb()) return;
+      await db.query(
+        `UPDATE purchases SET status = 'refunded' WHERE stripe_payment_id = $1`,
+        [charge.payment_intent]
+      );
+      break;
+    }
+    default:
+      logger.debug({ msg: 'stripe.webhook.ignored', type: event.type });
+  }
+}
 
 let stopExpiry = null;
 
 async function start() {
   try {
+    await initSentry();
     await initDb();
+    await seedAdmins().catch((err) => logger.warn({ msg: 'auth.seed_admins_failed', err: err.message }));
     logStripeConfig();
+    if (webhookEnabled()) logger.info({ msg: 'stripe.webhook_enabled' });
+    if (stripeEnabled()) logger.info({ msg: 'stripe.live', tax: process.env.STRIPE_TAX_ENABLED === 'true' });
     stopExpiry = startExpiryJob();
     httpServer.listen(PORT, () => {
-      // 12-factor §7 — port binding.
       logger.info({ msg: 'server.listen', port: PORT, env: process.env.NODE_ENV || 'development' });
     });
   } catch (err) {
@@ -63,7 +395,6 @@ async function start() {
   }
 }
 
-// 12-factor §9 — disposability: respond to termination signals quickly.
 function shutdown(signal) {
   logger.info({ msg: 'server.shutdown', signal });
   stopExpiry?.();

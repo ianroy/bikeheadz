@@ -176,3 +176,35 @@ function clamp(v, lo, hi) {
   if (Number.isNaN(v)) return lo;
   return Math.max(lo, Math.min(hi, v));
 }
+
+// P0-011 — lightweight reachability ping. Returns
+// { reachable, latencyMs, lastChecked }. Never throws so /health stays up
+// even when the GPU side is melting.
+export async function pingRunpod() {
+  const startedAt = Date.now();
+  const out = { reachable: false, latencyMs: null, lastChecked: startedAt };
+  if (!runpodEnabled()) return out;
+  try {
+    const base = trimSlash(process.env.RUNPOD_ENDPOINT_URL);
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 5_000);
+    const res = await fetch(`${base}/health`, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${process.env.RUNPOD_API_KEY}` },
+      signal: ctrl.signal,
+    }).catch(() => null);
+    clearTimeout(timer);
+    if (res && res.ok) {
+      out.reachable = true;
+      out.latencyMs = Date.now() - startedAt;
+    } else if (res) {
+      // Some RunPod endpoints don't expose /health; a 404/405 still tells
+      // us the gateway is up.
+      out.reachable = res.status < 500;
+      out.latencyMs = Date.now() - startedAt;
+    }
+  } catch (err) {
+    logger.debug({ msg: 'runpod.ping_failed', err: err.message });
+  }
+  return out;
+}

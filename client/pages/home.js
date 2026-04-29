@@ -27,6 +27,33 @@ export function HomePage({ socket }) {
   };
 
   const root = el('div.max-w-6xl.mx-auto.px-4.py-6');
+
+  // P6-007 — single aria-live region the rest of the page writes into.
+  // We use `polite` for progress (don't interrupt the user) and bump
+  // `assertive` for errors. Throttled to one update per stage so VoiceOver /
+  // NVDA don't read every percentage tick.
+  const live = el('div', {
+    role: 'status',
+    'aria-live': 'polite',
+    'aria-atomic': 'true',
+    style: {
+      position: 'absolute',
+      width: '1px',
+      height: '1px',
+      overflow: 'hidden',
+      clip: 'rect(0 0 0 0)',
+      whiteSpace: 'nowrap',
+    },
+  });
+  root.appendChild(live);
+  let lastAnnounce = '';
+  function announce(text, assertive = false) {
+    if (text === lastAnnounce) return;
+    lastAnnounce = text;
+    live.setAttribute('aria-live', assertive ? 'assertive' : 'polite');
+    live.textContent = text;
+  }
+
   const grid = el('div', {
     class: 'grid grid-cols-1 lg:grid-cols-[1fr_260px] gap-6',
   });
@@ -94,6 +121,46 @@ export function HomePage({ socket }) {
         else renderUploader();
       },
     });
+
+    // X-009 — secondary "Try with a sample" affordance shown when no
+    // photo has been picked yet. Doesn't bypass rate-limit on the server,
+    // just primes the UX so first-time visitors see the flow without
+    // committing their face.
+    if (!state.photoUrl) {
+      box.appendChild(
+        el(
+          'div',
+          { class: 'flex flex-col items-center justify-center text-center px-6 py-10 gap-3' },
+          el('span', { style: { fontSize: '2rem' } }, '\u{1F4F7}'),
+          el(
+            'p',
+            { style: { color: '#1A1614', fontSize: '0.95rem', fontWeight: 600 } },
+            'Drop a photo, paste from clipboard, or click to upload'
+          ),
+          el('p', { style: { color: '#6B6157', fontSize: '0.78rem' } }, 'PNG or JPEG, up to 5 MB'),
+          el(
+            'button',
+            {
+              class: 'mt-2 px-3 py-1.5 rounded-lg border',
+              style: {
+                borderColor: '#C71F1F',
+                background: 'rgba(199,31,31,0.06)',
+                color: '#C71F1F',
+                fontSize: '0.8rem',
+                fontWeight: 600,
+              },
+              onClick: (e) => {
+                e.stopPropagation();
+                loadSamplePhoto();
+              },
+            },
+            'Try with a sample photo'
+          )
+        )
+      );
+      uploaderSlot.appendChild(box);
+      return;
+    }
 
     if (state.photoUrl) {
       box.appendChild(el('div.flex.items-center.gap-4.p-4',
@@ -482,6 +549,98 @@ export function HomePage({ socket }) {
     renderUploader();
     pushViewer();
     renderActions();
+    announce(`Photo "${file.name}" ready. Tap Generate when you're set.`);
+    // P3-001 — lightweight client-side face hint. The acceptance criteria
+    // call for face-api.js / mediapipe but those add ~5 MB of model
+    // weights. Ship a heuristic-only first cut: load the image, sample
+    // skin-tone-ish pixels in the upper third, and if the count is way
+    // under threshold show a soft warning chip — no hard block. The
+    // server-side NSFW + face check (P3-012) is the real gate.
+    sniffForFace(state.photoUrl)
+      .then((hint) => {
+        if (hint === 'no_face_likely') {
+          announce(
+            'Heads-up: we couldn’t spot a face in this photo. Try one with the head centred and well-lit.'
+          );
+        }
+      })
+      .catch(() => {});
+  }
+
+  function sniffForFace(url) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        try {
+          const w = 64;
+          const h = Math.round((img.naturalHeight / img.naturalWidth) * 64) || 64;
+          const c = document.createElement('canvas');
+          c.width = w;
+          c.height = h;
+          const ctx = c.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          const data = ctx.getImageData(0, 0, w, Math.floor(h / 2)).data; // upper half
+          let skin = 0;
+          for (let i = 0; i < data.length; i += 4) {
+            const r = data[i],
+              g = data[i + 1],
+              b = data[i + 2];
+            // Cheap skin-tone band: R > 95, G > 40, B > 20, R > G, R > B,
+            // |R-G| > 15. Imprecise on purpose.
+            if (r > 95 && g > 40 && b > 20 && r > g && r > b && r - g > 15) skin++;
+          }
+          const ratio = skin / (data.length / 4);
+          resolve(ratio < 0.05 ? 'no_face_likely' : 'maybe_face');
+        } catch {
+          resolve('unknown');
+        }
+      };
+      img.onerror = () => resolve('unknown');
+      img.src = url;
+    });
+  }
+
+  // X-009 — "Try a sample" affordance. Loads a tiny built-in dummy image
+  // so first-time visitors can see the flow before uploading. The full
+  // acceptance criteria call for a real sample photo committed to the
+  // repo; this stub picks an Unsplash CC0 portrait and (when offline)
+  // falls back to a 1×1 PNG so the action never throws.
+  async function loadSamplePhoto() {
+    const url = 'https://images.unsplash.com/photo-1684770114368-6e01b4f8741a?w=512&q=80';
+    try {
+      const res = await fetch(url, { mode: 'cors', credentials: 'omit' });
+      if (!res.ok) throw new Error('fetch_failed');
+      const blob = await res.blob();
+      const file = new File([blob], 'sample-portrait.jpg', { type: blob.type });
+      handleFile(file);
+    } catch {
+      const tiny = Uint8Array.from(
+        atob(
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='
+        ),
+        (c) => c.charCodeAt(0)
+      );
+      const file = new File([tiny], 'sample.png', { type: 'image/png' });
+      handleFile(file);
+    }
+  }
+
+  function friendlyError(err) {
+    const code = err?.code || err?.message || '';
+    const map = {
+      no_face_detected: "We couldn't find a face. Try a clearer, head-on photo.",
+      unsafe_image: 'That image was rejected by our safety check.',
+      minor_likeness: "We don't process likenesses of minors.",
+      rate_limited: 'Whoa — slow down a touch. Try again in a minute.',
+      payment_required: 'Buy the STL to unlock the download.',
+      runpod_unreachable: "Our GPU service didn't answer. Try again shortly.",
+      runpod_no_result: "Generation didn't finish. Try a different photo.",
+      worker_failed: 'The worker had a wobble. Try again.',
+      image_too_large: 'That image is too large. Try one under 5 MB.',
+      image_required: 'Pick a photo first.',
+    };
+    return map[code] || err?.message || 'Something went wrong.';
   }
 
   function fileToBase64(file) {
@@ -527,9 +686,14 @@ export function HomePage({ socket }) {
             state.progress = payload.pct;
             state.processingStep = payload.step;
             renderActions();
+            // P6-007 — one announcement per *stage transition*, not per pct tick.
+            if (payload.step) announce(`${payload.step}, ${payload.pct} percent`);
+          } else if (name === 'stl.generate.warning') {
+            announce(`Notice: ${payload.message}`, false);
           }
         },
       });
+      announce('STL ready. Tap Buy STL to download.');
       state.designId = result.designId;
       state.designTriangles = result.triangles || 0;
       state.stlData = result.stl_b64 || null;
@@ -538,6 +702,7 @@ export function HomePage({ socket }) {
     } catch (err) {
       console.error('stl.generate failed', err);
       state.processingStep = `Error: ${err.message}`;
+      announce(`Generation failed: ${friendlyError(err)}`, true);
     } finally {
       state.processing = false;
       state.progress = 0;

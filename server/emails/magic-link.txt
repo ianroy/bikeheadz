@@ -1,0 +1,11 @@
+Sign in to BikeHeadz
+
+Tap the link below to sign in. The link expires in 15 minutes and only
+works once.
+
+  {{magicUrl}}
+
+If you didn't ask for this, you can ignore the email — nobody can sign
+in without it.
+
+— BikeHeadz

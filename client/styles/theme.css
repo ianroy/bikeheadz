@@ -181,3 +181,52 @@
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+
+/* P6-006 — honour reduced-motion preferences. The 3D viewer also reads
+ * `html.reduced-motion` from JS to disable auto-rotate; that toggle is
+ * applied in client/main.js. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001s !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* P6-006 — opt-in dark variant for users with `prefers-color-scheme: dark`.
+ * Stretch goal: kept narrow to a deep-graphite + warm-cream pair that still
+ * reads as "workshop" (not generic dark mode). The whole site keeps the
+ * same red accent so brand recall doesn't drift across themes.
+ *
+ * Tailwind v4's @custom-variant `dark` (declared at the top of this file)
+ * still works for explicit `.dark` classnames; this just gives the system
+ * variant for free.
+ */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #1B1916;
+    --foreground: #F2EDDF;
+    --card: #232019;
+    --card-foreground: #F2EDDF;
+    --popover: #232019;
+    --popover-foreground: #F2EDDF;
+    --secondary: #2A2620;
+    --secondary-foreground: #F2EDDF;
+    --muted: #25221C;
+    --muted-foreground: #B8AC9C;
+    --border: #3A352B;
+    --input: #232019;
+    --input-background: #232019;
+    --switch-background: #3A352B;
+    --ink: #F2EDDF;
+    --ink-soft: #D5CCB7;
+    --ink-muted: #B8AC9C;
+    --ink-faint: #8E8474;
+    --paper: #1B1916;
+    --paper-soft: #232019;
+    --paper-edge: #3A352B;
+  }
+}

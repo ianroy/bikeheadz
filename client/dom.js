@@ -30,7 +30,7 @@ export function el(tag, attrs, ...children) {
 // Parses `div.a.b\.5#id` into { name: 'div', classes: ['a', 'b.5'], id: 'id' }.
 // Handles backslash-escaped separators so Tailwind's decimal utilities
 // (gap-1.5 etc.) can appear in class names.
-function parseTag(tag) {
+export function parseTag(tag) {
   let i = 0;
   let name = '';
   while (i < tag.length && tag[i] !== '.' && tag[i] !== '#') {

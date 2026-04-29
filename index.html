@@ -1,12 +1,55 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>3D Bike Valve Stem App</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#FAF7F2" />
+    <meta name="theme-color" content="#1B1916" media="(prefers-color-scheme: dark)" />
+    <meta name="color-scheme" content="light dark" />
+
+    <title>BikeHeadz — your face on a Schrader valve cap</title>
+    <meta
+      name="description"
+      content="Upload a photo, watch BikeHeadz turn it into a printable 3D Schrader valve stem cap. STL in your inbox, printed cap on its way."
+    />
+    <link rel="canonical" href="https://bikeheadz.app/" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="alternate" type="application/rss+xml" title="BikeHeadz showcase" href="/showcase.rss" />
+
+    <!-- X-010 — OpenGraph / Twitter card defaults. Per-design pages override these via P5-006. -->
+    <meta property="og:title" content="BikeHeadz — Your face on a valve cap" />
+    <meta
+      property="og:description"
+      content="Photo in. STL out. Printed cap on its way. The cycling-workshop way to ride."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://bikeheadz.app/" />
+    <meta property="og:image" content="https://bikeheadz.app/og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://bikeheadz.app/og.png" />
+    <meta name="twitter:title" content="BikeHeadz — Your face on a valve cap" />
+    <meta
+      name="twitter:description"
+      content="Photo in. STL out. Printed cap on its way. The cycling-workshop way to ride."
+    />
+
     <style>
-      html, body { height: 100%; margin: 0; background: #09090f; }
-      #root { height: 100%; }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        background: #faf7f2;
+      }
+      #root {
+        height: 100%;
+      }
+      @media (prefers-color-scheme: dark) {
+        html,
+        body {
+          background: #1b1916;
+        }
+      }
     </style>
   </head>
   <body>

@@ -15,6 +15,25 @@ export function stripeEnabled() {
   return !!process.env.STRIPE_SECRET_KEY;
 }
 
+export function webhookEnabled() {
+  return Boolean(
+    (process.env.STRIPE_WEBHOOK_ENABLED || '').toLowerCase() === 'true' &&
+      process.env.STRIPE_WEBHOOK_SECRET
+  );
+}
+
+export function taxEnabled() {
+  return (process.env.STRIPE_TAX_ENABLED || '').toLowerCase() === 'true';
+}
+
+export function shippingCountries() {
+  const raw = (process.env.STRIPE_SHIPPING_COUNTRIES || 'US,CA,GB,DE,FR,IE,NL,BE,IT,ES,DK,SE,NO,FI,AU,NZ').toString();
+  return raw
+    .split(',')
+    .map((c) => c.trim().toUpperCase())
+    .filter(Boolean);
+}
+
 // Resolve the public base URL for Stripe success/cancel redirects.
 // Preference order:
 //   1. explicit APP_URL / PUBLIC_URL env (operator override)
@@ -31,25 +50,48 @@ export function appUrl(socket) {
   return `http://localhost:${port}`;
 }
 
+// P2-002 — full product catalogue. Prices in cents, currency env-driven.
+// `printed_stem` ships the printed cap to a single address; `pack_of_4`
+// ships four printed caps. STL download is digital-only.
 export function pricingCatalogue() {
+  const currency = process.env.STRIPE_CURRENCY || 'usd';
   return {
     stl_download: {
       productId: 'stl_download',
       name: 'STL Download',
       description: 'Personalized BikeHeadz valve stem cap — downloadable STL.',
       unitAmount: Number(process.env.STRIPE_PRICE_STL_CENTS) || 200,
-      currency: process.env.STRIPE_CURRENCY || 'usd',
+      currency,
+      shippable: false,
+    },
+    printed_stem: {
+      productId: 'printed_stem',
+      name: 'Printed BikeHeadz Cap',
+      description: 'One 3D-printed Schrader valve cap of your design, mailed to you.',
+      unitAmount: Number(process.env.STRIPE_PRICE_PRINT_CENTS) || 1999,
+      currency,
+      shippable: true,
+    },
+    pack_of_4: {
+      productId: 'pack_of_4',
+      name: 'Pack of 4',
+      description: 'Four caps — share with the crew. Mix and match designs.',
+      unitAmount: Number(process.env.STRIPE_PRICE_PACK_CENTS) || 5999,
+      currency,
+      shippable: true,
     },
   };
 }
 
 export function logStripeConfig() {
   if (!stripeEnabled()) {
-    logger.warn({ msg: 'stripe.disabled', hint: 'STRIPE_SECRET_KEY not set — checkout will 501' });
+    logger.warn({ msg: 'stripe.disabled', hint: 'STRIPE_SECRET_KEY not set — checkout will reject' });
     return;
   }
   logger.info({
     msg: 'stripe.configured',
     currency: process.env.STRIPE_CURRENCY || 'usd',
+    webhook: webhookEnabled(),
+    tax: taxEnabled(),
   });
 }

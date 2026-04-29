@@ -1,0 +1,11 @@
+dist/
+node_modules/
+TRELLIS-main/
+.runpod/
+deploy/
+coverage/
+*.lock
+*.log
+*.svg
+package-lock.json
+client/icons.js

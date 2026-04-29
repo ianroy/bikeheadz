@@ -2,24 +2,24 @@ import { el, clear } from '../dom.js';
 import { icon } from '../icons.js';
 
 const STATUS_COLORS = {
-  Shipped:    '#1D4ED8',
-  Delivered:  '#C71F1F',
+  Shipped: '#1D4ED8',
+  Delivered: '#C71F1F',
   Processing: '#C2410C',
+  Paid: '#7C5E1F',
+  Refunded: '#6B6157',
+  Printing: '#C2410C',
+  'In Queue': '#6B6157',
 };
-
-const LOCAL_DESIGNS = [
-  { name: 'My Chrome Head', date: 'Apr 18, 2026', material: 'chrome', stars: 5, img: 'https://images.unsplash.com/photo-1684770114368-6e01b4f8741a?w=200&q=80' },
-  { name: 'Matte Version',  date: 'Apr 5, 2026',  material: 'matte',  stars: 4, img: 'https://images.unsplash.com/photo-1667761673934-70b67e527f1f?w=200&q=80' },
-  { name: 'Gloss Test',     date: 'Mar 29, 2026', material: 'gloss',  stars: 4, img: 'https://images.unsplash.com/photo-1651557747176-5aa3c20b6780?w=200&q=80' },
-];
 
 export function AccountPage({ socket }) {
   const state = {
     activeTab: 'designs',
-    displayName: 'Alex Rider',
-    email: 'alex@bikeheadz.com',
-    preferences: { shipNotify: true, marketing: false, defaultChrome: true },
+    user: null,
+    profile: { displayName: 'Guest', email: '', preferences: {}, emailPrefs: {} },
+    designs: [],
     orders: [],
+    photos: [],
+    loaded: false,
   };
 
   const root = el('div.max-w-3xl.mx-auto.px-4.py-8');
@@ -41,68 +41,109 @@ export function AccountPage({ socket }) {
 
   function renderProfile() {
     clear(profileHeader);
+    const isGuest = !state.user;
     profileHeader.append(
-      el('div.relative',
-        el('div', {
-          class: 'w-20 h-20 rounded-2xl flex items-center justify-center',
-          style: {
-            background: 'linear-gradient(135deg, #F5F1E8, #FFFFFF)',
-            fontSize: '1.875rem',
+      el(
+        'div.relative',
+        el(
+          'div',
+          {
+            class: 'w-20 h-20 rounded-2xl flex items-center justify-center',
+            style: { background: 'linear-gradient(135deg, #F5F1E8, #FFFFFF)', fontSize: '1.875rem' },
           },
-        }, '\u{1F6B4}'),
-        el('button', {
-          class: 'absolute w-7 h-7 rounded-lg flex items-center justify-center border',
-          style: {
-            right: '-4px',
-            bottom: '-4px',
-            background: '#F5F1E8',
-            borderColor: '#E5DFD3',
-          },
-        }, icon('camera', { size: 14, color: '#C71F1F' })),
+          '\u{1F6B4}'
+        )
       ),
-      el('div.flex-1',
-        el('h1', { style: { fontWeight: 800, fontSize: '1.3rem' } }, state.displayName),
-        el('p', { style: { color: '#6B6157', fontSize: '0.85rem' } }, state.email),
-        el('div.flex.items-center.gap-3.mt-2',
-          el('span', {
-            class: 'px-2 py-0.5 rounded-full',
-            style: { background: 'rgba(199,31,31,0.12)', color: '#C71F1F', fontSize: '0.72rem', fontWeight: 700 },
-          }, '\u2713 Verified Rider'),
-          el('span', { style: { color: '#6B6157', fontSize: '0.75rem' } }, '3 designs · 2 orders'),
-        ),
+      el(
+        'div.flex-1',
+        el('h1', { style: { fontWeight: 800, fontSize: '1.3rem' } }, state.profile.displayName || 'Guest'),
+        el('p', { style: { color: '#6B6157', fontSize: '0.85rem' } }, state.profile.email || 'Not signed in'),
+        el(
+          'div.flex.items-center.gap-3.mt-2',
+          state.user
+            ? el(
+                'span',
+                {
+                  class: 'px-2 py-0.5 rounded-full',
+                  style: {
+                    background: 'rgba(199,31,31,0.12)',
+                    color: '#C71F1F',
+                    fontSize: '0.72rem',
+                    fontWeight: 700,
+                  },
+                },
+                '✓ Verified Rider'
+              )
+            : null,
+          el(
+            'span',
+            { style: { color: '#6B6157', fontSize: '0.75rem' } },
+            `${state.designs.length} designs · ${state.orders.length} orders`
+          )
+        )
       ),
-      el('button', {
-        class: 'flex items-center gap-1.5 transition-colors',
-        style: { color: '#6B6157', fontSize: '0.8rem' },
-      },
-        icon('logOut', { size: 16 }),
-        'Sign out',
-      ),
+      isGuest
+        ? el(
+            'a',
+            {
+              href: '/login?next=/account',
+              'data-link': true,
+              class: 'flex items-center gap-1.5 transition-colors',
+              style: {
+                color: '#FFFFFF',
+                background: '#C71F1F',
+                fontSize: '0.85rem',
+                padding: '8px 12px',
+                borderRadius: '10px',
+                textDecoration: 'none',
+                fontWeight: 600,
+              },
+            },
+            'Sign in'
+          )
+        : el(
+            'button',
+            {
+              class: 'flex items-center gap-1.5 transition-colors',
+              style: { color: '#6B6157', fontSize: '0.8rem' },
+              onClick: signOut,
+            },
+            icon('logOut', { size: 16 }),
+            'Sign out'
+          )
     );
   }
 
   function renderTabs() {
     clear(tabBar);
     const tabs = [
-      { id: 'designs',  label: 'My Designs', ico: 'bike' },
-      { id: 'orders',   label: 'Orders',     ico: 'package' },
-      { id: 'settings', label: 'Settings',   ico: 'settingsGear' },
+      { id: 'designs', label: 'My Designs', ico: 'bike' },
+      { id: 'orders', label: 'Orders', ico: 'package' },
+      { id: 'settings', label: 'Settings', ico: 'settingsGear' },
     ];
     for (const tab of tabs) {
       const active = state.activeTab === tab.id;
-      tabBar.appendChild(el('button', {
-        class: 'flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg transition-all',
-        style: {
-          background: active ? '#C71F1F' : 'transparent',
-          color: active ? '#000' : '#6B6157',
-          fontWeight: active ? 700 : 500,
-          fontSize: '0.85rem',
-        },
-        onClick: () => { state.activeTab = tab.id; renderContent(); renderTabs(); },
-      },
-        icon(tab.ico, { size: 16, color: active ? '#000' : '#6B6157' }),
-        tab.label,
-      ));
+      tabBar.appendChild(
+        el(
+          'button',
+          {
+            class: 'flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg transition-all',
+            style: {
+              background: active ? '#C71F1F' : 'transparent',
+              color: active ? '#FFFFFF' : '#6B6157',
+              fontWeight: active ? 700 : 500,
+              fontSize: '0.85rem',
+            },
+            onClick: () => {
+              state.activeTab = tab.id;
+              renderContent();
+              renderTabs();
+            },
+          },
+          icon(tab.ico, { size: 16, color: active ? '#FFFFFF' : '#6B6157' }),
+          tab.label
+        )
+      );
     }
   }
 
@@ -115,109 +156,222 @@ export function AccountPage({ socket }) {
 
   function renderDesigns() {
     const wrap = el('div.flex.flex-col.gap-3');
-    for (const d of LOCAL_DESIGNS) {
-      wrap.appendChild(el('div', {
-        class: 'rounded-xl border transition-colors',
-        style: { background: '#FFFFFF', borderColor: '#E5DFD3' },
-      },
-        el('div.flex.items-center.gap-4.p-4',
-          el('div', {
-            class: 'w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 border',
-            style: { borderColor: '#E5DFD3' },
-          },
-            el('img', {
-              src: d.img,
-              alt: d.name,
-              class: 'w-full h-full object-cover',
-            }),
-          ),
-          el('div.flex-1',
-            el('p', {
-              style: { color: '#1A1614', fontWeight: 600, fontSize: '0.9rem' },
-            }, d.name),
-            el('p', { style: { color: '#6B6157', fontSize: '0.75rem' } }, d.date),
-            el('div', { class: 'flex items-center gap-2 mt-1.5' },
-              ...Array.from({ length: d.stars }, () =>
-                icon('star', { size: 12, color: '#C71F1F' })
-              ),
-              el('span', {
-                class: 'px-1.5 py-0.5 rounded capitalize',
-                style: { background: '#E5DFD3', color: '#6B6157', fontSize: '0.65rem' },
-              }, d.material),
-            ),
-          ),
-          el('div.flex.gap-2',
-            el('button', {
-              class: 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-colors',
-              style: { borderColor: '#E5DFD3', color: '#6B6157', fontSize: '0.75rem' },
+    if (state.photos.length) {
+      const strip = el('div', {
+        style: {
+          display: 'flex',
+          gap: '8px',
+          overflowX: 'auto',
+          padding: '4px 0 12px',
+          marginBottom: '8px',
+        },
+      });
+      strip.appendChild(
+        el(
+          'p',
+          { style: { color: '#6B6157', fontSize: '0.75rem', margin: '0 8px 0 0', whiteSpace: 'nowrap' } },
+          'Your photos:'
+        )
+      );
+      for (const p of state.photos) {
+        strip.appendChild(
+          el(
+            'a',
+            {
+              href: `/?photo=${encodeURIComponent(p.id)}`,
+              'data-link': true,
+              style: {
+                width: '48px',
+                height: '48px',
+                borderRadius: '8px',
+                background: '#E5DFD3',
+                border: '1px solid #C9C0B0',
+                color: '#6B6157',
+                fontSize: '0.65rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                textDecoration: 'none',
+                flexShrink: 0,
+              },
+              title: p.filename || 'photo',
             },
-              icon('download', { size: 14 }),
-              'STL',
-            ),
-            el('button', {
-              class: 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors',
-              style: { background: '#C2410C', color: '#fff', fontSize: '0.75rem', fontWeight: 600 },
-            }, 'Reorder'),
-          ),
-        ),
-      ));
+            (p.filename || 'IMG').slice(0, 4)
+          )
+        );
+      }
+      wrap.appendChild(strip);
     }
-    wrap.appendChild(el('a', {
-      href: '/',
-      'data-link': '',
-      class: 'flex items-center justify-center gap-2 py-4 rounded-xl border-2 border-dashed transition-colors mt-1',
-      style: { borderColor: '#E5DFD3', color: '#6B6157', textDecoration: 'none' },
-    },
-      el('span', { style: { fontSize: '1.2rem' } }, '+'),
-      el('span', { style: { fontSize: '0.85rem', fontWeight: 600 } }, 'Create New Design'),
-    ));
+
+    if (!state.designs.length) {
+      wrap.appendChild(
+        el(
+          'p',
+          { style: { color: '#6B6157', fontSize: '0.85rem', padding: '1.5rem', textAlign: 'center' } },
+          state.user
+            ? 'No designs yet — make one from the home page.'
+            : 'Sign in to see your designs.'
+        )
+      );
+    }
+
+    for (const d of state.designs) {
+      const date = d.date || (d.created_at ? new Date(d.created_at).toLocaleDateString() : '');
+      wrap.appendChild(
+        el(
+          'div',
+          {
+            class: 'rounded-xl border transition-colors',
+            style: { background: '#FFFFFF', borderColor: '#E5DFD3' },
+          },
+          el(
+            'div.flex.items-center.gap-4.p-4',
+            el(
+              'div',
+              {
+                class: 'w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 border',
+                style: { background: '#4A453F', borderColor: '#E5DFD3' },
+              },
+              ''
+            ),
+            el(
+              'div.flex-1',
+              el(
+                'p',
+                { style: { color: '#1A1614', fontWeight: 600, fontSize: '0.9rem' } },
+                d.photo_name || d.filename || 'Untitled design'
+              ),
+              el('p', { style: { color: '#6B6157', fontSize: '0.75rem' } }, date),
+              el(
+                'div',
+                { class: 'flex items-center gap-2 mt-1.5' },
+                d.paid
+                  ? el(
+                      'span',
+                      {
+                        class: 'px-1.5 py-0.5 rounded',
+                        style: { background: 'rgba(199,31,31,0.12)', color: '#C71F1F', fontSize: '0.65rem' },
+                      },
+                      'PAID'
+                    )
+                  : null,
+                d.is_public
+                  ? el(
+                      'span',
+                      {
+                        class: 'px-1.5 py-0.5 rounded',
+                        style: { background: '#E5DFD3', color: '#6B6157', fontSize: '0.65rem' },
+                      },
+                      'PUBLIC'
+                    )
+                  : null
+              )
+            ),
+            el(
+              'div.flex.gap-2',
+              d.paid
+                ? el(
+                    'button',
+                    {
+                      class: 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-colors',
+                      style: { borderColor: '#E5DFD3', color: '#6B6157', fontSize: '0.75rem' },
+                      onClick: () => downloadStl(d),
+                    },
+                    icon('download', { size: 14 }),
+                    'STL'
+                  )
+                : null,
+              el(
+                'button',
+                {
+                  class: 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors',
+                  style: { background: '#C2410C', color: '#fff', fontSize: '0.75rem', fontWeight: 600 },
+                  onClick: () => shareDesign(d),
+                },
+                'Share'
+              ),
+              el(
+                'button',
+                {
+                  class: 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors',
+                  style: { background: 'transparent', color: '#6B6157', fontSize: '0.75rem' },
+                  onClick: () => deleteDesign(d),
+                },
+                icon('trash2', { size: 14 })
+              )
+            )
+          )
+        )
+      );
+    }
+
+    wrap.appendChild(
+      el(
+        'a',
+        {
+          href: '/',
+          'data-link': true,
+          class: 'flex items-center justify-center gap-2 py-4 rounded-xl border-2 border-dashed transition-colors mt-1',
+          style: { borderColor: '#E5DFD3', color: '#6B6157', textDecoration: 'none' },
+        },
+        el('span', { style: { fontSize: '1.2rem' } }, '+'),
+        el('span', { style: { fontSize: '0.85rem', fontWeight: 600 } }, 'Create New Design')
+      )
+    );
     return wrap;
   }
 
   function renderOrders() {
     const wrap = el('div.flex.flex-col.gap-3');
     if (!state.orders.length) {
-      wrap.appendChild(el('p', {
-        style: { color: '#6B6157', fontSize: '0.85rem', padding: '1.5rem', textAlign: 'center' },
-      }, 'Loading orders…'));
+      wrap.appendChild(
+        el(
+          'p',
+          { style: { color: '#6B6157', fontSize: '0.85rem', padding: '1.5rem', textAlign: 'center' } },
+          state.loaded ? 'No orders yet.' : 'Loading orders…'
+        )
+      );
     }
     for (const order of state.orders) {
-      wrap.appendChild(el('div', {
-        class: 'rounded-xl border p-4',
-        style: { background: '#FFFFFF', borderColor: '#E5DFD3' },
-      },
-        el('div.flex.items-start.justify-between.gap-3',
-          el('div.flex-1',
-            el('div.flex.items-center.gap-2.mb-1',
-              el('span', {
-                style: { color: '#1A1614', fontWeight: 600, fontSize: '0.88rem' },
-              }, order.name),
-              el('span', {
-                class: 'px-2 py-0.5 rounded-full',
-                style: {
-                  background: `${STATUS_COLORS[order.status] || '#6B6157'}18`,
-                  color: STATUS_COLORS[order.status] || '#3D3A36',
-                  fontSize: '0.68rem',
-                  fontWeight: 700,
-                  border: `1px solid ${STATUS_COLORS[order.status] || '#6B6157'}30`,
-                },
-              }, order.status),
+      wrap.appendChild(
+        el(
+          'div',
+          { class: 'rounded-xl border p-4', style: { background: '#FFFFFF', borderColor: '#E5DFD3' } },
+          el(
+            'div.flex.items-start.justify-between.gap-3',
+            el(
+              'div.flex-1',
+              el(
+                'div.flex.items-center.gap-2.mb-1',
+                el('span', { style: { color: '#1A1614', fontWeight: 600, fontSize: '0.88rem' } }, order.name),
+                el(
+                  'span',
+                  {
+                    class: 'px-2 py-0.5 rounded-full',
+                    style: {
+                      background: `${STATUS_COLORS[order.status] || '#6B6157'}18`,
+                      color: STATUS_COLORS[order.status] || '#3D3A36',
+                      fontSize: '0.68rem',
+                      fontWeight: 700,
+                      border: `1px solid ${STATUS_COLORS[order.status] || '#6B6157'}30`,
+                    },
+                  },
+                  order.status
+                )
+              ),
+              el(
+                'p',
+                { style: { color: '#6B6157', fontSize: '0.75rem' } },
+                `${order.id} · ${order.date} · Qty: ${order.qty}`
+              )
             ),
-            el('p', { style: { color: '#6B6157', fontSize: '0.75rem' } },
-              `${order.id} · ${order.date} · Qty: ${order.qty}`,
-            ),
-          ),
-          el('div.text-right',
-            el('p', {
-              style: { color: '#C71F1F', fontWeight: 700, fontSize: '0.9rem' },
-            }, order.price),
-            el('button', {
-              class: 'flex items-center gap-1 transition-colors mt-1',
-              style: { color: '#6B6157', fontSize: '0.72rem' },
-            }, 'Details', icon('chevronRight', { size: 12 })),
-          ),
-        ),
-      ));
+            el(
+              'div.text-right',
+              el('p', { style: { color: '#C71F1F', fontWeight: 700, fontSize: '0.9rem' } }, order.price)
+            )
+          )
+        )
+      );
     }
     return wrap;
   }
@@ -225,8 +379,8 @@ export function AccountPage({ socket }) {
   function renderSettings() {
     const wrap = el('div.flex.flex-col.gap-4');
     const nameInput = el('input', {
-      value: state.displayName,
-      class: 'rounded-xl px-4 py-2.5 border transition-colors',
+      value: state.profile.displayName || '',
+      class: 'rounded-xl px-4 py-2.5 border',
       style: {
         background: '#FFFFFF',
         color: '#1A1614',
@@ -234,81 +388,129 @@ export function AccountPage({ socket }) {
         fontSize: '0.9rem',
         outline: 'none',
       },
-      onInput: (e) => { state.displayName = e.target.value; },
-    });
-    const emailInput = el('input', {
-      value: state.email,
-      class: 'rounded-xl px-4 py-2.5 border transition-colors',
-      style: {
-        background: '#FFFFFF',
-        color: '#1A1614',
-        borderColor: '#E5DFD3',
-        fontSize: '0.9rem',
-        outline: 'none',
+      onInput: (e) => {
+        state.profile.displayName = e.target.value;
       },
-      onInput: (e) => { state.email = e.target.value; },
     });
+    const emailDisplay = el('p', { style: { color: '#6B6157', fontSize: '0.85rem' } }, state.profile.email);
 
-    wrap.appendChild(el('div', {
-      class: 'rounded-2xl border p-5',
-      style: { background: '#FFFFFF', borderColor: '#E5DFD3' },
-    },
-      el('h3.mb-4', {
-        style: { fontWeight: 700, fontSize: '0.95rem' },
-      }, 'Profile'),
-      el('div.flex.flex-col.gap-4',
-        el('div', { class: 'flex flex-col gap-1.5' },
-          el('label', { style: { color: '#6B6157', fontSize: '0.8rem' } }, 'Display Name'),
-          nameInput,
-        ),
-        el('div', { class: 'flex flex-col gap-1.5' },
-          el('label', { style: { color: '#6B6157', fontSize: '0.8rem' } }, 'Email'),
-          emailInput,
-        ),
-      ),
-      el('button', {
-        class: 'mt-4 px-5 py-2 rounded-xl transition-all',
-        style: {
-          background: '#C71F1F',
-          color: '#FFFFFF',
-          fontWeight: 700,
-          fontSize: '0.85rem',
+    wrap.appendChild(
+      el(
+        'div',
+        {
+          class: 'rounded-2xl border p-5',
+          style: { background: '#FFFFFF', borderColor: '#E5DFD3' },
         },
-        onClick: async () => {
-          await socket.request('account.update', {
-            displayName: state.displayName,
-            email: state.email,
-            preferences: state.preferences,
-          }).catch(() => {});
-          renderProfile();
-        },
-      }, 'Save Changes'),
-    ));
+        el('h3.mb-4', { style: { fontWeight: 700, fontSize: '0.95rem' } }, 'Profile'),
+        el(
+          'div.flex.flex-col.gap-4',
+          el(
+            'div',
+            { class: 'flex flex-col gap-1.5' },
+            el('label', { style: { color: '#6B6157', fontSize: '0.8rem' } }, 'Display Name'),
+            nameInput
+          ),
+          el(
+            'div',
+            { class: 'flex flex-col gap-1.5' },
+            el('label', { style: { color: '#6B6157', fontSize: '0.8rem' } }, 'Email'),
+            emailDisplay
+          )
+        ),
+        el(
+          'button',
+          {
+            class: 'mt-4 px-5 py-2 rounded-xl transition-all',
+            style: {
+              background: '#C71F1F',
+              color: '#FFFFFF',
+              fontWeight: 700,
+              fontSize: '0.85rem',
+            },
+            onClick: async () => {
+              await socket
+                .request('account.update', {
+                  displayName: state.profile.displayName,
+                })
+                .catch(() => {});
+              renderProfile();
+            },
+          },
+          'Save Changes'
+        )
+      )
+    );
 
     const prefs = [
-      { key: 'shipNotify',     label: 'Email me when my print ships' },
-      { key: 'marketing',      label: 'Marketing emails about new features' },
-      { key: 'defaultChrome',  label: 'Default to chrome material' },
+      { key: 'order_updates', label: 'Email me when my print ships' },
+      { key: 'design_reminders', label: 'Email me reminders to finish a design' },
+      { key: 'marketing', label: 'Marketing emails about new features' },
     ];
-    const prefBox = el('div', {
-      class: 'rounded-2xl border p-5',
-      style: { background: '#FFFFFF', borderColor: '#E5DFD3' },
-    },
-      el('h3.mb-4', {
-        style: { fontWeight: 700, fontSize: '0.95rem' },
-      }, 'Preferences'),
+    const prefBox = el(
+      'div',
+      {
+        class: 'rounded-2xl border p-5',
+        style: { background: '#FFFFFF', borderColor: '#E5DFD3' },
+      },
+      el('h3.mb-4', { style: { fontWeight: 700, fontSize: '0.95rem' } }, 'Email preferences')
     );
     for (const p of prefs) {
-      const row = el('div', {
-        class: 'flex items-center justify-between py-2.5',
-        style: { borderBottom: '1px solid #E5DFD3' },
-      },
+      const row = el(
+        'div',
+        {
+          class: 'flex items-center justify-between py-2.5',
+          style: { borderBottom: '1px solid #E5DFD3' },
+        },
         el('span', { style: { color: '#3D3A36', fontSize: '0.85rem' } }, p.label),
-        toggleSwitch(state.preferences[p.key], (v) => { state.preferences[p.key] = v; }),
+        toggleSwitch(state.profile.emailPrefs[p.key] !== false, async (v) => {
+          state.profile.emailPrefs[p.key] = v;
+          await socket
+            .request('account.update', { emailPrefs: { [p.key]: v } })
+            .catch(() => {});
+        })
       );
       prefBox.appendChild(row);
     }
     wrap.appendChild(prefBox);
+
+    if (state.user) {
+      wrap.appendChild(
+        el(
+          'div',
+          {
+            class: 'rounded-2xl border p-5',
+            style: { background: '#FFFFFF', borderColor: '#E5DFD3' },
+          },
+          el('h3.mb-2', { style: { fontWeight: 700, fontSize: '0.95rem' } }, 'Privacy & data'),
+          el(
+            'p',
+            { style: { color: '#6B6157', fontSize: '0.8rem', marginBottom: '12px' } },
+            'Export everything we have on you, or delete your account.'
+          ),
+          el(
+            'div.flex.gap-2',
+            el(
+              'button',
+              {
+                class: 'px-4 py-2 rounded-xl border',
+                style: { borderColor: '#E5DFD3', color: '#1A1614', fontSize: '0.8rem' },
+                onClick: exportData,
+              },
+              'Download my data'
+            ),
+            el(
+              'button',
+              {
+                class: 'px-4 py-2 rounded-xl',
+                style: { background: '#6B6157', color: '#fff', fontSize: '0.8rem' },
+                onClick: deleteAccount,
+              },
+              'Delete account'
+            )
+          )
+        )
+      );
+    }
     return wrap;
   }
 
@@ -325,41 +527,155 @@ export function AccountPage({ socket }) {
         boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
       },
     });
-    const track = el('button', {
-      class: 'relative rounded-full transition-colors',
-      style: {
-        width: '42px',
-        height: '22px',
-        border: 'none',
-        background: on ? '#C71F1F' : '#E5DFD3',
-        cursor: 'pointer',
+    const track = el(
+      'button',
+      {
+        class: 'relative rounded-full transition-colors',
+        style: {
+          width: '42px',
+          height: '22px',
+          border: 'none',
+          background: on ? '#C71F1F' : '#E5DFD3',
+          cursor: 'pointer',
+        },
+        onClick: () => {
+          on = !on;
+          track.style.background = on ? '#C71F1F' : '#E5DFD3';
+          knob.style.transform = on ? 'translateX(22px)' : 'translateX(2px)';
+          onChange(on);
+        },
       },
-      onClick: () => {
-        on = !on;
-        track.style.background = on ? '#C71F1F' : '#E5DFD3';
-        knob.style.transform = on ? 'translateX(22px)' : 'translateX(2px)';
-        onChange(on);
-      },
-    }, knob);
+      knob
+    );
     return track;
   }
 
-  // Load initial data over the socket.
+  async function signOut() {
+    try {
+      await socket.request('auth.logout', {});
+    } catch {
+      /* ignore */
+    }
+    try {
+      await fetch('/auth/logout', { method: 'POST', credentials: 'include' });
+    } catch {
+      /* ignore */
+    }
+    window.location.href = '/';
+  }
+
+  async function downloadStl(design) {
+    try {
+      const res = await socket.request('stl.download', { designId: design.id });
+      const bytes = atob(res.stl_b64);
+      const buf = new Uint8Array(bytes.length);
+      for (let i = 0; i < bytes.length; i++) buf[i] = bytes.charCodeAt(i);
+      const blob = new Blob([buf], { type: 'model/stl' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = res.filename || 'BikeHeadz_ValveStem.stl';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      window.alert(err.message || 'Download failed');
+    }
+  }
+
+  async function shareDesign(design) {
+    try {
+      const res = await socket.request('designs.createShareLink', { designId: design.id });
+      const url = `${location.origin}/d/${res.token}`;
+      if (navigator.share) {
+        await navigator.share({ title: 'My BikeHeadz', text: 'Check out my design.', url });
+      } else if (navigator.clipboard) {
+        await navigator.clipboard.writeText(url);
+        window.alert('Share link copied to clipboard.');
+      } else {
+        window.prompt('Copy this share URL:', url);
+      }
+    } catch (err) {
+      window.alert(err.message || 'Could not create share link');
+    }
+  }
+
+  async function deleteDesign(design) {
+    if (!window.confirm('Delete this design? This cannot be undone.')) return;
+    try {
+      await socket.request('designs.delete', { id: design.id });
+      state.designs = state.designs.filter((d) => d.id !== design.id);
+      renderContent();
+    } catch (err) {
+      window.alert(err.message || 'Delete failed');
+    }
+  }
+
+  async function exportData() {
+    try {
+      const data = await socket.request('account.exportData');
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `bikeheadz-export-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      window.alert(err.message || 'Export failed');
+    }
+  }
+
+  async function deleteAccount() {
+    if (!window.confirm('Permanently delete your account? Your designs and photos will be removed.')) return;
+    try {
+      await socket.request('account.delete');
+      window.location.href = '/?deleted=1';
+    } catch (err) {
+      window.alert(err.message || 'Delete failed');
+    }
+  }
+
   async function loadInitial() {
+    try {
+      const who = await socket.request('auth.whoami');
+      state.user = who?.user || null;
+    } catch {
+      /* ignore */
+    }
     try {
       const profile = await socket.request('account.get');
       if (profile) {
-        state.displayName = profile.displayName ?? state.displayName;
-        state.email = profile.email ?? state.email;
-        state.preferences = { ...state.preferences, ...(profile.preferences || {}) };
-        renderProfile();
+        state.profile.displayName = profile.displayName || state.profile.displayName;
+        state.profile.email = profile.email || '';
+        state.profile.preferences = profile.preferences || {};
+        state.profile.emailPrefs = profile.emailPrefs || {};
       }
-    } catch { /* fallbacks already rendered */ }
+    } catch {
+      /* ignore */
+    }
+    if (state.user) {
+      try {
+        const r = await socket.request('designs.listMine', { page: 1, pageSize: 12 });
+        state.designs = r?.rows || [];
+      } catch {
+        state.designs = [];
+      }
+      try {
+        const ph = await socket.request('photos.list', { page: 1, pageSize: 8 });
+        state.photos = ph?.rows || [];
+      } catch {
+        state.photos = [];
+      }
+    }
     try {
       const orders = await socket.request('orders.list');
       state.orders = orders || [];
-      if (state.activeTab === 'orders') renderContent();
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
+    state.loaded = true;
+    renderProfile();
+    renderContent();
   }
 
   renderProfile();

@@ -37,12 +37,13 @@ export class Router {
   render(url) {
     const [pathname, search = ''] = url.split('?');
     const factory = this.routes[pathname] || this.routes['*'] || this.routes['/'];
+    const matched = pathname in this.routes;
     if (this.current?.destroy) {
       try { this.current.destroy(); } catch { /* ignore */ }
     }
     while (this.mount.firstChild) this.mount.removeChild(this.mount.firstChild);
     const query = parseQuery(search);
-    const page = factory({ path: pathname, query });
+    const page = factory({ path: pathname, query, matched });
     this.current = page;
     this.mount.appendChild(page.el);
     this.onRoute?.(pathname);

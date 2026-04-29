@@ -92,6 +92,67 @@ services:
         scope: RUN_TIME
         type: SECRET
         value: ""
+      # ── Auth (P1-001 / P1-002 / P0-008) ────────────────────────────
+      - key: AUTH_SECRET
+        scope: RUN_TIME
+        type: SECRET
+        value: ""
+      - key: ADMIN_EMAILS
+        scope: RUN_TIME
+        value: ""
+      # ── Email (Resend or Postmark; both keys safe to leave blank) ──
+      - key: EMAIL_FROM
+        scope: RUN_TIME
+        value: "BikeHeadz <noreply@bikeheadz.app>"
+      - key: RESEND_API_KEY
+        scope: RUN_TIME
+        type: SECRET
+        value: ""
+      - key: POSTMARK_TOKEN
+        scope: RUN_TIME
+        type: SECRET
+        value: ""
+      # ── Sentry (P0-005) ───────────────────────────────────────────
+      - key: SENTRY_DSN
+        scope: RUN_TIME
+        type: SECRET
+        value: ""
+      - key: SENTRY_ENVIRONMENT
+        scope: RUN_TIME
+        value: "production"
+      # ── /metrics token (P4-002) ───────────────────────────────────
+      - key: METRICS_TOKEN
+        scope: RUN_TIME
+        type: SECRET
+        value: ""
+      # ── Stripe webhook + tax + shipping ───────────────────────────
+      - key: STRIPE_WEBHOOK_ENABLED
+        scope: RUN_TIME
+        value: "true"
+      - key: STRIPE_WEBHOOK_SECRET
+        scope: RUN_TIME
+        type: SECRET
+        value: ""
+      - key: STRIPE_TAX_ENABLED
+        scope: RUN_TIME
+        value: "false"
+      - key: STRIPE_SHIPPING_COUNTRIES
+        scope: RUN_TIME
+        value: "US,CA,GB,DE,FR,IE,NL,BE,IT,ES,DK,SE,NO,FI,AU,NZ"
+      - key: STRIPE_PRICE_PRINT_CENTS
+        scope: RUN_TIME
+        value: "1999"
+      - key: STRIPE_PRICE_PACK_CENTS
+        scope: RUN_TIME
+        value: "5999"
+      - key: STRIPE_CUSTOMER_PORTAL_CONFIG_ID
+        scope: RUN_TIME
+        value: ""
+      # ── Share-link signing (P5-002) ───────────────────────────────
+      - key: SHARE_LINK_SECRET
+        scope: RUN_TIME
+        type: SECRET
+        value: ""
 
   # One-off migration job. Runs before every deployment goes live.
   - name: migrate

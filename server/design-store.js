@@ -5,7 +5,7 @@ import { logger } from './logger.js';
 // DATABASE_URL is configured (12-factor §6 — state out of the process),
 // otherwise fall back to an in-memory LRU for local dev.
 
-const MEMORY = new Map();          // id → { stl: Buffer, filename, settings, photoName, at }
+const MEMORY = new Map(); // id → { stl: Buffer, filename, settings, photoName, at, accountId, photoId }
 const MEMORY_TTL_MS = 24 * 60 * 60 * 1000;
 const MEMORY_MAX = 50;
 
@@ -21,21 +21,23 @@ function pruneMemory() {
 }
 
 export const designStore = {
-  async save({ id, stl, filename, settings = {}, photoName = null }) {
+  async save({ id, stl, filename, settings = {}, photoName = null, accountId = null, photoId = null }) {
     pruneMemory();
     if (!hasDb()) {
-      MEMORY.set(id, { stl, filename, settings, photoName, at: Date.now() });
+      MEMORY.set(id, { stl, filename, settings, photoName, accountId, photoId, at: Date.now() });
       return { id };
     }
     await db.query(
-      `INSERT INTO generated_designs (id, stl_bytes, filename, settings, photo_name)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO generated_designs (id, account_id, photo_id, stl_bytes, filename, settings, photo_name)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        ON CONFLICT (id) DO UPDATE SET
-         stl_bytes = EXCLUDED.stl_bytes,
-         filename  = EXCLUDED.filename,
-         settings  = EXCLUDED.settings,
+         account_id = COALESCE(EXCLUDED.account_id, generated_designs.account_id),
+         photo_id   = COALESCE(EXCLUDED.photo_id, generated_designs.photo_id),
+         stl_bytes  = EXCLUDED.stl_bytes,
+         filename   = EXCLUDED.filename,
+         settings   = EXCLUDED.settings,
          photo_name = EXCLUDED.photo_name`,
-      [id, stl, filename, settings, photoName]
+      [id, accountId, photoId, stl, filename, settings, photoName]
     );
     return { id };
   },
@@ -46,7 +48,8 @@ export const designStore = {
       return MEMORY.get(id) || null;
     }
     const { rows } = await db.query(
-      `SELECT id, stl_bytes AS stl, filename, settings, photo_name AS "photoName"
+      `SELECT id, account_id AS "accountId", photo_id AS "photoId",
+              stl_bytes AS stl, filename, settings, photo_name AS "photoName"
          FROM generated_designs
         WHERE id = $1 AND expires_at > NOW()
         LIMIT 1`,
