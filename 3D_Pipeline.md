@@ -69,7 +69,7 @@ assume they hold. If any shifts, the plan needs revisiting.
 | **Print orientation** | **Cap-down** (valve cap section flat on the bed; head pointing up) | The cap section is the only flat circular face on the assembly — natural footprint for bed adhesion. Printed cap-down the cap walls grow upward, internal threads form as helical features at ~60° (well within FDM self-support), and the head builds organically on top. Printed any other way, the head's curved skull contacts the bed and needs supports the slicer can't place cleanly. The references were sliced cap-down. |
 | **Coordinate frame** | **Z-up, +Y forward (face), millimeters** | Matches §8.1 invariants and the Three.js viewer at [valve-stem-viewer.js:251](client/components/valve-stem-viewer.js:251), which rotates −π/2 around X assuming Z-up. Stage 5 export must orient the **cap region toward −Z** so the slicer's default "place flat on bed" picks the cap as the print face. |
 | **Boolean engine** | **manifold3d 3.4+** | §7 audit; the only CPU CSG with a manifold-output guarantee. |
-| **Cap & negative-core sizing** | **Locked, do not scale** (`valve_cap.stl` ≈ ⌀9.2 mm, `negative_core.stl` ≈ ⌀8.3 mm) | The bike valve thread fit demands these exact dimensions — scaling either would break the press-fit onto a real Presta valve. The threaded outer diameter of `valve_cap.stl` is *intentionally larger* than `negative_core.stl`'s diameter: when Stage 4 unions the cap into the cavity Stage 3 carved, the cap's threads bite into the surrounding head walls and form the threading visible inside the cavity. Wall thickness around the cavity is **not** ensured by widening the core (which would break the valve fit) — it is ensured by Stage 2 **rotating the head** to choose a hole location with enough surrounding material. (Decision −0.5.3.) |
+| **Cap & negative-core sizing** | **Locked, do not scale** (`valve_cap.stl` ≈ ⌀9.2 mm, `negative_core.stl` ≈ ⌀8.3 mm) | The bike valve thread fit demands these exact dimensions — scaling either would break the press-fit onto a real Schrader valve. The threaded outer diameter of `valve_cap.stl` is *intentionally larger* than `negative_core.stl`'s diameter: when Stage 4 unions the cap into the cavity Stage 3 carved, the cap's threads bite into the surrounding head walls and form the threading visible inside the cavity. Wall thickness around the cavity is **not** ensured by widening the core (which would break the valve fit) — it is ensured by Stage 2 **rotating the head** to choose a hole location with enough surrounding material. (Decision −0.5.3.) |
 | **Head auto-rescale target** | `TARGET_HEAD_HEIGHT_MM = 30.0` baseline; **user-tunable 22..42 mm** via the Web UI's "Head Height" slider | Cap section is ~11 mm tall + 14 mm cropped head room for the cavity. A 30 mm rescale gives a ~15 mm cropped head — enough to fully nest the 13.78 mm core. Tunable per-request: pipeline reads the override and applies it via `dataclasses.replace` on the loaded `Constants`. |
 | **Cap protrusion below head** | `CAP_PROTRUSION_FRACTION = 0.10` baseline; **user-tunable 0..25%** via the Web UI's "Cap Protrusion" slider | The cap's open bottom protrudes by 10% of `VALVE_CAP_HEIGHT_MM` (≈1.11 mm) below the head's bottom plane to expose the threading and accept a real bike valve. Drives `JUNCTION_Z_OFFSET_MM = -CAP_PROTRUSION_FRACTION × VALVE_CAP_HEIGHT_MM`. |
 | **Layer height target** | **0.12–0.16 mm** | The user's printer family runs comfortably here on PLA. A typical bike valve thread pitch is ~0.8 mm; at 0.12 mm layers that's ~6–7 layers per pitch — crisp threads. At 0.16 mm, ~5 layers — still clean. Stage 5 doesn't enforce this (slicer's job) but the triangle budget below assumes it. |
@@ -88,7 +88,7 @@ fulfilment" SKU rather than a default.
 
 Take a photo of a person, return a 3D-printable STL of a bike valve stem cap
 shaped like that person's head — properly threaded so it screws onto a real
-Presta/Schrader valve.
+Schrader valve.
 
 The current `handler.py:_merge` (lines 230–262) is a placeholder: it scales
 the TRELLIS head to roughly match the valve cap diameter, lifts it up by the
@@ -121,7 +121,7 @@ Committed under `server/assets/`:
 
 | File | Triangles | Role |
 |---|---|---|
-| `valve_cap.stl` | ~7,400 | Minimal threaded screw cap (sourced from `Screw Cap Minimal.stl`). Same thread profile as a real valve cap, but no decorative exterior — just the threaded cylinder. Lower triangle count means cleaner manifold3d booleans and faster Stage 3/4 ops. Must be added without deformation — fit matters; threads grip a real Presta valve. |
+| `valve_cap.stl` | ~7,400 | Minimal threaded screw cap (sourced from `Screw Cap Minimal.stl`). Same thread profile as a real valve cap, but no decorative exterior — just the threaded cylinder. Lower triangle count means cleaner manifold3d booleans and faster Stage 3/4 ops. Must be added without deformation — fit matters; threads grip a real Schrader valve. |
 | `negative_core.stl` | ~290 | Boolean cutter. Subtracted from the head bottom to carve a clean cavity that nests the valve cap. |
 | `reference/ian_head.stl` | ~200,000 | Golden output #1. Calibration target. |
 | `reference/nik_head.stl` | ~200,000 | Golden output #2. Calibration target. |

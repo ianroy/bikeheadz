@@ -41,8 +41,8 @@ export function HeaderComponent() {
       },
         el('div', {
           class: 'w-9 h-9 rounded-xl flex items-center justify-center',
-          style: { background: 'linear-gradient(135deg, #DC2626, #B91C1C)' },
-        }, iconBlack('bike', 18)),
+          style: { background: 'linear-gradient(135deg, #C71F1F, #B91C1C)' },
+        }, iconWhite('bike', 18)),
         el('div.flex.flex-col', { style: { lineHeight: '1' } },
           el('span', {
             class: 'text-white tracking-tight',
@@ -54,7 +54,7 @@ export function HeaderComponent() {
               fontSize: '0.65rem',
               fontWeight: 700,
               letterSpacing: '0.2em',
-              color: '#DC2626',
+              color: '#C71F1F',
             },
           }, 'Headz'),
         ),
@@ -97,9 +97,9 @@ export function HeaderComponent() {
       class: 'px-4 py-2 rounded-lg transition-all duration-200 cursor-pointer',
       style: active
         ? {
-            background: 'rgba(220,38,38,0.2)',
-            color: '#DC2626',
-            border: '1px solid rgba(220,38,38,0.3)',
+            background: 'rgba(199,31,31,0.2)',
+            color: '#C71F1F',
+            border: '1px solid rgba(199,31,31,0.3)',
           }
         : {
             color: '#6B6157',
@@ -133,7 +133,7 @@ export function HeaderComponent() {
   };
 }
 
-// Helper: icon rendered in black (for contrast on green logo bg).
-function iconBlack(name, size) {
-  return icon(name, { size, color: '#000' });
+// Helper: icon rendered in white for contrast on the red logo gradient.
+function iconWhite(name, size) {
+  return icon(name, { size, color: '#FFFFFF' });
 }

@@ -41,11 +41,11 @@ export function HomePage({ socket }) {
   // ──────────────────────────────────────────────────────────────
   center.appendChild(
     el('div',
-      el('h1.text-white', {
+      el('h1', {
         style: { fontSize: '1.6rem', fontWeight: 800, letterSpacing: '-0.03em' },
       },
         'Your Head on a ',
-        el('span', { style: { color: '#DC2626' } }, 'Valve Stem'),
+        el('span', { style: { color: '#C71F1F' } }, 'Valve Stem'),
       ),
       el('p.mt-1', {
         style: { color: '#6B6157', fontSize: '0.9rem' },
@@ -75,12 +75,12 @@ export function HomePage({ socket }) {
       class: 'relative rounded-2xl border-2 border-dashed transition-all duration-200 cursor-pointer',
       style: {
         borderColor: state.dragging
-          ? '#DC2626'
+          ? '#C71F1F'
           : state.photoUrl
           ? '#E5DFD3'
           : '#E5DFD3',
         background: state.dragging
-          ? 'rgba(220,38,38,0.05)'
+          ? 'rgba(199,31,31,0.05)'
           : '#FFFFFF',
       },
       onClick: () => { if (!state.photoUrl) fileInput.click(); },
@@ -104,7 +104,7 @@ export function HomePage({ socket }) {
           el('img', { src: state.photoUrl, alt: 'Uploaded', class: 'w-full h-full object-cover' }),
         ),
         el('div.flex-1.min-w-0',
-          el('p.text-white', { style: { fontWeight: 600, fontSize: '0.9rem' } }, state.photoName || 'Photo uploaded'),
+          el('p', { style: { fontWeight: 600, fontSize: '0.9rem' } }, state.photoName || 'Photo uploaded'),
           el('p', { style: { color: '#6B6157', fontSize: '0.78rem' } }, 'Ready to generate your valve stem'),
         ),
         el('button', {
@@ -120,15 +120,15 @@ export function HomePage({ socket }) {
       box.appendChild(el('div.flex.flex-col.items-center.justify-center.gap-3', { style: { padding: '2.5rem 0' } },
         el('div', {
           class: 'w-14 h-14 rounded-2xl flex items-center justify-center',
-          style: { background: 'linear-gradient(135deg, #F5F1E8, #FAF7F2)', border: '1px solid rgba(220,38,38,0.3)' },
-        }, icon('upload', { size: 24, color: '#DC2626' })),
+          style: { background: 'linear-gradient(135deg, #F5F1E8, #FAF7F2)', border: '1px solid rgba(199,31,31,0.3)' },
+        }, icon('upload', { size: 24, color: '#C71F1F' })),
         el('div.text-center',
-          el('p.text-white', { style: { fontWeight: 600 } }, 'Upload Your Photo'),
+          el('p', { style: { fontWeight: 600 } }, 'Upload Your Photo'),
           el('p.mt-1', { style: { color: '#6B6157', fontSize: '0.82rem' } }, 'Drag & drop or click to browse · JPG, PNG, HEIC'),
         ),
         el('button', {
           class: 'px-5 py-2 rounded-xl transition-all',
-          style: { background: '#DC2626', color: '#000', fontWeight: 700, fontSize: '0.88rem' },
+          style: { background: '#C71F1F', color: '#FFFFFF', fontWeight: 700, fontSize: '0.88rem' },
         }, 'Choose Photo'),
       ));
     }
@@ -155,8 +155,8 @@ export function HomePage({ socket }) {
     el('div.flex.items-center.gap-6.px-4.py-3.border-t', {
       style: { borderColor: '#E5DFD3', fontSize: '0.75rem' },
     },
-      legendSwatch('#DC2626', '3D Scanned Head'),
-      legendSwatch('#A88735', 'Presta Valve Stem'),
+      legendSwatch('#C71F1F', '3D Scanned Head'),
+      legendSwatch('#A88735', 'Schrader Valve Stem'),
       legendSwatch('#9CA3AF', 'Chrome Body'),
     ),
   );
@@ -164,16 +164,16 @@ export function HomePage({ socket }) {
   function renderViewerHeader() {
     clear(viewerHeader);
     const leftRow = el('div.flex.items-center.gap-2',
-      icon('layers', { size: 14, color: '#DC2626' }),
+      icon('layers', { size: 14, color: '#C71F1F' }),
       el('span', { style: { color: '#1A1614', fontWeight: 600, fontSize: '0.88rem' } }, '3D Model Preview'),
     );
     if (state.processing) {
       leftRow.appendChild(el('span', {
         class: 'flex items-center gap-1.5 px-2 py-0.5 rounded-full',
-        style: { background: 'rgba(220,38,38,0.12)', fontSize: '0.7rem', color: '#DC2626' },
+        style: { background: 'rgba(199,31,31,0.12)', fontSize: '0.7rem', color: '#C71F1F' },
       },
         el('span.pulse-dot.inline-block.rounded-full', {
-          style: { width: '6px', height: '6px', background: '#DC2626' },
+          style: { width: '6px', height: '6px', background: '#C71F1F' },
         }),
         'Processing',
       ));
@@ -181,14 +181,14 @@ export function HomePage({ socket }) {
     if (state.stlReady) {
       leftRow.appendChild(el('span', {
         class: 'flex items-center gap-1.5 px-2 py-0.5 rounded-full',
-        style: { background: 'rgba(220,38,38,0.12)', fontSize: '0.7rem', color: '#DC2626' },
+        style: { background: 'rgba(199,31,31,0.12)', fontSize: '0.7rem', color: '#C71F1F' },
       }, '\u2713 STL Ready'));
     }
     viewerHeader.appendChild(leftRow);
 
     viewerHeader.appendChild(
       el('div.flex.items-center.gap-2', {
-        style: { color: '#8B8278', fontSize: '0.72rem' },
+        style: { color: '#6B6157', fontSize: '0.72rem' },
       },
         icon('rotate', { size: 14 }),
         'Drag to rotate',
@@ -237,14 +237,14 @@ export function HomePage({ socket }) {
     clear(settingsToggle);
     settingsToggle.append(
       el('div.flex.items-center.gap-2',
-        icon('settings', { size: 16, color: '#DC2626' }),
+        icon('settings', { size: 16, color: '#C71F1F' }),
         el('span', { style: { color: '#1A1614', fontWeight: 600, fontSize: '0.88rem' } }, 'Adjust 3D Settings'),
       ),
       el('div', {
         style: {
           transition: 'transform 0.2s',
           transform: state.showSettings ? 'rotate(90deg)' : 'rotate(0deg)',
-          color: '#8B8278',
+          color: '#6B6157',
         },
       }, icon('chevronRight', { size: 16 })),
     );
@@ -342,8 +342,8 @@ export function HomePage({ socket }) {
 
     clear(generateBtn);
     Object.assign(generateBtn.style, {
-      background: canGenerate ? 'linear-gradient(135deg, #DC2626, #B91C1C)' : '#E5DFD3',
-      color: '#000',
+      background: canGenerate ? 'linear-gradient(135deg, #C71F1F, #B91C1C)' : '#E5DFD3',
+      color: '#FFFFFF',
       cursor: canGenerate ? 'pointer' : 'not-allowed',
       opacity: canGenerate ? 1 : 0.6,
     });
@@ -355,7 +355,7 @@ export function HomePage({ socket }) {
       );
     } else {
       generateBtn.append(
-        icon('zap', { size: 16, color: '#000' }),
+        icon('zap', { size: 16, color: '#FFFFFF' }),
         state.stlReady ? 'Re-generate STL' : 'Generate 3D File',
       );
     }
@@ -364,12 +364,12 @@ export function HomePage({ socket }) {
 
     clear(downloadBtn);
     downloadBtn.append(
-      icon('creditCard', { size: 16, color: canPurchase ? '#000' : '#6B6157' }),
+      icon('creditCard', { size: 16, color: canPurchase ? '#FFFFFF' : '#6B6157' }),
       state.checkoutPending ? 'Redirecting…' : 'Buy STL · $2',
     );
     Object.assign(downloadBtn.style, {
-      background: canPurchase ? 'linear-gradient(135deg, #DC2626, #B91C1C)' : '#E5DFD3',
-      color: canPurchase ? '#000' : '#6B6157',
+      background: canPurchase ? 'linear-gradient(135deg, #C71F1F, #B91C1C)' : '#E5DFD3',
+      color: canPurchase ? '#FFFFFF' : '#6B6157',
       border: 'none',
       cursor: canPurchase ? 'pointer' : 'not-allowed',
       opacity: canPurchase ? 1 : 0.7,
@@ -380,12 +380,12 @@ export function HomePage({ socket }) {
     if (state.stlReady) {
       readyBanner.appendChild(el('div', {
         class: 'fade-up rounded-xl px-4 py-3 border flex items-center gap-3',
-        style: { background: 'rgba(220,38,38,0.06)', borderColor: 'rgba(220,38,38,0.25)' },
+        style: { background: 'rgba(199,31,31,0.06)', borderColor: 'rgba(199,31,31,0.25)' },
       },
         el('span', { style: { fontSize: '1.5rem' } }, '\u{1F389}'),
         el('div',
           el('p', {
-            style: { color: '#DC2626', fontWeight: 700, fontSize: '0.88rem' },
+            style: { color: '#C71F1F', fontWeight: 700, fontSize: '0.88rem' },
           },
             `Your STL is ready — ${state.designTriangles.toLocaleString()} triangles.`,
           ),
@@ -411,7 +411,7 @@ export function HomePage({ socket }) {
         style: { background: '#FFFFFF', borderColor: '#E5DFD3' },
       },
         el('div.flex.items-center.gap-2.mb-3',
-          icon('creditCard', { size: 14, color: '#DC2626' }),
+          icon('creditCard', { size: 14, color: '#C71F1F' }),
           el('span.uppercase', {
             style: { color: '#6B6157', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.05em' },
           }, 'Pricing'),
@@ -425,9 +425,9 @@ export function HomePage({ socket }) {
             el('div.flex.justify-between.items-start.py-1',
               el('div.flex.flex-col',
                 el('span', { style: { color: '#1A1614', fontSize: '0.85rem', fontWeight: 600 } }, label),
-                el('span', { style: { color: '#8B8278', fontSize: '0.7rem' } }, sub),
+                el('span', { style: { color: '#6B6157', fontSize: '0.7rem' } }, sub),
               ),
-              el('span', { style: { color: '#DC2626', fontSize: '0.95rem', fontWeight: 700 } }, price),
+              el('span', { style: { color: '#C71F1F', fontSize: '0.95rem', fontWeight: 700 } }, price),
             )
           ),
         ),
@@ -442,18 +442,26 @@ export function HomePage({ socket }) {
         style: { background: '#F5F1E8', borderColor: '#E5DFD3' },
       },
         el('div.flex.items-center.gap-2.mb-2',
-          icon('settings', { size: 14, color: '#A88735' }),
+          icon('settings', { size: 14, color: '#7C5E1F' }),
           el('span.uppercase', {
-            style: { color: '#6B6157', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.05em' },
-          }, 'How it prints'),
+            style: { color: '#3D3A36', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.05em' },
+          }, '3D Printing Tips'),
         ),
         el('p', {
-          style: { color: '#3D3A36', fontSize: '0.78rem', lineHeight: 1.5 },
-        }, 'Designed for FDM/PLA on a 0.4 mm nozzle at 0.12–0.16 mm layers. Threads are tuned to a real Presta valve.'),
+          style: { color: '#1A1614', fontSize: '0.8rem', lineHeight: 1.5 },
+        }, 'Designed for FDM/PLA on a 0.4 mm nozzle at 0.12–0.16 mm layers. Threads are tuned to a real Schrader valve.'),
         el('p', {
           class: 'mt-2',
-          style: { color: '#6B6157', fontSize: '0.72rem', lineHeight: 1.5 },
-        }, 'Drop the STL into Bambu Studio, OrcaSlicer, or PrusaSlicer. Cap-down on the bed — no supports.'),
+          style: { color: '#1A1614', fontSize: '0.78rem', lineHeight: 1.5, fontWeight: 600 },
+        }, 'Add a 5 mm brim with 0 mm brim-to-object gap.'),
+        el('p', {
+          class: 'mt-1',
+          style: { color: '#3D3A36', fontSize: '0.74rem', lineHeight: 1.5 },
+        }, 'The cap is tall and narrow — without the brim it can shear off the bed mid-print. Set this in Bambu Studio / OrcaSlicer / PrusaSlicer under "Skirt and brim → Brim type: Outer + skirt, Brim width: 5 mm, Brim-object gap: 0".'),
+        el('p', {
+          class: 'mt-2',
+          style: { color: '#3D3A36', fontSize: '0.74rem', lineHeight: 1.5 },
+        }, 'Print cap-down on the bed — no supports needed.'),
       ),
     );
   }
@@ -588,14 +596,14 @@ function legendSwatch(color, label) {
 
 function slider({ label, value, min, max, step, display, onInput }) {
   const valueEl = el('span', {
-    style: { color: '#DC2626', fontSize: '0.8rem', fontWeight: 700 },
+    style: { color: '#C71F1F', fontSize: '0.8rem', fontWeight: 700 },
   }, display(value));
   const input = el('input', {
     type: 'range',
     min, max, step,
     value,
     class: 'w-full',
-    style: { accentColor: '#DC2626' },
+    style: { accentColor: '#C71F1F' },
     onInput: (e) => {
       const v = Number(e.target.value);
       valueEl.textContent = display(v);
@@ -623,7 +631,7 @@ function colorRow({ value, onInput }) {
     },
   });
   const swatchLabel = el('span', {
-    style: { color: '#8B8278', fontSize: '0.78rem' },
+    style: { color: '#6B6157', fontSize: '0.78rem' },
   }, value);
   return el('div.flex.flex-col.gap-2',
     el('label', { style: { color: '#3D3A36', fontSize: '0.8rem' } }, 'Head Color'),
@@ -637,9 +645,9 @@ function materialRow({ value, onChange }) {
     return el('button', {
       class: 'flex-1 py-2 rounded-xl capitalize border transition-all',
       style: {
-        background: active ? 'rgba(220,38,38,0.08)' : '#FFFFFF',
-        borderColor: active ? '#DC2626' : '#E5DFD3',
-        color: active ? '#DC2626' : '#6B6157',
+        background: active ? 'rgba(199,31,31,0.08)' : '#FFFFFF',
+        borderColor: active ? '#C71F1F' : '#E5DFD3',
+        color: active ? '#C71F1F' : '#6B6157',
         fontSize: '0.82rem',
         fontWeight: 600,
       },

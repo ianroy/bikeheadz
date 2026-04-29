@@ -3,7 +3,7 @@ import { icon } from '../icons.js';
 
 const STATUS_COLORS = {
   Shipped:    '#1D4ED8',
-  Delivered:  '#DC2626',
+  Delivered:  '#C71F1F',
   Processing: '#C2410C',
 };
 
@@ -58,22 +58,22 @@ export function AccountPage({ socket }) {
             background: '#F5F1E8',
             borderColor: '#E5DFD3',
           },
-        }, icon('camera', { size: 14, color: '#DC2626' })),
+        }, icon('camera', { size: 14, color: '#C71F1F' })),
       ),
       el('div.flex-1',
-        el('h1.text-white', { style: { fontWeight: 800, fontSize: '1.3rem' } }, state.displayName),
+        el('h1', { style: { fontWeight: 800, fontSize: '1.3rem' } }, state.displayName),
         el('p', { style: { color: '#6B6157', fontSize: '0.85rem' } }, state.email),
         el('div.flex.items-center.gap-3.mt-2',
           el('span', {
             class: 'px-2 py-0.5 rounded-full',
-            style: { background: 'rgba(220,38,38,0.12)', color: '#DC2626', fontSize: '0.72rem', fontWeight: 700 },
+            style: { background: 'rgba(199,31,31,0.12)', color: '#C71F1F', fontSize: '0.72rem', fontWeight: 700 },
           }, '\u2713 Verified Rider'),
-          el('span', { style: { color: '#8B8278', fontSize: '0.75rem' } }, '3 designs · 2 orders'),
+          el('span', { style: { color: '#6B6157', fontSize: '0.75rem' } }, '3 designs · 2 orders'),
         ),
       ),
       el('button', {
         class: 'flex items-center gap-1.5 transition-colors',
-        style: { color: '#8B8278', fontSize: '0.8rem' },
+        style: { color: '#6B6157', fontSize: '0.8rem' },
       },
         icon('logOut', { size: 16 }),
         'Sign out',
@@ -93,7 +93,7 @@ export function AccountPage({ socket }) {
       tabBar.appendChild(el('button', {
         class: 'flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg transition-all',
         style: {
-          background: active ? '#DC2626' : 'transparent',
+          background: active ? '#C71F1F' : 'transparent',
           color: active ? '#000' : '#6B6157',
           fontWeight: active ? 700 : 500,
           fontSize: '0.85rem',
@@ -135,10 +135,10 @@ export function AccountPage({ socket }) {
             el('p', {
               style: { color: '#1A1614', fontWeight: 600, fontSize: '0.9rem' },
             }, d.name),
-            el('p', { style: { color: '#8B8278', fontSize: '0.75rem' } }, d.date),
+            el('p', { style: { color: '#6B6157', fontSize: '0.75rem' } }, d.date),
             el('div', { class: 'flex items-center gap-2 mt-1.5' },
               ...Array.from({ length: d.stars }, () =>
-                icon('star', { size: 12, color: '#DC2626' })
+                icon('star', { size: 12, color: '#C71F1F' })
               ),
               el('span', {
                 class: 'px-1.5 py-0.5 rounded capitalize',
@@ -166,7 +166,7 @@ export function AccountPage({ socket }) {
       href: '/',
       'data-link': '',
       class: 'flex items-center justify-center gap-2 py-4 rounded-xl border-2 border-dashed transition-colors mt-1',
-      style: { borderColor: '#E5DFD3', color: '#8B8278', textDecoration: 'none' },
+      style: { borderColor: '#E5DFD3', color: '#6B6157', textDecoration: 'none' },
     },
       el('span', { style: { fontSize: '1.2rem' } }, '+'),
       el('span', { style: { fontSize: '0.85rem', fontWeight: 600 } }, 'Create New Design'),
@@ -178,7 +178,7 @@ export function AccountPage({ socket }) {
     const wrap = el('div.flex.flex-col.gap-3');
     if (!state.orders.length) {
       wrap.appendChild(el('p', {
-        style: { color: '#8B8278', fontSize: '0.85rem', padding: '1.5rem', textAlign: 'center' },
+        style: { color: '#6B6157', fontSize: '0.85rem', padding: '1.5rem', textAlign: 'center' },
       }, 'Loading orders…'));
     }
     for (const order of state.orders) {
@@ -195,25 +195,25 @@ export function AccountPage({ socket }) {
               el('span', {
                 class: 'px-2 py-0.5 rounded-full',
                 style: {
-                  background: `${STATUS_COLORS[order.status] || '#8B8278'}18`,
+                  background: `${STATUS_COLORS[order.status] || '#6B6157'}18`,
                   color: STATUS_COLORS[order.status] || '#3D3A36',
                   fontSize: '0.68rem',
                   fontWeight: 700,
-                  border: `1px solid ${STATUS_COLORS[order.status] || '#8B8278'}30`,
+                  border: `1px solid ${STATUS_COLORS[order.status] || '#6B6157'}30`,
                 },
               }, order.status),
             ),
-            el('p', { style: { color: '#8B8278', fontSize: '0.75rem' } },
+            el('p', { style: { color: '#6B6157', fontSize: '0.75rem' } },
               `${order.id} · ${order.date} · Qty: ${order.qty}`,
             ),
           ),
           el('div.text-right',
             el('p', {
-              style: { color: '#DC2626', fontWeight: 700, fontSize: '0.9rem' },
+              style: { color: '#C71F1F', fontWeight: 700, fontSize: '0.9rem' },
             }, order.price),
             el('button', {
               class: 'flex items-center gap-1 transition-colors mt-1',
-              style: { color: '#8B8278', fontSize: '0.72rem' },
+              style: { color: '#6B6157', fontSize: '0.72rem' },
             }, 'Details', icon('chevronRight', { size: 12 })),
           ),
         ),
@@ -253,7 +253,7 @@ export function AccountPage({ socket }) {
       class: 'rounded-2xl border p-5',
       style: { background: '#FFFFFF', borderColor: '#E5DFD3' },
     },
-      el('h3.text-white.mb-4', {
+      el('h3.mb-4', {
         style: { fontWeight: 700, fontSize: '0.95rem' },
       }, 'Profile'),
       el('div.flex.flex-col.gap-4',
@@ -269,8 +269,8 @@ export function AccountPage({ socket }) {
       el('button', {
         class: 'mt-4 px-5 py-2 rounded-xl transition-all',
         style: {
-          background: '#DC2626',
-          color: '#000',
+          background: '#C71F1F',
+          color: '#FFFFFF',
           fontWeight: 700,
           fontSize: '0.85rem',
         },
@@ -294,7 +294,7 @@ export function AccountPage({ socket }) {
       class: 'rounded-2xl border p-5',
       style: { background: '#FFFFFF', borderColor: '#E5DFD3' },
     },
-      el('h3.text-white.mb-4', {
+      el('h3.mb-4', {
         style: { fontWeight: 700, fontSize: '0.95rem' },
       }, 'Preferences'),
     );
@@ -331,12 +331,12 @@ export function AccountPage({ socket }) {
         width: '42px',
         height: '22px',
         border: 'none',
-        background: on ? '#DC2626' : '#E5DFD3',
+        background: on ? '#C71F1F' : '#E5DFD3',
         cursor: 'pointer',
       },
       onClick: () => {
         on = !on;
-        track.style.background = on ? '#DC2626' : '#E5DFD3';
+        track.style.background = on ? '#C71F1F' : '#E5DFD3';
         knob.style.transform = on ? 'translateX(22px)' : 'translateX(2px)';
         onChange(on);
       },

@@ -65,11 +65,13 @@
   --paper-soft: #F5F1E8;            /* warm paper — sections */
   --paper-edge: #E5DFD3;            /* hairline borders */
 
-  /* 3D viewer backdrop — workshop slate, contrasts the cream UI and
-   * lets the chrome STL material catch light. The previous near-black
-   * was too low-contrast on a metallic mesh; this is intentionally a
-   * warm graphite that reads as a polished workbench. */
-  --viewer-bg: #2D2A26;
+  /* 3D viewer backdrop — lighter workshop graphite. Metallic STL
+   * materials read mostly via reflections of their surroundings, so a
+   * darker bg makes chrome look flat regardless of how strong the
+   * direct lights are. The actual fix lives in valve-stem-viewer.js
+   * (RoomEnvironment IBL) — this var is for any non-WebGL surface
+   * that wants to match the viewer chrome. */
+  --viewer-bg: #4A453F;
 
   /* Shape tokens */
   --font-weight-medium: 500;

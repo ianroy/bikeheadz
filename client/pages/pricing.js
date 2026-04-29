@@ -8,7 +8,7 @@ const COPY = {
     'Manifold STL ready for FDM or resin',
     'Instant download after payment',
   ],
-  color: '#DC2626',
+  color: '#C71F1F',
   cta: 'Download for $2',
 };
 
@@ -24,11 +24,11 @@ export function PricingPage({ socket, designId: initialDesignId = null, cancelle
 
   root.appendChild(
     el('div.text-center', { class: 'mb-10' },
-      el('h1.text-white.mb-3', {
+      el('h1.mb-3', {
         style: { fontSize: '2.2rem', fontWeight: 800, letterSpacing: '-0.04em' },
       },
         'Download your ',
-        el('span', { style: { color: '#DC2626' } }, 'valve stem'),
+        el('span', { style: { color: '#C71F1F' } }, 'valve stem'),
       ),
       el('p.max-w-2xl.mx-auto', {
         style: { color: '#6B6157', fontSize: '1rem' },
@@ -44,7 +44,7 @@ export function PricingPage({ socket, designId: initialDesignId = null, cancelle
   const card = el('div');
   root.appendChild(card);
 
-  const footer = el('div', { class: 'mt-8 text-center', style: { color: '#8B8278', fontSize: '0.78rem' } },
+  const footer = el('div', { class: 'mt-8 text-center', style: { color: '#6B6157', fontSize: '0.78rem' } },
     'Payments are processed by Stripe. We never see your card details.',
   );
   root.appendChild(footer);
@@ -66,7 +66,7 @@ export function PricingPage({ socket, designId: initialDesignId = null, cancelle
     if (!state.enabled) {
       banner.appendChild(el('div', {
         class: 'mb-6 rounded-xl px-4 py-3 border',
-        style: { background: 'rgba(255,214,0,0.05)', borderColor: 'rgba(255,214,0,0.2)', color: '#A88735', fontSize: '0.85rem' },
+        style: { background: 'rgba(255,214,0,0.05)', borderColor: 'rgba(255,214,0,0.2)', color: '#7C5E1F', fontSize: '0.85rem' },
       }, 'Stripe is not configured in this environment (STRIPE_SECRET_KEY missing). Checkout is disabled.'));
     }
     if (!state.designId) {
@@ -81,7 +81,7 @@ export function PricingPage({ socket, designId: initialDesignId = null, cancelle
           href: '/',
           'data-link': '',
           class: 'px-4 py-2 rounded-xl transition-all',
-          style: { background: '#DC2626', color: '#000', fontWeight: 700, fontSize: '0.8rem' },
+          style: { background: '#C71F1F', color: '#FFFFFF', fontWeight: 700, fontSize: '0.8rem' },
         }, 'Start generating'),
       ));
     }
@@ -91,7 +91,7 @@ export function PricingPage({ socket, designId: initialDesignId = null, cancelle
     clear(card);
     if (!state.item) {
       card.appendChild(el('div', {
-        style: { color: '#8B8278', padding: '2rem', textAlign: 'center' },
+        style: { color: '#6B6157', padding: '2rem', textAlign: 'center' },
       }, 'Loading pricing…'));
       return;
     }
@@ -101,14 +101,14 @@ export function PricingPage({ socket, designId: initialDesignId = null, cancelle
 
     card.appendChild(el('div', {
       class: 'rounded-2xl p-6 border flex flex-col gap-4 relative overflow-hidden',
-      style: { background: '#FFFFFF', borderColor: 'rgba(220,38,38,0.35)' },
+      style: { background: '#FFFFFF', borderColor: 'rgba(199,31,31,0.35)' },
     },
       el('span', {
         class: 'absolute px-2 py-0.5 rounded-full',
         style: {
           top: '12px', right: '12px',
-          background: 'rgba(220,38,38,0.12)',
-          color: '#DC2626',
+          background: 'rgba(199,31,31,0.12)',
+          color: '#C71F1F',
           fontSize: '0.65rem',
           fontWeight: 700,
           letterSpacing: '0.08em',
@@ -116,14 +116,14 @@ export function PricingPage({ socket, designId: initialDesignId = null, cancelle
         },
       }, COPY.highlight),
       el('div',
-        el('h3.text-white', { style: { fontWeight: 700, fontSize: '1.1rem' } }, item.name),
+        el('h3', { style: { fontWeight: 700, fontSize: '1.1rem' } }, item.name),
         el('p.mt-1', { style: { color: '#6B6157', fontSize: '0.82rem', lineHeight: 1.5 } }, item.description),
       ),
       el('div.flex.items-baseline.gap-1',
         el('span', {
-          style: { color: '#DC2626', fontWeight: 800, fontSize: '2rem' },
+          style: { color: '#C71F1F', fontWeight: 800, fontSize: '2rem' },
         }, formatMoney(item.unitAmount, item.currency)),
-        el('span', { style: { color: '#8B8278', fontSize: '0.75rem' } }, 'one-time'),
+        el('span', { style: { color: '#6B6157', fontSize: '0.75rem' } }, 'one-time'),
       ),
       el('ul.flex.flex-col.gap-2',
         ...COPY.bullets.map((b) =>
@@ -139,7 +139,7 @@ export function PricingPage({ socket, designId: initialDesignId = null, cancelle
       el('button', {
         class: 'mt-auto w-full flex items-center justify-center gap-2 py-3 rounded-xl transition-all',
         style: {
-          background: disabled ? '#E5DFD3' : 'linear-gradient(135deg, #DC2626, #B91C1C)',
+          background: disabled ? '#E5DFD3' : 'linear-gradient(135deg, #C71F1F, #B91C1C)',
           color: disabled ? '#6B6157' : '#000',
           fontWeight: 700,
           fontSize: '0.9rem',

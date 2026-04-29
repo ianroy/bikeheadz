@@ -679,7 +679,7 @@ Phase 4. The full diagnostic playbook for the GPU tier is in
 
 | Term             | Meaning                                                                   |
 | ---------------- | ------------------------------------------------------------------------- |
-| **Valve stem cap** | The plastic/metal cap that screws on top of a Presta or Schrader valve; this app's target product. |
+| **Valve stem cap** | The plastic/metal cap that screws on top of a Schrader valve; this app's target product. |
 | **STL**          | Triangle-soup mesh format, universally supported by 3D printers. Two flavours: ASCII (text, large) and binary (compact, 5–10× faster to parse). |
 | **TRELLIS**      | Microsoft's image-conditioned 3D-generation model. Outputs an unscaled, frequently non-manifold mesh of head + chest. |
 | **trimesh**      | Python library for mesh I/O, transforms, repair, export.                  |

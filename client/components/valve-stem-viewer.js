@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { STLLoader } from 'three/addons/loaders/STLLoader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 // Real WebGL viewer for the BikeHeadz preview/output mesh.
 //
@@ -33,10 +34,12 @@ import { STLLoader } from 'three/addons/loaders/STLLoader.js';
 //     the current slider settings so the controls feel live before
 //     generation completes.
 
-// Workshop slate. Contrasts the cream UI but stays warm enough that the
-// chrome STL material catches highlights cleanly. The previous
-// near-black-blue made metallic geometry look like a flat silhouette.
-const BG_COLOR = 0x2D2A26;
+// Lighter workshop graphite. Metallic materials read mostly via
+// reflections of their environment, so a darker bg makes chrome look
+// flat and unlit even with strong key lights. This tone gives the
+// material something bright to bounce off the silhouette while still
+// contrasting the cream UI.
+const BG_COLOR = 0x4A453F;
 
 export function createValveStemViewer({ container, initial = {} }) {
   const state = {
@@ -55,7 +58,7 @@ export function createValveStemViewer({ container, initial = {} }) {
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.25;       // was 1.05 — brighter overall
+  renderer.toneMappingExposure = 1.6;        // boosted again — chrome was still reading dark
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   const canvas = renderer.domElement;
   Object.assign(canvas.style, {
@@ -64,50 +67,60 @@ export function createValveStemViewer({ container, initial = {} }) {
   container.appendChild(canvas);
 
   // ── Scene + camera + lights ────────────────────────────────
-  // Multi-light rig tuned for a metallic STL on the workshop-slate bg.
-  // Goals: clear contour readability, no flat silhouettes, no blown
-  // highlights on chrome. The reference is a product-photo three-point
-  // setup (key + fill + rim) plus a low ambient floor.
+  // Metallic materials read almost entirely via reflections of their
+  // environment, not via direct lights. The actual fix for "the model
+  // is too dark" is an IBL environment map; direct lights then layer
+  // contour cues on top.
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(BG_COLOR);
+
+  // IBL — RoomEnvironment is three.js's procedural studio scene. We
+  // bake it once via PMREMGenerator and assign as scene.environment so
+  // every PBR material picks up reflections without us shipping an HDR
+  // file. This is what makes chrome look like chrome.
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  pmrem.compileEquirectangularShader();
+  const envMap = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  scene.environment = envMap;
 
   const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100);
   camera.position.set(0, 1.4, 6);
 
-  // Ambient — fills the deepest shadows so silhouettes never go to zero.
-  scene.add(new THREE.AmbientLight(0xffffff, 0.65));
+  // Ambient — generous floor so silhouettes never crush, and it
+  // brightens the floor disc + base for context.
+  scene.add(new THREE.AmbientLight(0xffffff, 0.9));
 
   // Hemisphere — warm sky / cool ground for natural environmental cues.
-  // Sky is tinted toward cream paper so the model picks up a hint of
-  // the brand light; ground stays neutral so chrome reflections stay
-  // legible from below.
-  scene.add(new THREE.HemisphereLight(0xfff2dc, 0x2D2A26, 0.85));
+  scene.add(new THREE.HemisphereLight(0xfff2dc, 0x4A453F, 1.1));
 
   // Key light — primary contour-defining source. Up-front-right.
-  const key = new THREE.DirectionalLight(0xffffff, 2.2);
+  const key = new THREE.DirectionalLight(0xffffff, 2.6);
   key.position.set(4, 6, 4);
   scene.add(key);
 
-  // Fill — softens the shadow side without erasing form. Warm bias
-  // matches a workshop incandescent bounce.
-  const fill = new THREE.DirectionalLight(0xffe2c2, 0.85);
+  // Fill — softens the shadow side without erasing form. Warm bias.
+  const fill = new THREE.DirectionalLight(0xffe2c2, 1.2);
   fill.position.set(-5, 2, -3);
   scene.add(fill);
 
-  // Rim light — back-bottom kicker that draws the silhouette out from
-  // the slate background. This is the single most important addition
-  // for "I can see the contours" — without it metallic surfaces fade
-  // into the dark backdrop along the horizon.
-  const rim = new THREE.DirectionalLight(0xffffff, 1.1);
+  // Back-bottom rim — the kicker that defines the silhouette from
+  // below. Critical for metallic readability against the slate bg.
+  const rim = new THREE.DirectionalLight(0xffffff, 1.5);
   rim.position.set(0, -2, -5);
   scene.add(rim);
 
-  // Floor disc — paper-edge tint, very subtle. Gives the model a
-  // sense of place without dominating.
+  // Side rim — top-left, narrow specular highlight along the head's
+  // far profile so the user can see the back contour during auto-rotate.
+  const sideRim = new THREE.DirectionalLight(0xffeed8, 1.1);
+  sideRim.position.set(-6, 4, 2);
+  scene.add(sideRim);
+
+  // Floor disc — paper-edge tint. Slightly more opaque now that the
+  // bg is lighter, so the model still reads as "sitting on something."
   const floor = new THREE.Mesh(
     new THREE.CircleGeometry(2.2, 64),
     new THREE.MeshBasicMaterial({
-      color: 0xE5DFD3, transparent: true, opacity: 0.08, side: THREE.DoubleSide,
+      color: 0xE5DFD3, transparent: true, opacity: 0.14, side: THREE.DoubleSide,
     }),
   );
   floor.rotation.x = -Math.PI / 2;
@@ -350,6 +363,8 @@ export function createValveStemViewer({ container, initial = {} }) {
       material.dispose();
       floor.geometry.dispose();
       floor.material.dispose();
+      envMap.dispose();
+      pmrem.dispose();
       renderer.dispose();
       canvas.remove();
     },

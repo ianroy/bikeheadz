@@ -11,7 +11,7 @@
   <a href="https://console.runpod.io/hub/ianroy/bikeheadz"><img alt="RunPod Hub" src="https://api.runpod.io/badge/ianroy/bikeheadz"></a>
 </p>
 
-> Upload a portrait → 3D-printable Presta valve cap with your head on
+> Upload a portrait → 3D-printable Schrader valve cap with your head on
 > top. $2 STL download. Optional print-and-ship tiers on the way.
 
 BikeHeadz turns a selfie into an FDM/PLA-printable bike valve stem cap.
