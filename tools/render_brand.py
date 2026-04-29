@@ -378,9 +378,15 @@ def render_monogram(out_path, size=800):
 def render_icon(out_path, size=512, masked=False):
     """App icon. Uses the shared cylindrical-cap + ¾-profile-head mark.
 
-    Layout: cap centered, head riding on top with glasses cue. The
-    optional SDZ stamp lives in the lower-right (skipped on the
-    maskable variant — Android masks corners aggressively).
+    Layout: cap centered, head riding on top with glasses cue.
+    Mark scale is calibrated so the cap+head bbox (~290 wide × 290 tall
+    at scale 1.0) fills a fraction of the canvas:
+      • normal icon: 70% of width
+      • maskable: 60% of width (Android safe-zone)
+
+    SDZ stamp in the lower-right corner is skipped on:
+      • maskable (mask crops corners)
+      • icons under 256px (stamp fonts can't render legibly)
     """
     im = Image.new('RGBA', (size, size), PAPER)
     draw = ImageDraw.Draw(im)
@@ -392,15 +398,25 @@ def render_icon(out_path, size=512, masked=False):
             [S(6), S(6), size - 1 - S(6), size - 1 - S(6)],
             radius=S(92), outline=(26, 22, 20, 16), width=2
         )
-    # Position the shared mark. Mark bbox is ~290px tall; cap_w 220px.
-    mark_scale = 1.5 if not masked else 1.3
+
+    # Mark scale = canvas-relative. The mark's natural bbox is ~290×290
+    # at scale 1.0; we want it to fill `target_fill` of the canvas
+    # width while leaving margin for the SDZ stamp.
+    target_fill = 0.60 if masked else 0.55
+    mark_scale = (size * target_fill) / 290.0
     mark_w = int(round(290 * mark_scale))
+    mark_h = int(round(330 * mark_scale))
     ox = (size - mark_w) // 2
-    oy = (size - int(round(330 * mark_scale))) // 2 + S(20)
+    # Vertical position: leave room for the SDZ stamp at the bottom.
+    if masked:
+        oy = (size - mark_h) // 2 + S(10)
+    else:
+        oy = (size - mark_h) // 2 - S(30)  # nudge up; stamp goes below
     draw_cap_and_head(im, draw, ox=ox, oy=oy, scale=mark_scale)
 
-    if not masked:
-        # Lower-right SDZ stamp (S/D ink, Z brand purple).
+    # SDZ stamp — only on non-maskable icons ≥ 256px (where the font
+    # renders crisply). Smaller sizes get the mark only.
+    if not masked and size >= 256:
         f = font(S(40), 'black')
         sd = "SD"; z = "Z"
         sw = text_w(draw, sd, f); zw = text_w(draw, z, f)
