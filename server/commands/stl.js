@@ -107,7 +107,7 @@ export const stlCommands = {
     }
 
     const designId = randomUUID();
-    const workDir = await fs.mkdtemp(path.join(os.tmpdir(), 'bikeheadz-'));
+    const workDir = await fs.mkdtemp(path.join(os.tmpdir(), 'valveheadz-'));
     const imagePath = path.join(workDir, sanitizeFilename(imageName));
     const outputPath = path.join(workDir, `${designId}.stl`);
 
@@ -139,7 +139,7 @@ export const stlCommands = {
         stlBytes = await fs.readFile(outputPath);
       }
 
-      const filename = 'BikeHeadz_ValveStem.stl';
+      const filename = 'ValveHeadZ_ValveStem.stl';
       const accountId = user?.id ?? null;
       let savedPhotoId = photoId || null;
 

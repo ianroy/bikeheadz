@@ -1,6 +1,6 @@
 @custom-variant dark (&:is(.dark *));
 
-/* BikeHeadz — "Workshop" palette.
+/* ValveHeadZ — "Workshop" palette.
  *
  * The product is a tactile, FDM-printed bike valve cap. The previous
  * dark + lime-green palette read as generic dev-mode UI; this one
@@ -233,7 +233,7 @@
 
 /* P6-011 — AAA opt-in via [data-contrast="aaa"] on <html>.
  *
- * Note: BikeHeadz tokens use `--brand` (signal red) and `--ink-muted`
+ * Note: ValveHeadZ tokens use `--brand` (signal red) and `--ink-muted`
  * rather than `--brand-red`/`--muted` — so the AAA overrides target
  * the actual token names. We also introduce `--brand-red` and `--gold`
  * aliases the spec asked for, available in both modes for future use. */

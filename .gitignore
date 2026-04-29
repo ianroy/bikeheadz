@@ -7,5 +7,9 @@ dist/
 npm-debug.log*
 .vite/
 
-# Unrelated vendored project (not part of BikeHeadz).
+# Unrelated vendored project (not part of ValveHeadZ).
 TRELLIS-main/
+
+# Claude Code session metadata + agent worktrees.
+.claude/
+coverage/

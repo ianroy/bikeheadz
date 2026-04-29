@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Product imagined: a pack of four printed ValveHeadZ caps lined up on
+  a paper card. Each cap has a slightly different head silhouette to
+  hint at "your friend group" — three from the front, one in profile.
+  Press-kit photo #3.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" role="img" aria-label="ValveHeadZ pack of four caps">
+  <!-- workshop paper background -->
+  <rect width="1600" height="900" fill="#FAF7F2"/>
+  <!-- card under the four caps (slightly off-white kraft) -->
+  <rect x="80" y="200" width="1440" height="500" rx="20" fill="#F2EDE3" stroke="#C9C0B1" stroke-width="2"/>
+  <!-- shadow strip below card -->
+  <rect x="80" y="700" width="1440" height="14" fill="#1A1614" fill-opacity="0.06"/>
+
+  <!-- 4 caps, 320px apart -->
+  <g>
+    <!-- cap 1 -->
+    <g transform="translate(180 290)">
+      <rect x="0" y="120" width="240" height="160" rx="18" fill="#C71F1F"/>
+      <g fill="#9E1818"><rect x="0" y="240" width="240" height="6"/><rect x="0" y="252" width="240" height="6"/></g>
+      <rect x="14" y="124" width="212" height="6" rx="3" fill="#E04A4A"/>
+      <!-- head: round, smiling -->
+      <g transform="translate(60 0)" fill="#1A1614">
+        <circle cx="60" cy="64" r="58"/>
+        <path d="M 14 86 Q 60 134 106 86 L 106 116 Q 60 138 14 116 Z"/>
+        <rect x="22" y="112" width="76" height="14" rx="6"/>
+      </g>
+    </g>
+    <!-- cap 2 — head with a little hair tuft -->
+    <g transform="translate(500 290)">
+      <rect x="0" y="120" width="240" height="160" rx="18" fill="#C71F1F"/>
+      <g fill="#9E1818"><rect x="0" y="240" width="240" height="6"/><rect x="0" y="252" width="240" height="6"/></g>
+      <rect x="14" y="124" width="212" height="6" rx="3" fill="#E04A4A"/>
+      <g transform="translate(60 0)" fill="#1A1614">
+        <circle cx="60" cy="64" r="58"/>
+        <path d="M 14 86 Q 60 134 106 86 L 106 116 Q 60 138 14 116 Z"/>
+        <rect x="22" y="112" width="76" height="14" rx="6"/>
+        <!-- hair tuft -->
+        <path d="M 22 18 Q 60 -8 98 18 Q 80 32 60 30 Q 40 32 22 18 Z"/>
+      </g>
+    </g>
+    <!-- cap 3 — profile head -->
+    <g transform="translate(820 290)">
+      <rect x="0" y="120" width="240" height="160" rx="18" fill="#C71F1F"/>
+      <g fill="#9E1818"><rect x="0" y="240" width="240" height="6"/><rect x="0" y="252" width="240" height="6"/></g>
+      <rect x="14" y="124" width="212" height="6" rx="3" fill="#E04A4A"/>
+      <g transform="translate(60 0)" fill="#1A1614">
+        <!-- profile silhouette -->
+        <path d="M 56 6
+                 Q 110 14 112 70
+                 Q 110 90 96 102
+                 Q 102 116 90 122
+                 L 60 124
+                 Q 38 122 30 100
+                 Q 18 86 22 60
+                 Q 24 14 56 6 Z"/>
+        <rect x="22" y="112" width="76" height="14" rx="6"/>
+      </g>
+    </g>
+    <!-- cap 4 — head with glasses (homage to the canary photo) -->
+    <g transform="translate(1140 290)">
+      <rect x="0" y="120" width="240" height="160" rx="18" fill="#C71F1F"/>
+      <g fill="#9E1818"><rect x="0" y="240" width="240" height="6"/><rect x="0" y="252" width="240" height="6"/></g>
+      <rect x="14" y="124" width="212" height="6" rx="3" fill="#E04A4A"/>
+      <g transform="translate(60 0)" fill="#1A1614">
+        <circle cx="60" cy="64" r="58"/>
+        <path d="M 14 86 Q 60 134 106 86 L 106 116 Q 60 138 14 116 Z"/>
+        <rect x="22" y="112" width="76" height="14" rx="6"/>
+        <!-- glasses -->
+        <g fill="none" stroke="#FAF7F2" stroke-width="3">
+          <rect x="22" y="58" width="30" height="20" rx="4"/>
+          <rect x="68" y="58" width="30" height="20" rx="4"/>
+          <line x1="52" y1="68" x2="68" y2="68"/>
+        </g>
+      </g>
+    </g>
+  </g>
+
+  <!-- title across the top of the card -->
+  <g font-family="-apple-system, system-ui, 'Inter', sans-serif" fill="#1A1614">
+    <text x="800" y="260" font-size="28" font-weight="800" text-anchor="middle">PACK OF FOUR · YOUR CREW ON FOUR VALVES</text>
+  </g>
+
+  <!-- caption -->
+  <g font-family="-apple-system, system-ui, 'Inter', sans-serif" fill="#6B6157">
+    <text x="60" y="850" font-size="18" letter-spacing="2">PRESS&#160;KIT&#160;·&#160;PRODUCT&#160;03&#160;·&#160;PACK&#160;OF&#160;FOUR&#160;($59.99&#160;TIER)</text>
+  </g>
+</svg>

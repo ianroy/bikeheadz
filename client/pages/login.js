@@ -31,7 +31,7 @@ export function LoginPage({ socket, query }) {
   const heading = el(
     'h1',
     { style: { fontSize: '24px', marginBottom: '8px', color: '#C71F1F' } },
-    'Sign in to BikeHeadz'
+    'Sign in to ValveHeadZ'
   );
   const sub = el(
     'p',

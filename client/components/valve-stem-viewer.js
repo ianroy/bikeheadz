@@ -3,7 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { STLLoader } from 'three/addons/loaders/STLLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
-// Real WebGL viewer for the BikeHeadz preview/output mesh.
+// Real WebGL viewer for the ValveHeadZ preview/output mesh.
 //
 // API (unchanged from the previous SVG viewer so home.js doesn't need to
 // re-learn it):

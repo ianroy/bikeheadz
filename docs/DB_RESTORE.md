@@ -1,7 +1,7 @@
 # DB restore runbook
 
 > Untested backups are not backups. This runbook walks through restoring
-> the BikeHeadz Managed PostgreSQL database to a *fork* (never to prod) and
+> the ValveHeadZ Managed PostgreSQL database to a *fork* (never to prod) and
 > verifying the staging app comes up clean.
 
 ## Where backups live
@@ -10,7 +10,7 @@ Digital Ocean Managed PostgreSQL keeps:
 - **Continuous WAL** — point-in-time restore for the last 7 days.
 - **Daily snapshots** — retained 7 days on Basic, 14 days on higher tiers.
 
-Both are visible in the DO Cloud control panel: **Databases → bikeheadz-db → Backups**.
+Both are visible in the DO Cloud control panel: **Databases → valveheadz-db → Backups**.
 
 ## Recovery time objective (RTO)
 
@@ -26,8 +26,8 @@ lands so the new schema is exercised.
 ### 1. Fork the database
 
 ```sh
-doctl databases fork bikeheadz-db \
-  --name bikeheadz-db-restore-$(date +%Y%m%d) \
+doctl databases fork valveheadz-db \
+  --name valveheadz-db-restore-$(date +%Y%m%d) \
   --backup-restore-type point_in_time \
   --backup-restore-time "$(date -u -v-1H +%Y-%m-%dT%H:%M:%SZ)"
 ```
@@ -35,8 +35,8 @@ doctl databases fork bikeheadz-db \
 For a snapshot-based fork:
 
 ```sh
-doctl databases fork bikeheadz-db \
-  --name bikeheadz-db-restore-$(date +%Y%m%d) \
+doctl databases fork valveheadz-db \
+  --name valveheadz-db-restore-$(date +%Y%m%d) \
   --backup-restore-type snapshot \
   --backup-id <BACKUP_ID>
 ```
@@ -70,7 +70,7 @@ In a fresh browser, confirm:
 ### 4. Tear down
 
 ```sh
-doctl databases delete bikeheadz-db-restore-<date>
+doctl databases delete valveheadz-db-restore-<date>
 ```
 
 Reset staging's `DATABASE_URL` back to the original.

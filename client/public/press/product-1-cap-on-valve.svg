@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Product imagined: a printed ValveHeadZ cap screwed onto a Schrader
+  valve on a black mountain-bike tire, three-quarter angle, workshop
+  cream paper background. Press-kit photo #1.
+
+  All vector; the "rubber" texture is a series of subtle parallel
+  lines so the impression survives at thumbnail size.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" role="img" aria-label="ValveHeadZ cap on a Schrader valve">
+  <!-- background -->
+  <rect width="1600" height="900" fill="#FAF7F2"/>
+  <!-- subtle paper grain via diagonal hatch -->
+  <g stroke="#1A1614" stroke-opacity="0.03" stroke-width="1">
+    <line x1="0" y1="0" x2="1600" y2="900"/>
+    <line x1="0" y1="120" x2="1600" y2="1020"/>
+    <line x1="0" y1="240" x2="1600" y2="1140"/>
+  </g>
+
+  <!-- tire arc (large dark crescent) -->
+  <g>
+    <path d="M -100 1100 Q 800 -100 1700 1100 Z" fill="#1A1614"/>
+    <!-- rubber tread lines -->
+    <g stroke="#2D2A26" stroke-width="3" fill="none">
+      <path d="M 200 800 Q 800 250 1400 800"/>
+      <path d="M 250 850 Q 800 350 1350 850"/>
+      <path d="M 300 880 Q 800 420 1300 880"/>
+    </g>
+  </g>
+
+  <!-- rim shadow (subtle inside curve) -->
+  <path d="M 250 760 Q 800 280 1350 760 L 1350 800 Q 800 320 250 800 Z" fill="#0A0907" opacity="0.6"/>
+
+  <!-- valve stem rising from rim -->
+  <g transform="translate(780 220)">
+    <!-- silver/chrome stem -->
+    <rect x="0" y="120" width="40" height="220" rx="6" fill="#9C9893"/>
+    <rect x="4" y="124" width="32" height="216" fill="#C0BCB6"/>
+    <rect x="14" y="124" width="6"  height="216" fill="#E5DFD3"/>
+    <!-- threads on stem (subtle bands) -->
+    <g fill="#7B7770">
+      <rect x="0" y="148" width="40" height="4"/>
+      <rect x="0" y="162" width="40" height="4"/>
+      <rect x="0" y="176" width="40" height="4"/>
+      <rect x="0" y="190" width="40" height="4"/>
+    </g>
+    <!-- printed ValveHeadZ cap on top of stem -->
+    <g transform="translate(-90 0)">
+      <!-- cap body (red) -->
+      <rect x="0" y="40" width="220" height="120" rx="14" fill="#C71F1F"/>
+      <!-- top highlight -->
+      <rect x="14" y="44" width="192" height="6" rx="3" fill="#E04A4A"/>
+      <!-- thread band (lower) -->
+      <g fill="#9E1818">
+        <rect x="0" y="138" width="220" height="6"/>
+        <rect x="0" y="148" width="220" height="6"/>
+      </g>
+      <!-- printed head riding on top -->
+      <g transform="translate(60 -60)" fill="#1A1614">
+        <circle cx="50" cy="50" r="48"/>
+        <path d="M 8 70 Q 50 110 92 70 L 92 96 Q 50 116 8 96 Z"/>
+        <rect x="14" y="92" width="72" height="14" rx="6"/>
+      </g>
+      <!-- subtle FDM layer lines (PLA looks like this) -->
+      <g stroke="#9E1818" stroke-width="1" stroke-opacity="0.5">
+        <line x1="0" y1="60" x2="220" y2="60"/>
+        <line x1="0" y1="72" x2="220" y2="72"/>
+        <line x1="0" y1="84" x2="220" y2="84"/>
+        <line x1="0" y1="96" x2="220" y2="96"/>
+        <line x1="0" y1="108" x2="220" y2="108"/>
+        <line x1="0" y1="120" x2="220" y2="120"/>
+      </g>
+    </g>
+  </g>
+
+  <!-- caption strip -->
+  <g font-family="-apple-system, system-ui, 'Inter', sans-serif" fill="#6B6157">
+    <text x="60" y="850" font-size="18" letter-spacing="2">PRESS&#160;KIT&#160;·&#160;PRODUCT&#160;01&#160;·&#160;CAP&#160;ON&#160;SCHRADER&#160;VALVE</text>
+  </g>
+</svg>

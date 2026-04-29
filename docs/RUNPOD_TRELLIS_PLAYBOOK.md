@@ -2,7 +2,7 @@
 
 Battle-tested patterns for shipping a TRELLIS image-to-3D handler on
 RunPod Serverless. Everything here was learned the expensive way during
-the v0.1.27 → v0.1.34 stabilization run on bikeheadz; future agents
+the v0.1.27 → v0.1.34 stabilization run on valveheadz; future agents
 should read this **before** touching `handler.py` or `Dockerfile`.
 
 If a single rule had to survive: **don't trust the success path until
@@ -82,7 +82,7 @@ Print the handler version from `sys.stderr` at module load. Every time.
 
 ```python
 HANDLER_VERSION = "v0.1.34"
-sys.stderr.write(f"[bikeheadz] handler.py {HANDLER_VERSION} booting (pid={os.getpid()})\n")
+sys.stderr.write(f"[valveheadz] handler.py {HANDLER_VERSION} booting (pid={os.getpid()})\n")
 sys.stderr.flush()
 ```
 
@@ -588,7 +588,7 @@ When the user reports "no 3D output," walk these layers in order:
 
 ### 1. Did the handler boot the version you think?
 
-Worker log → grep for `[bikeheadz] handler.py vX.X.X booting`. If it's
+Worker log → grep for `[valveheadz] handler.py vX.X.X booting`. If it's
 not the expected version, you have a deployment problem, not a code
 problem. Stop reading code, fix the deploy.
 

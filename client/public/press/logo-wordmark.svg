@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ValveHeadZ wordmark — split-color: "ValveHead" in ink + oversized "Z"
+  in brand red. Z always renders red, never any other color.
+
+  The cap-and-head mark on the left abstracts the actual product (a
+  chrome 3D-printed head wearing glasses on a cylindrical Schrader
+  valve cap). Geometry spec: brandstandards.MD §5.
+
+  ViewBox 1600×360. Use against cream/paper. Inverse variant on dark
+  ink: logo-wordmark-inverse.svg (pending, P6-006).
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 360" width="1600" height="360" preserveAspectRatio="xMinYMin meet" role="img" aria-label="ValveHeadZ">
+  <rect width="1600" height="360" fill="#FAF7F2"/>
+
+  <!-- Cap + head mark. -->
+  <g transform="translate(40 80)">
+    <!-- cylinder cap -->
+    <rect x="0" y="80" width="220" height="100" fill="#C71F1F"/>
+    <ellipse cx="110" cy="180" rx="110" ry="16" fill="#9E1818"/>
+    <ellipse cx="110" cy="80"  rx="110" ry="20" fill="#E04A4A"/>
+    <ellipse cx="110" cy="82"  rx="100" ry="14" fill="#C71F1F"/>
+    <rect x="2" y="138" width="216" height="5" fill="#9E1818"/>
+    <rect x="2" y="152" width="216" height="5" fill="#9E1818"/>
+    <rect x="2" y="166" width="216" height="5" fill="#9E1818"/>
+    <!-- neck -->
+    <rect x="86" y="60" width="48" height="40" fill="#1A1614"/>
+    <!-- ¾ profile head -->
+    <polygon fill="#1A1614" points="
+      96,0
+      120,0
+      143,8
+      163,22
+      176,42
+      183,64
+      186,80
+      189,92
+      199,103
+      189,114
+      192,121
+      184,130
+      181,139
+      176,148
+      161,156
+      138,160
+      109,160
+      82,156
+      58,148
+      43,128
+      34,102
+      29,72
+      34,42
+      47,18
+      72,4
+    "/>
+    <!-- glasses -->
+    <g transform="translate(110 70)">
+      <rect x="38" y="-10" width="42" height="18" rx="4" fill="#FAF7F2"/>
+      <rect x="41" y="-7"  width="36" height="12" rx="3" fill="#1A1614"/>
+      <rect x="6"  y="-10" width="24" height="18" rx="4" fill="#FAF7F2"/>
+      <rect x="9"  y="-7"  width="18" height="12" rx="3" fill="#1A1614"/>
+      <rect x="30" y="-4"  width="8"  height="6"  fill="#FAF7F2"/>
+    </g>
+  </g>
+
+  <!-- Wordmark. textLength fixes typesetting in qlmanage / Figma. -->
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, 'Inter', 'Helvetica Neue', sans-serif" font-weight="900" letter-spacing="-2">
+    <text x="320" y="220" font-size="160" textLength="1090" lengthAdjust="spacingAndGlyphs" fill="#1A1614">ValveHead</text>
+    <text x="1410" y="240" font-size="220" fill="#C71F1F">Z</text>
+  </g>
+
+  <!-- Tagline. -->
+  <g font-family="-apple-system, system-ui, 'Inter', sans-serif" font-weight="500" letter-spacing="2" fill="#6B6157">
+    <text x="320" y="280" font-size="22" textLength="780" lengthAdjust="spacingAndGlyphs">YOUR&#160;FACE&#160;ON&#160;A&#160;SCHRADER&#160;VALVE&#160;CAP</text>
+  </g>
+</svg>

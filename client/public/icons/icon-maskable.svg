@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Maskable variant. Same geometry as icon.svg, but: art shrinks into
+  the inner 80% safe zone (Android masks aggressively — round /
+  squircle / teardrop), and no rounded corners (the OS does the
+  masking). VHZ stamp dropped — too small inside the safe zone.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="ValveHeadZ">
+  <rect width="512" height="512" fill="#FAF7F2"/>
+
+  <!-- Cylindrical cap inside safe zone. -->
+  <g transform="translate(140 264)">
+    <rect x="0" y="0" width="232" height="120" fill="#C71F1F"/>
+    <ellipse cx="116" cy="120" rx="116" ry="18" fill="#9E1818"/>
+    <ellipse cx="116" cy="0" rx="116" ry="22" fill="#E04A4A"/>
+    <ellipse cx="116" cy="2" rx="108" ry="16" fill="#C71F1F"/>
+    <rect x="2" y="76"  width="228" height="6" fill="#9E1818"/>
+    <rect x="2" y="91"  width="228" height="6" fill="#9E1818"/>
+    <rect x="2" y="106" width="228" height="6" fill="#9E1818"/>
+  </g>
+  <rect x="226" y="226" width="60" height="38" fill="#1A1614"/>
+
+  <!-- ¾-profile head silhouette (slightly smaller). -->
+  <polygon fill="#1A1614" points="
+    238,118
+    266,118
+    292,127
+    315,144
+    330,168
+    338,194
+    342,212
+    348,224
+    361,238
+    348,250
+    351,258
+    342,268
+    339,278
+    333,288
+    317,298
+    290,304
+    256,304
+    223,298
+    194,287
+    176,262
+    166,231
+    160,196
+    166,161
+    182,132
+    211,118
+  "/>
+  <g transform="translate(256 232)">
+    <rect x="36" y="-10" width="42" height="20" rx="4" fill="#FAF7F2"/>
+    <rect x="39" y="-7"  width="36" height="14" rx="3" fill="#1A1614"/>
+    <rect x="6"  y="-10" width="24" height="20" rx="4" fill="#FAF7F2"/>
+    <rect x="9"  y="-7"  width="18" height="14" rx="3" fill="#1A1614"/>
+    <rect x="30" y="-4"  width="6"  height="6"  fill="#FAF7F2"/>
+  </g>
+</svg>

@@ -15,7 +15,7 @@ const COPY = {
 export function PricingPage({ socket, designId: initialDesignId = null, cancelled = false } = {}) {
   const root = el('div.max-w-xl.mx-auto.px-4.py-10');
   const state = {
-    designId: initialDesignId || sessionStorage.getItem('bikeheadz.designId'),
+    designId: initialDesignId || sessionStorage.getItem('valveheadz.designId'),
     item: null,
     enabled: false,
     busy: false,

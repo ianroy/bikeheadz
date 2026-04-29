@@ -1,6 +1,6 @@
 # Launch checklist
 
-> One-page checklist for shipping BikeHeadz to the public. Each item has a
+> One-page checklist for shipping ValveHeadZ to the public. Each item has a
 > verification command or URL — don't tick the box unless you've actually
 > seen the green signal.
 
@@ -80,8 +80,8 @@
 ## DNS & TLS
 
 - [ ] Custom domain attached to DO App Platform.
-- [ ] `https://bikeheadz.app` redirects from `http://`.
-- [ ] `https://www.bikeheadz.app` 301s to apex.
+- [ ] `https://valveheadz.app` redirects from `http://`.
+- [ ] `https://www.valveheadz.app` 301s to apex.
 
 ## Final gut-check
 

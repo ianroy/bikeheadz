@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ValveHeadZ master app icon.
+
+  Abstracts the actual product (a chrome 3D-printed head wearing
+  glasses, riding on a Schrader-valve cap) into a 2D mark:
+    1. Cap is a cylinder (side rect + elliptical top + bottom shadow).
+    2. Head is a hand-curved ¾-profile silhouette in ink — features
+       readable: forehead, brow, nose tip, chin, jaw, back of skull.
+    3. Glasses sit across the brow as a paper-cream cutout.
+  See brandstandards.MD §5 for the geometry spec.
+
+  Designed for 16px (favicon) up to 1024px (app icon). The PNG build
+  pipeline (tools/render_brand.py) re-emits this via PIL for
+  typographic determinism.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="ValveHeadZ">
+  <!-- Background tile + bezel. -->
+  <rect width="512" height="512" rx="96" fill="#FAF7F2"/>
+  <rect x="6" y="6" width="500" height="500" rx="92" fill="none" stroke="#1A1614" stroke-opacity="0.06" stroke-width="2"/>
+
+  <!-- Cylindrical cap. -->
+  <g transform="translate(108 248)">
+    <!-- Side wall. -->
+    <rect x="0" y="0" width="296" height="142" fill="#C71F1F"/>
+    <!-- Bottom shadow ellipse. -->
+    <ellipse cx="148" cy="142" rx="148" ry="22" fill="#9E1818"/>
+    <!-- Top ellipse — cylinder cap face. -->
+    <ellipse cx="148" cy="0" rx="148" ry="26" fill="#E04A4A"/>
+    <!-- Inner top ellipse for depth. -->
+    <ellipse cx="148" cy="2" rx="138" ry="20" fill="#C71F1F"/>
+    <!-- Threading bands. -->
+    <rect x="2" y="92"  width="292" height="7" fill="#9E1818"/>
+    <rect x="2" y="110" width="292" height="7" fill="#9E1818"/>
+    <rect x="2" y="128" width="292" height="7" fill="#9E1818"/>
+  </g>
+
+  <!-- Neck (joins head to cap). -->
+  <rect x="220" y="200" width="72" height="48" fill="#1A1614"/>
+
+  <!-- ¾-profile head silhouette. -->
+  <polygon fill="#1A1614" points="
+    238,80
+    268,80
+    298,89
+    325,107
+    343,134
+    352,164
+    356,185
+    360,201
+    375,216
+    360,231
+    363,240
+    354,252
+    351,264
+    345,276
+    327,288
+    297,294
+    258,294
+    222,288
+    189,275
+    168,248
+    156,212
+    150,173
+    156,134
+    174,101
+    207,84
+  "/>
+
+  <!-- Glasses across the brow — paper cutout with ink lens. -->
+  <g transform="translate(256 200)">
+    <!-- right lens (the dominant ¾-view lens) -->
+    <rect x="42" y="-12" width="48" height="22" rx="4" fill="#FAF7F2"/>
+    <rect x="46" y="-9"  width="40" height="16" rx="3" fill="#1A1614"/>
+    <!-- left lens (foreshortened) -->
+    <rect x="6"  y="-12" width="27" height="22" rx="4" fill="#FAF7F2"/>
+    <rect x="10" y="-9"  width="19" height="16" rx="3" fill="#1A1614"/>
+    <!-- nose bridge -->
+    <rect x="33" y="-5"  width="9"  height="6"  fill="#FAF7F2"/>
+  </g>
+
+  <!-- "VHZ" stamp lower-right. -->
+  <g transform="translate(360 460)" font-family="-apple-system, system-ui, 'Inter', sans-serif" font-weight="900" font-size="44" letter-spacing="-1">
+    <text x="0" y="0" fill="#1A1614">VH<tspan fill="#C71F1F">Z</tspan></text>
+  </g>
+</svg>

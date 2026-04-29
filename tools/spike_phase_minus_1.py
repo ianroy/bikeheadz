@@ -14,7 +14,7 @@ import numpy as np
 import trimesh
 import manifold3d as m3
 
-REPO = "/Users/ianroy/Library/CloudStorage/Dropbox/Sadys Bikes/App/Untitled/bikeheadz"
+REPO = "/Users/ianroy/Library/CloudStorage/Dropbox/Sadys Bikes/App/Untitled/valveheadz"
 PATHS = {
     "ian_head": f"{REPO}/server/assets/reference/ian_head.stl",
     "nik_head": f"{REPO}/server/assets/reference/nik_head.stl",

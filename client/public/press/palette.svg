@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Workshop palette reference. Six tokens — paste this into a Figma
+  page or print it on a card next to the printer for a quick visual
+  check. Hex values match client/styles/theme.css.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700" width="1200" height="700" role="img" aria-label="ValveHeadZ workshop palette">
+  <rect width="1200" height="700" fill="#FAF7F2"/>
+
+  <g font-family="-apple-system, system-ui, 'Inter', sans-serif" fill="#1A1614">
+    <text x="60" y="80" font-size="36" font-weight="800">Workshop palette</text>
+    <text x="60" y="116" font-size="20" font-weight="500" fill="#6B6157">Six tokens. Sourced from client/styles/theme.css.</text>
+  </g>
+
+  <!-- swatches: 3 across, 2 rows. Each card: 320×220 -->
+  <g font-family="ui-monospace, 'SF Mono', 'JetBrains Mono', monospace" font-size="20">
+    <!-- Paper / Cream -->
+    <g transform="translate(60 160)">
+      <rect width="320" height="220" rx="14" fill="#FAF7F2" stroke="#1A1614" stroke-opacity="0.12"/>
+      <text x="20" y="180" font-size="22" font-weight="800" fill="#1A1614">Paper</text>
+      <text x="20" y="206" fill="#6B6157">#FAF7F2 — --paper</text>
+    </g>
+    <!-- Brand red -->
+    <g transform="translate(440 160)">
+      <rect width="320" height="220" rx="14" fill="#C71F1F"/>
+      <text x="20" y="180" font-size="22" font-weight="800" fill="#FAF7F2">Brand red</text>
+      <text x="20" y="206" fill="#FAF7F2">#C71F1F — --brand</text>
+    </g>
+    <!-- Ink -->
+    <g transform="translate(820 160)">
+      <rect width="320" height="220" rx="14" fill="#1A1614"/>
+      <text x="20" y="180" font-size="22" font-weight="800" fill="#FAF7F2">Ink</text>
+      <text x="20" y="206" fill="#E5DFD3">#1A1614 — --ink</text>
+    </g>
+
+    <!-- Paper soft -->
+    <g transform="translate(60 400)">
+      <rect width="320" height="220" rx="14" fill="#F2EDE3" stroke="#1A1614" stroke-opacity="0.12"/>
+      <text x="20" y="180" font-size="22" font-weight="800" fill="#1A1614">Paper soft</text>
+      <text x="20" y="206" fill="#6B6157">#F2EDE3 — --paper-soft</text>
+    </g>
+    <!-- Gold -->
+    <g transform="translate(440 400)">
+      <rect width="320" height="220" rx="14" fill="#7C5E1F"/>
+      <text x="20" y="180" font-size="22" font-weight="800" fill="#FAF7F2">Gold</text>
+      <text x="20" y="206" fill="#F2EDE3">#7C5E1F — --gold</text>
+    </g>
+    <!-- Muted -->
+    <g transform="translate(820 400)">
+      <rect width="320" height="220" rx="14" fill="#6B6157"/>
+      <text x="20" y="180" font-size="22" font-weight="800" fill="#FAF7F2">Ink muted</text>
+      <text x="20" y="206" fill="#F2EDE3">#6B6157 — --ink-muted</text>
+    </g>
+  </g>
+</svg>

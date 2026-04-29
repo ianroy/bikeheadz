@@ -16,7 +16,7 @@
 //   1 — failure; structured stderr line { ok:false, reason, ms, bytes }
 //
 // Env knobs (no .env.example edits in this task — caller updates parent):
-//   APP_URL                       (required) e.g. https://bikeheadz.app
+//   APP_URL                       (required) e.g. https://valveheadz.app
 //   CANARY_TOKEN                  optional bearer for socket.io auth
 //   CANARY_TIMEOUT_MS             default 300_000 (5 min)
 //   CANARY_LATENCY_BUDGET_MS      default  90_000 (1.5 min) — soft p95 budget

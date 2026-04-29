@@ -1,4 +1,4 @@
-/* P7-001 — BikeHeadz service worker.
+/* P7-001 — ValveHeadZ service worker.
  *
  * Strategy:
  *   • Precache the app shell (`/` + `/manifest.webmanifest`) so the home

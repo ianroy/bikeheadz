@@ -1,12 +1,12 @@
 // P6-011 — High-contrast (WCAG AAA) toggle.
 //
 // Flips `<html data-contrast="aaa">` on/off and persists to
-// localStorage.bh_contrast. The actual color override lives in
+// localStorage.vh_contrast. The actual color override lives in
 // theme.css under `:root[data-contrast="aaa"]`.
 
 import { el } from '../dom.js';
 
-const STORAGE_KEY = 'bh_contrast';
+const STORAGE_KEY = 'vh_contrast';
 const ATTR = 'contrast';
 const VALUE = 'aaa';
 

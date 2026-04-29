@@ -1,6 +1,6 @@
 # Attributions
 
-BikeHeadz is built on the shoulders of several open-source projects and
+ValveHeadZ is built on the shoulders of several open-source projects and
 content licenses. Thank you to all the maintainers below.
 
 ## Code & libraries
@@ -40,8 +40,8 @@ content licenses. Thank you to all the maintainers below.
 
 - Photos from [Unsplash](https://unsplash.com) used under their
   [license](https://unsplash.com/license).
-- BikeHeadz wordmark, illustrations, and the workshop palette are © 2026
-  BikeHeadz Ltd.
+- ValveHeadZ wordmark, illustrations, and the workshop palette are © 2026
+  ValveHeadZ Ltd.
 
 ## Worker images
 

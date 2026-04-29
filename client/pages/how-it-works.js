@@ -50,7 +50,7 @@ export function HowItWorksPage() {
         style: { fontSize: '2.2rem', fontWeight: 800, letterSpacing: '-0.04em' },
       },
         'How ',
-        el('span', { style: { color: '#C71F1F' } }, 'BikeHeadz'),
+        el('span', { style: { color: '#C71F1F' } }, 'ValveHeadZ'),
         ' Works',
       ),
       el('p.max-w-xl.mx-auto', {
@@ -187,7 +187,7 @@ function schraderPara() {
 
 function capPara() {
   return [
-    'BikeHeadz replaces the standard plastic dust cap with a ',
+    'ValveHeadZ replaces the standard plastic dust cap with a ',
     el('strong', {}, 'custom 3D-scanned head'),
     '. The neck piece has an internal thread that matches the standard Schrader valve thread — so it just screws on.',
   ];

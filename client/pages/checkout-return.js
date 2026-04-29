@@ -124,7 +124,7 @@ export function CheckoutReturnPage({ socket, sessionId }) {
     const blob = new Blob([bytes], { type: 'model/stl' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = design.filename || 'BikeHeadz_ValveStem.stl';
+    a.download = design.filename || 'ValveHeadZ_ValveStem.stl';
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -149,7 +149,7 @@ export function CheckoutReturnPage({ socket, sessionId }) {
       const res = await socket.request('payments.verifySession', { sessionId });
       if (res.paid) {
         render({ state: 'paid', ...res });
-        sessionStorage.removeItem('bikeheadz.designId');
+        sessionStorage.removeItem('valveheadz.designId');
       } else if (res.requiresAction) {
         if (res.url) lastCheckoutUrl = res.url;
         if (!requiresActionStartedAt) requiresActionStartedAt = Date.now();

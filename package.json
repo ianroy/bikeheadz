@@ -1,5 +1,5 @@
 {
-  "name": "bikeheadz",
+  "name": "valveheadz",
   "private": true,
   "version": "1.0.0",
   "description": "3D bike valve stem personalization app — SVG.js frontend, socket.io command-pattern backend, Postgres 18.",

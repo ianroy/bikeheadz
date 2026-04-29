@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Tab favicon. Read by index.html as `<link rel="icon" type="image/svg+xml">`.
+  Designed for 16×16 → 64×64 rendering — the cap silhouette is the
+  primary read; a tiny "Z" punctuates the bottom-right as a brand cue.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <rect width="64" height="64" rx="10" fill="#FAF7F2"/>
+  <rect x="6" y="32" width="52" height="22" rx="4" fill="#C71F1F"/>
+  <g transform="translate(20 6)" fill="#1A1614">
+    <circle cx="12" cy="14" r="11"/>
+    <path d="M 1 18 Q 12 30 23 18 L 23 26 Q 12 30 1 26 Z"/>
+  </g>
+</svg>

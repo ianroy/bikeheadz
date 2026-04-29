@@ -53,7 +53,7 @@ export default {
   'share.button': 'Compartir',
 
   // Banner de instalación
-  'install.banner.text': 'Instala BikeHeadz en tu teléfono para acceso sin conexión.',
+  'install.banner.text': 'Instala ValveHeadZ en tu teléfono para acceso sin conexión.',
   'install.banner.yes': 'Instalar',
   'install.banner.no': 'Ahora no',
 };

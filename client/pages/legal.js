@@ -45,11 +45,11 @@ export function TermsPage() {
   return legalShell({
     title: 'Terms of Service',
     intro:
-      'These terms govern your use of BikeHeadz (the "Service"). By accessing or using the Service, you agree to be bound by these terms.',
+      'These terms govern your use of ValveHeadZ (the "Service"). By accessing or using the Service, you agree to be bound by these terms.',
     sections: [
       {
         heading: '1. Eligibility',
-        body: 'You must be at least 13 years old to use BikeHeadz. By using the Service you represent that you meet this requirement.',
+        body: 'You must be at least 13 years old to use ValveHeadZ. By using the Service you represent that you meet this requirement.',
       },
       {
         heading: '2. Acceptable use',
@@ -61,15 +61,15 @@ export function TermsPage() {
       },
       {
         heading: '3. Content & ownership',
-        body: 'You retain ownership of the photos you upload. You grant BikeHeadz a limited, non-exclusive license to process those photos for the sole purpose of delivering the Service. STL files generated for you are yours to keep, modify, print, and share.',
+        body: 'You retain ownership of the photos you upload. You grant ValveHeadZ a limited, non-exclusive license to process those photos for the sole purpose of delivering the Service. STL files generated for you are yours to keep, modify, print, and share.',
       },
       {
         heading: '4. Payment & refunds',
-        body: 'Purchases are processed by Stripe. Refunds are available within 14 days of purchase, less any costs already incurred for printing or shipping. Contact support@bikeheadz.app to request a refund.',
+        body: 'Purchases are processed by Stripe. Refunds are available within 14 days of purchase, less any costs already incurred for printing or shipping. Contact support@valveheadz.app to request a refund.',
       },
       {
         heading: '5. Disclaimer & limitation of liability',
-        body: 'The Service is provided "as is" without warranty of any kind. To the maximum extent permitted by law, BikeHeadz shall not be liable for any indirect, incidental, special, or consequential damages.',
+        body: 'The Service is provided "as is" without warranty of any kind. To the maximum extent permitted by law, ValveHeadZ shall not be liable for any indirect, incidental, special, or consequential damages.',
       },
       {
         heading: '6. Changes to these terms',
@@ -77,7 +77,7 @@ export function TermsPage() {
       },
       {
         heading: '7. Contact',
-        body: 'Questions: legal@bikeheadz.app',
+        body: 'Questions: legal@valveheadz.app',
       },
     ],
   });
@@ -87,7 +87,7 @@ export function PrivacyPage() {
   return legalShell({
     title: 'Privacy Policy',
     intro:
-      'BikeHeadz is committed to protecting your privacy. This policy explains what data we collect, why we collect it, and how long we keep it.',
+      'ValveHeadZ is committed to protecting your privacy. This policy explains what data we collect, why we collect it, and how long we keep it.',
     sections: [
       {
         heading: '1. What we collect',
@@ -121,11 +121,11 @@ export function PrivacyPage() {
       },
       {
         heading: '5. Security',
-        body: 'We use TLS for all traffic, hash-store passwords (we use passwordless magic-link authentication), and run secure cookies (HttpOnly, SameSite=Lax, Secure in production). Vulnerability reports: security@bikeheadz.app — see /security.',
+        body: 'We use TLS for all traffic, hash-store passwords (we use passwordless magic-link authentication), and run secure cookies (HttpOnly, SameSite=Lax, Secure in production). Vulnerability reports: security@valveheadz.app — see /security.',
       },
       {
         heading: '6. Contact',
-        body: 'Questions: privacy@bikeheadz.app',
+        body: 'Questions: privacy@valveheadz.app',
       },
     ],
   });
@@ -135,7 +135,7 @@ export function AcceptableUsePage() {
   return legalShell({
     title: 'Acceptable Use Policy',
     intro:
-      'BikeHeadz is for fans of bikes and 3D printing. Please use it accordingly. The list below is illustrative, not exhaustive.',
+      'ValveHeadZ is for fans of bikes and 3D printing. Please use it accordingly. The list below is illustrative, not exhaustive.',
     sections: [
       {
         heading: 'You may not',
@@ -144,12 +144,12 @@ export function AcceptableUsePage() {
           'Use the Service to create likenesses of public figures, celebrities, or government officials in a manner intended to deceive viewers.',
           'Attempt to extract NSFW content, weapon-shaped objects, or content depicting minors in unsafe ways. Our pre-screen will reject these uploads (see P3-012).',
           'Bypass rate limits, automate scraping, or attempt to overwhelm the GPU backend.',
-          'Re-sell BikeHeadz-generated STLs as your own original work without modification.',
+          'Re-sell ValveHeadZ-generated STLs as your own original work without modification.',
         ],
       },
       {
         heading: 'Reporting abuse',
-        body: 'See a design or user violating this policy? Tap the flag button on the design, or email abuse@bikeheadz.app. We review reports within 48h.',
+        body: 'See a design or user violating this policy? Tap the flag button on the design, or email abuse@valveheadz.app. We review reports within 48h.',
       },
       {
         heading: 'Enforcement',
@@ -168,7 +168,7 @@ export function SecurityPage() {
       {
         heading: 'Reporting',
         body: [
-          'Email: security@bikeheadz.app (PGP key available on request)',
+          'Email: security@valveheadz.app (PGP key available on request)',
           'We aim to respond within 2 business days.',
         ],
       },
@@ -224,7 +224,7 @@ export function ServerErrorPage({ incidentId }) {
           'If you were mid-purchase, your card was not charged unless Stripe explicitly confirmed it.',
           incidentId
             ? `Send us this incident id when reporting: ${incidentId}`
-            : 'If it keeps happening, drop us a line at help@bikeheadz.app.',
+            : 'If it keeps happening, drop us a line at help@valveheadz.app.',
         ],
       },
     ],

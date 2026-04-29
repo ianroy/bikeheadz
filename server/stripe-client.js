@@ -59,14 +59,14 @@ export function pricingCatalogue() {
     stl_download: {
       productId: 'stl_download',
       name: 'STL Download',
-      description: 'Personalized BikeHeadz valve stem cap — downloadable STL.',
+      description: 'Personalized ValveHeadZ valve stem cap — downloadable STL.',
       unitAmount: Number(process.env.STRIPE_PRICE_STL_CENTS) || 200,
       currency,
       shippable: false,
     },
     printed_stem: {
       productId: 'printed_stem',
-      name: 'Printed BikeHeadz Cap',
+      name: 'Printed ValveHeadZ Cap',
       description: 'One 3D-printed Schrader valve cap of your design, mailed to you.',
       unitAmount: Number(process.env.STRIPE_PRICE_PRINT_CENTS) || 1999,
       currency,

@@ -761,7 +761,7 @@ export function HomePage({ socket }) {
       state.designTriangles = result.triangles || 0;
       state.stlData = result.stl_b64 || null;
       state.stlReady = true;
-      sessionStorage.setItem('bikeheadz.designId', result.designId);
+      sessionStorage.setItem('valveheadz.designId', result.designId);
       renderFeedback();
     } catch (err) {
       console.error('stl.generate failed', err);

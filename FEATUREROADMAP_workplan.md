@@ -1,4 +1,4 @@
-# BikeHeadz — Feature Roadmap & Agent Workplan
+# ValveHeadZ — Feature Roadmap & Agent Workplan
 
 > **Living document.** Agents are expected to mutate this file as they work.
 > Humans are expected to read it before starting, and to append notes on
@@ -52,6 +52,47 @@ Legend for checkbox states:
 
 ---
 
+## 0.5. Owner decisions ledger
+
+> Decisions Ian (owner) has made — frozen until he overrides them. New
+> agents should treat these as locked unless the **Status** column says
+> otherwise. Append-only.
+
+### A. Operational secrets
+
+| Var | Status | Decided | Notes |
+|---|---|---|---|
+| `AUTH_SECRET` | ✅ SET (DO Apps env, encrypted) | 2026-04-29 | Generated via `openssl rand -base64 32` per the boot-fix flow. |
+| `ADMIN_EMAILS` | ✅ SET (DO Apps env) | 2026-04-29 | Seeds first admin via P0-008 at every boot. |
+| `STRIPE_WEBHOOK_SECRET` | 🟡 needs setup | — | Tutorial: [docs/SETUP_STRIPE_WEBHOOK.md](docs/SETUP_STRIPE_WEBHOOK.md). |
+| `RESEND_API_KEY` + `EMAIL_FROM` | 🟡 needs setup | — | Tutorial: [docs/SETUP_RESEND_EMAIL.md](docs/SETUP_RESEND_EMAIL.md). **Highest user-facing impact** — magic-link login can't complete without this. |
+| `SENTRY_DSN` (server) + `VITE_SENTRY_DSN` (client) | 🟡 needs setup | — | Tutorial: [docs/SETUP_SENTRY.md](docs/SETUP_SENTRY.md). |
+| `SHARE_LINK_SECRET` | 🟡 needs setup | — | Tutorial: [docs/SETUP_SHARE_LINK_SECRET.md](docs/SETUP_SHARE_LINK_SECRET.md). |
+
+### B. Product picks
+
+| Decision | Pick | Decided | Tutorial / status |
+|---|---|---|---|
+| Print-on-demand vendor (P2-004) | **Sculpteo** | 2026-04-29 | Tutorial: [docs/SETUP_SCULPTEO.md](docs/SETUP_SCULPTEO.md). Unblocks P2-005 + P2-016 + P5-004 chain. |
+| SMS provider (P7-003) | **Twilio** | 2026-04-29 | Tutorial: [docs/SETUP_TWILIO.md](docs/SETUP_TWILIO.md). |
+| Blob/CDN (P4-004 / P4-016) | **DO Spaces** | 2026-04-29 | Tutorial: [docs/SETUP_DO_SPACES.md](docs/SETUP_DO_SPACES.md). |
+| On-call alerting webhook (P4-012) | TBD (Slack OR Discord) | — | Tutorial: [docs/SETUP_SLACK_DISCORD_WEBHOOK.md](docs/SETUP_SLACK_DISCORD_WEBHOOK.md) covers both shapes. |
+| Stripe Tax registration | **Massachusetts (MA)** first | 2026-04-29 | Single-state registration in the Stripe Tax dashboard. Other US states + EU VAT added when revenue triggers nexus. P2-006 / P6-005. |
+| PWA icons (P7-001) | Generated SVG → PNG (Ian-approved) | 2026-04-29 | See [brandstandards.MD](brandstandards.MD). Files committed at `client/public/icons/` (192/512). |
+| Press kit (X-015) | Generated SVG → PNG, ValveHeadZ-imagined product photos | 2026-04-29 | See [brandstandards.MD](brandstandards.MD). Files at `client/public/press/`. |
+| Canary fixture photo (P4-013) | Owner-supplied portrait | 2026-04-29 | Drop the JPG at `tools/canary/canary-photo.jpg`. Ian's own portrait approved for use; ops needs to commit the binary. |
+
+### C. Standing rules
+
+- Workshop palette is locked (see [brandstandards.MD](brandstandards.MD)).
+- Schrader (not Presta) is the canonical valve type — copy must say
+  "Schrader."
+- Logo wordmark is "ValveHeadZ" — capital V, capital H, capital Z;
+  one word, no space. When split-color, "ValveHead" sits in ink and the
+  trailing "Z" sits in brand red. Monogram is "VHZ."
+
+---
+
 ## 1. How to use this file
 
 ### For humans
@@ -94,7 +135,7 @@ Legend for checkbox states:
 > reorder existing tasks.
 
 ```
-You are the BikeHeadz roadmap curator. The product is described in
+You are the ValveHeadZ roadmap curator. The product is described in
 README.md and ProductSpec.md in this repo. The current backlog is in
 FEATUREROADMAP_workplan.md.
 
@@ -163,7 +204,7 @@ A good feature candidate:
 > than one task in a sitting tend to over-commit and leave a mess.
 
 ```
-You are a BikeHeadz build agent. Your job is to execute ONE task from
+You are a ValveHeadZ build agent. Your job is to execute ONE task from
 FEATUREROADMAP_workplan.md end-to-end and then stop.
 
 1. Read FEATUREROADMAP_workplan.md section 0 (State header). If
@@ -1263,7 +1304,7 @@ command.
   - User is emailed (P2-008) with the STL.
 - **Implementation notes**:
   - Don't touch Stripe — comps live entirely in our DB.
-  - Surface in the user's order list as "Gifted by BikeHeadz."
+  - Surface in the user's order list as "Gifted by ValveHeadZ."
 - **Agent notes** (append-only, newest first):
   - 2026-04-29 (claude-opus-4.7): purchases.comp admin command in server/commands/promos.js. Synthetic purchases row with product='comp_grant', amount_cents=0, status='paid'. Migration 004 widens the product CHECK constraint. Audit row written. Email + STL attachment fired via sendEmail(template='comp-grant') when the admin supplies an email.
 
@@ -2470,7 +2511,7 @@ logging.
     third-party page, renders an iframe pointing at `/embed?shop=<id>`
     + sets up cross-origin postMessage handshake for sizing.
   - `/embed` is a stripped-down generator that only allows the photo
-    upload + STL preview + "Buy at bikeheadz.com" handoff (no
+    upload + STL preview + "Buy at valveheadz.com" handoff (no
     auth, no account dashboard).
   - Shop owner gets a per-shop `client_id` + allowlisted
     `Origin` whitelist via `requireAdmin` admin command
@@ -2561,7 +2602,7 @@ logging.
   - A `t(key)` helper used by page components.
   - Header shows a locale switcher.
 - **Agent notes** (append-only, newest first):
-  - 2026-04-29 (claude-opus-4.7): client/i18n/{index,en,es}.js scaffolding with t(), setLocale(), getLocale(), bh:localechange CustomEvent, eager dict imports, en+es seeded with ~31 keys covering nav/cta/viewer/error/auth/pricing/home/account/feedback/share/install. LocaleSwitcher mounted as a floating bottom-right chip in main.js next to ContrastToggle. No page yet calls t() — that's the follow-up; the helper is ready when pages adopt it.
+  - 2026-04-29 (claude-opus-4.7): client/i18n/{index,en,es}.js scaffolding with t(), setLocale(), getLocale(), vh:localechange CustomEvent, eager dict imports, en+es seeded with ~31 keys covering nav/cta/viewer/error/auth/pricing/home/account/feedback/share/install. LocaleSwitcher mounted as a floating bottom-right chip in main.js next to ContrastToggle. No page yet calls t() — that's the follow-up; the helper is ready when pages adopt it.
 
 ### [P6-003] WCAG AA audit + critical-path fixes
 - **Status**: [x]
@@ -2801,7 +2842,7 @@ logging.
   - The brand-red token (`#C71F1F`) only just clears AA on cream;
     AAA needs `#A4111A` or darker. Same for the gold/amber pair.
 - **Agent notes** (append-only, newest first):
-  - 2026-04-29 (claude-opus-4.7): client/styles/theme.css gains a :root[data-contrast='aaa'] layer + @media (forced-colors: active) section. Existing tokens are --brand / --ink-muted (not --brand-red / --muted as I'd assumed); the AAA layer hits the actual names and adds the legacy aliases for compatibility. ContrastToggle component mounted as a floating bottom-right chip in main.js. Hydrates from localStorage.bh_contrast at module load to avoid an FOUC flicker.
+  - 2026-04-29 (claude-opus-4.7): client/styles/theme.css gains a :root[data-contrast='aaa'] layer + @media (forced-colors: active) section. Existing tokens are --brand / --ink-muted (not --brand-red / --muted as I'd assumed); the AAA layer hits the actual names and adds the legacy aliases for compatibility. ContrastToggle component mounted as a floating bottom-right chip in main.js. Hydrates from localStorage.vh_contrast at module load to avoid an FOUC flicker.
 
 ### [P6-012] Locale-aware date/number formatting via Intl
 - **Status**: [x]
@@ -2914,14 +2955,14 @@ logging.
 - **Acceptance criteria**:
   - Listen for `beforeinstallprompt`; show a small banner the
     second time the user successfully generates an STL ("install
-    BikeHeadz to skip the upload next time?").
+    ValveHeadZ to skip the upload next time?").
   - Dismissible permanently per device; never shown again after
     "no thanks."
 - **Implementation notes**:
   - First-visit prompts are user-hostile. Wait for a real success
     moment before asking.
 - **Agent notes** (append-only, newest first):
-  - 2026-04-29 (claude-opus-4.7): client/components/install-prompt.js — setupInstallPrompt({socket}) captures beforeinstallprompt, exposes window.__bhTriggerInstall, persists localStorage.bh_install_dismissed, renders a bottom banner with Install/No-thanks. main.js calls setupInstallPrompt at boot. home.js follow-up: call __bhTriggerInstall after the user's second successful generation.
+  - 2026-04-29 (claude-opus-4.7): client/components/install-prompt.js — setupInstallPrompt({socket}) captures beforeinstallprompt, exposes window.__vhzTriggerInstall, persists localStorage.vh_install_dismissed, renders a bottom banner with Install/No-thanks. main.js calls setupInstallPrompt at boot. home.js follow-up: call __bhTriggerInstall after the user's second successful generation.
 
 ### [P7-007] Background fetch / resumable generations on flaky mobile
 - **Status**: [ ]

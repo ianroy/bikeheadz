@@ -1,5 +1,5 @@
 {
-  "title": "BikeHeadz · photo → 3D valve stem cap",
+  "title": "ValveHeadZ · photo → 3D valve stem cap",
   "description": "Serverless TRELLIS worker. Takes a base64-encoded portrait photo plus geometry settings, generates a 3D head mesh, merges it onto a fixed Presta valve cap STL, and returns the merged STL as base64 ASCII. Streams per-stage progress frames.",
   "type": "serverless",
   "category": "image",
