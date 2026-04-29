@@ -7,7 +7,7 @@ export function HeaderComponent() {
   const desktopNav = el('nav.items-center.gap-1', { class: 'hidden md:flex' });
   const mobilePanel = el('div', {
     class: 'md:hidden border-t px-4 py-3 flex-col gap-1',
-    style: { background: '#0d0d1a', borderColor: '#1e1e35', display: 'none' },
+    style: { background: '#FFFFFF', borderColor: '#E5DFD3', display: 'none' },
   });
 
   let menuOpen = false;
@@ -20,7 +20,7 @@ export function HeaderComponent() {
 
   const menuButton = el('button', {
     class: 'md:hidden p-2 rounded-lg transition-colors',
-    style: { color: '#9090b0' },
+    style: { color: '#6B6157' },
     onClick: () => setMenu(!menuOpen),
   });
   menuButton.appendChild(icon('menu', { size: 20 }));
@@ -30,7 +30,7 @@ export function HeaderComponent() {
     style: {
       background: 'rgba(9,9,15,0.95)',
       backdropFilter: 'blur(20px)',
-      borderColor: '#1e1e35',
+      borderColor: '#E5DFD3',
     },
   },
     el('div.max-w-7xl.mx-auto.px-4.h-16.flex.items-center.justify-between',
@@ -41,7 +41,7 @@ export function HeaderComponent() {
       },
         el('div', {
           class: 'w-9 h-9 rounded-xl flex items-center justify-center',
-          style: { background: 'linear-gradient(135deg, #b4ff45, #7fc718)' },
+          style: { background: 'linear-gradient(135deg, #DC2626, #B91C1C)' },
         }, iconBlack('bike', 18)),
         el('div.flex.flex-col', { style: { lineHeight: '1' } },
           el('span', {
@@ -54,7 +54,7 @@ export function HeaderComponent() {
               fontSize: '0.65rem',
               fontWeight: 700,
               letterSpacing: '0.2em',
-              color: '#b4ff45',
+              color: '#DC2626',
             },
           }, 'Headz'),
         ),
@@ -84,8 +84,8 @@ export function HeaderComponent() {
       href: '/account',
       'data-link': '',
       class: 'ml-2 w-9 h-9 rounded-full flex items-center justify-center border transition-colors',
-      style: { background: '#1a1a2e', borderColor: '#2a2a45' },
-    }, icon('user', { size: 16, color: '#9090b0' }));
+      style: { background: '#F5F1E8', borderColor: '#E5DFD3' },
+    }, icon('user', { size: 16, color: '#6B6157' }));
     desktopNav.appendChild(profile);
   }
 
@@ -97,12 +97,12 @@ export function HeaderComponent() {
       class: 'px-4 py-2 rounded-lg transition-all duration-200 cursor-pointer',
       style: active
         ? {
-            background: 'rgba(180,255,69,0.2)',
-            color: '#b4ff45',
-            border: '1px solid rgba(180,255,69,0.3)',
+            background: 'rgba(220,38,38,0.2)',
+            color: '#DC2626',
+            border: '1px solid rgba(220,38,38,0.3)',
           }
         : {
-            color: '#9090b0',
+            color: '#6B6157',
           },
       onClick: (e) => {
         onClick?.(e);
@@ -110,11 +110,11 @@ export function HeaderComponent() {
     }, label);
     if (!active) {
       a.addEventListener('mouseenter', () => {
-        a.style.color = '#e0e0f0';
+        a.style.color = '#1A1614';
         a.style.background = 'rgba(255,255,255,0.05)';
       });
       a.addEventListener('mouseleave', () => {
-        a.style.color = '#9090b0';
+        a.style.color = '#6B6157';
         a.style.background = 'transparent';
       });
     }

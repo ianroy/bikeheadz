@@ -7,28 +7,28 @@ const STEPS = [
     title: '1. Upload Your Photo',
     desc: 'Take a front-facing photo or upload an existing one. Best results come from good lighting and a neutral background. We support JPG, PNG, HEIC and more.',
     tip: 'Pro tip: Stand near a window for natural light',
-    color: '#b4ff45',
+    color: '#DC2626',
   },
   {
     icon: 'cpu',
     title: '2. AI Processes Your Head',
     desc: 'Our system analyzes your facial geometry, extracts the head mesh, and scales it to perfectly fit a Presta valve stem connector. The neck is sized to twist-fit onto standard valve cores.',
     tip: 'Processing takes about 3–5 seconds',
-    color: '#4d9fff',
+    color: '#1D4ED8',
   },
   {
     icon: 'download',
     title: '3. Download STL File',
     desc: "A production-ready STL file is generated combining your head scan with the valve stem body. It's fully manifold and ready for FDM or resin 3D printing.",
     tip: 'Compatible with all major slicers: Cura, PrusaSlicer, Bambu',
-    color: '#ff6b30',
+    color: '#C2410C',
   },
   {
     icon: 'package',
     title: '4. Print or Order',
     desc: 'Send the file to your own printer, or use our print service. We print in chrome PLA, resin, or brass-fill filament. Ships in 3–5 days.',
     tip: 'Order packs of 4 for friends — perfect for group rides',
-    color: '#c8a032',
+    color: '#A88735',
   },
 ];
 
@@ -50,11 +50,11 @@ export function HowItWorksPage() {
         style: { fontSize: '2.2rem', fontWeight: 800, letterSpacing: '-0.04em' },
       },
         'How ',
-        el('span', { style: { color: '#b4ff45' } }, 'BikeHeadz'),
+        el('span', { style: { color: '#DC2626' } }, 'BikeHeadz'),
         ' Works',
       ),
       el('p.max-w-xl.mx-auto', {
-        style: { color: '#808098', fontSize: '1rem' },
+        style: { color: '#6B6157', fontSize: '1rem' },
       }, 'Four simple steps to turn your face into a 3D-printable Presta valve stem cap. No 3D design experience needed.'),
     ),
   );
@@ -72,16 +72,16 @@ export function HowItWorksPage() {
           i < STEPS.length - 1
             ? el('div', {
                 class: 'w-px flex-1 mt-2',
-                style: { background: '#1e1e35', minHeight: '2rem' },
+                style: { background: '#E5DFD3', minHeight: '2rem' },
               })
             : null,
         ),
         el('div.flex-1.rounded-2xl.p-5.border', {
           class: 'mb-4',
-          style: { background: '#111120', borderColor: '#1e1e35' },
+          style: { background: '#FFFFFF', borderColor: '#E5DFD3' },
         },
           el('h3.text-white.mb-2', { style: { fontWeight: 700 } }, step.title),
-          el('p', { style: { color: '#808098', fontSize: '0.88rem', lineHeight: 1.7 } }, step.desc),
+          el('p', { style: { color: '#6B6157', fontSize: '0.88rem', lineHeight: 1.7 } }, step.desc),
           el('div', {
             class: 'mt-3 px-3 py-2 rounded-lg inline-flex items-center gap-1.5',
             style: { background: `${step.color}0f`, border: `1px solid ${step.color}25` },
@@ -100,7 +100,7 @@ export function HowItWorksPage() {
   root.appendChild(
     el('div', {
       class: 'rounded-2xl p-6 border mb-10',
-      style: { background: '#111120', borderColor: '#1e1e35' },
+      style: { background: '#FFFFFF', borderColor: '#E5DFD3' },
     },
       el('h2.text-white.mb-4', { style: { fontWeight: 700 } }, 'The Valve Stem Explained'),
       el('div.flex.flex-col.gap-6.items-start', { class: 'md:flex-row' },
@@ -110,7 +110,7 @@ export function HowItWorksPage() {
           class: 'rounded-xl w-full md:w-56 h-40 object-cover flex-shrink-0',
         }),
         el('div.flex.flex-col.gap-3', {
-          style: { color: '#808098', fontSize: '0.88rem', lineHeight: 1.7 },
+          style: { color: '#6B6157', fontSize: '0.88rem', lineHeight: 1.7 },
         },
           el('p', {}, prestaPara()),
           el('p', {}, capPara()),
@@ -129,13 +129,13 @@ export function HowItWorksPage() {
       ...FAQ.map((item) =>
         el('div', {
           class: 'rounded-xl p-4 border',
-          style: { background: '#111120', borderColor: '#1e1e35' },
+          style: { background: '#FFFFFF', borderColor: '#E5DFD3' },
         },
           el('p.mb-1.5', {
-            style: { color: '#e0e0f0', fontWeight: 600, fontSize: '0.88rem' },
+            style: { color: '#1A1614', fontWeight: 600, fontSize: '0.88rem' },
           }, item.q),
           el('p', {
-            style: { color: '#808098', fontSize: '0.82rem', lineHeight: 1.6 },
+            style: { color: '#6B6157', fontSize: '0.82rem', lineHeight: 1.6 },
           }, item.a),
         )
       ),
@@ -148,25 +148,25 @@ export function HowItWorksPage() {
     el('div', {
       class: 'mt-12 rounded-2xl p-8 text-center border relative overflow-hidden',
       style: {
-        background: 'linear-gradient(135deg, #0f1a05, #1a2a08)',
-        borderColor: 'rgba(180,255,69,0.2)',
+        background: 'linear-gradient(135deg, #FAF7F2, #F5F1E8)',
+        borderColor: 'rgba(220,38,38,0.2)',
       },
     },
       el('div', {
         class: 'absolute inset-0 pointer-events-none',
-        style: { backgroundImage: 'radial-gradient(circle at 50% 0%, rgba(180,255,69,0.15), transparent 60%)' },
+        style: { backgroundImage: 'radial-gradient(circle at 50% 0%, rgba(220,38,38,0.15), transparent 60%)' },
       }),
       el('h2.text-white.relative.mb-2', {
         style: { fontWeight: 800, fontSize: '1.5rem', zIndex: 10 },
       }, 'Ready to make yours?'),
       el('p.relative.mb-6', {
-        style: { color: '#9090b0', fontSize: '0.9rem', zIndex: 10 },
+        style: { color: '#6B6157', fontSize: '0.9rem', zIndex: 10 },
       }, 'Takes less than a minute to generate your personalized valve stem.'),
       el('a', {
         href: '/',
         'data-link': '',
         class: 'inline-flex items-center gap-2 px-7 py-3 rounded-xl transition-all',
-        style: { background: '#b4ff45', color: '#000', fontWeight: 800, fontSize: '0.95rem' },
+        style: { background: '#DC2626', color: '#000', fontWeight: 800, fontSize: '0.95rem' },
       },
         'Get Started Free',
         icon('arrowRight', { size: 16, color: '#000' }),

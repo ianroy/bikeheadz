@@ -12,8 +12,8 @@ import { CheckoutReturnPage } from './pages/checkout-return.js';
 const root = document.getElementById('root');
 Object.assign(root.style, {
   minHeight: '100vh',
-  background: '#09090f',
-  color: '#e0e0f0',
+  background: '#FAF7F2',
+  color: '#1A1614',
   display: 'flex',
   flexDirection: 'column',
 });

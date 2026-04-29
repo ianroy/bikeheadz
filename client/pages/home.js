@@ -19,10 +19,8 @@ export function HomePage({ socket }) {
     targetHeadHeightMm: 30,   // v1: TARGET_HEAD_HEIGHT_MM override, 22..42
     capProtrusionPct: 10,     // v1: CAP_PROTRUSION_FRACTION override, 0..25 (%)
     materialType: 'chrome',
-    headColor: '#c8b8a0',
+    headColor: '#D4B896',
     showSettings: false,
-    selectedDesign: null,
-    designs: [],
     designId: null,
     designTriangles: 0,
     checkoutPending: false,
@@ -47,10 +45,10 @@ export function HomePage({ socket }) {
         style: { fontSize: '1.6rem', fontWeight: 800, letterSpacing: '-0.03em' },
       },
         'Your Head on a ',
-        el('span', { style: { color: '#b4ff45' } }, 'Valve Stem'),
+        el('span', { style: { color: '#DC2626' } }, 'Valve Stem'),
       ),
       el('p.mt-1', {
-        style: { color: '#808098', fontSize: '0.9rem' },
+        style: { color: '#6B6157', fontSize: '0.9rem' },
       }, 'Upload a photo → get a 3D-printable STL file personalized to you'),
     ),
   );
@@ -77,13 +75,13 @@ export function HomePage({ socket }) {
       class: 'relative rounded-2xl border-2 border-dashed transition-all duration-200 cursor-pointer',
       style: {
         borderColor: state.dragging
-          ? '#b4ff45'
+          ? '#DC2626'
           : state.photoUrl
-          ? '#252545'
-          : '#252545',
+          ? '#E5DFD3'
+          : '#E5DFD3',
         background: state.dragging
-          ? 'rgba(180,255,69,0.05)'
-          : '#111120',
+          ? 'rgba(220,38,38,0.05)'
+          : '#FFFFFF',
       },
       onClick: () => { if (!state.photoUrl) fileInput.click(); },
       onDragover: (e) => { e.preventDefault(); if (!state.dragging) { state.dragging = true; renderUploader(); } },
@@ -101,17 +99,17 @@ export function HomePage({ socket }) {
       box.appendChild(el('div.flex.items-center.gap-4.p-4',
         el('div', {
           class: 'relative w-20 h-20 rounded-xl overflow-hidden flex-shrink-0 border',
-          style: { borderColor: '#252545' },
+          style: { borderColor: '#E5DFD3' },
         },
           el('img', { src: state.photoUrl, alt: 'Uploaded', class: 'w-full h-full object-cover' }),
         ),
         el('div.flex-1.min-w-0',
           el('p.text-white', { style: { fontWeight: 600, fontSize: '0.9rem' } }, state.photoName || 'Photo uploaded'),
-          el('p', { style: { color: '#808098', fontSize: '0.78rem' } }, 'Ready to generate your valve stem'),
+          el('p', { style: { color: '#6B6157', fontSize: '0.78rem' } }, 'Ready to generate your valve stem'),
         ),
         el('button', {
           class: 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-colors',
-          style: { borderColor: '#252545', color: '#9090b0', fontSize: '0.78rem', background: 'transparent' },
+          style: { borderColor: '#E5DFD3', color: '#6B6157', fontSize: '0.78rem', background: 'transparent' },
           onClick: (e) => { e.stopPropagation(); fileInput.click(); },
         },
           icon('refresh', { size: 14 }),
@@ -122,15 +120,15 @@ export function HomePage({ socket }) {
       box.appendChild(el('div.flex.flex-col.items-center.justify-center.gap-3', { style: { padding: '2.5rem 0' } },
         el('div', {
           class: 'w-14 h-14 rounded-2xl flex items-center justify-center',
-          style: { background: 'linear-gradient(135deg, #1a2a08, #0f1a05)', border: '1px solid rgba(180,255,69,0.3)' },
-        }, icon('upload', { size: 24, color: '#b4ff45' })),
+          style: { background: 'linear-gradient(135deg, #F5F1E8, #FAF7F2)', border: '1px solid rgba(220,38,38,0.3)' },
+        }, icon('upload', { size: 24, color: '#DC2626' })),
         el('div.text-center',
           el('p.text-white', { style: { fontWeight: 600 } }, 'Upload Your Photo'),
-          el('p.mt-1', { style: { color: '#808098', fontSize: '0.82rem' } }, 'Drag & drop or click to browse · JPG, PNG, HEIC'),
+          el('p.mt-1', { style: { color: '#6B6157', fontSize: '0.82rem' } }, 'Drag & drop or click to browse · JPG, PNG, HEIC'),
         ),
         el('button', {
           class: 'px-5 py-2 rounded-xl transition-all',
-          style: { background: '#b4ff45', color: '#000', fontWeight: 700, fontSize: '0.88rem' },
+          style: { background: '#DC2626', color: '#000', fontWeight: 700, fontSize: '0.88rem' },
         }, 'Choose Photo'),
       ));
     }
@@ -141,12 +139,12 @@ export function HomePage({ socket }) {
   // Viewer
   const viewerSlot = el('div', {
     class: 'rounded-2xl overflow-hidden border',
-    style: { background: '#0d0d1e', borderColor: '#1e1e35' },
+    style: { background: '#FFFFFF', borderColor: '#E5DFD3' },
   });
   center.appendChild(viewerSlot);
 
   const viewerHeader = el('div.flex.items-center.justify-between.px-4.py-3.border-b', {
-    style: { borderColor: '#1e1e35' },
+    style: { borderColor: '#E5DFD3' },
   });
   viewerSlot.appendChild(viewerHeader);
 
@@ -155,27 +153,27 @@ export function HomePage({ socket }) {
 
   viewerSlot.appendChild(
     el('div.flex.items-center.gap-6.px-4.py-3.border-t', {
-      style: { borderColor: '#1e1e35', fontSize: '0.75rem' },
+      style: { borderColor: '#E5DFD3', fontSize: '0.75rem' },
     },
-      legendSwatch('#b4ff45', '3D Scanned Head'),
-      legendSwatch('#c8a032', 'Presta Valve Stem'),
-      legendSwatch('#c0c0d0', 'Chrome Body'),
+      legendSwatch('#DC2626', '3D Scanned Head'),
+      legendSwatch('#A88735', 'Presta Valve Stem'),
+      legendSwatch('#9CA3AF', 'Chrome Body'),
     ),
   );
 
   function renderViewerHeader() {
     clear(viewerHeader);
     const leftRow = el('div.flex.items-center.gap-2',
-      icon('layers', { size: 14, color: '#b4ff45' }),
-      el('span', { style: { color: '#e0e0f0', fontWeight: 600, fontSize: '0.88rem' } }, '3D Model Preview'),
+      icon('layers', { size: 14, color: '#DC2626' }),
+      el('span', { style: { color: '#1A1614', fontWeight: 600, fontSize: '0.88rem' } }, '3D Model Preview'),
     );
     if (state.processing) {
       leftRow.appendChild(el('span', {
         class: 'flex items-center gap-1.5 px-2 py-0.5 rounded-full',
-        style: { background: 'rgba(180,255,69,0.12)', fontSize: '0.7rem', color: '#b4ff45' },
+        style: { background: 'rgba(220,38,38,0.12)', fontSize: '0.7rem', color: '#DC2626' },
       },
         el('span.pulse-dot.inline-block.rounded-full', {
-          style: { width: '6px', height: '6px', background: '#b4ff45' },
+          style: { width: '6px', height: '6px', background: '#DC2626' },
         }),
         'Processing',
       ));
@@ -183,14 +181,14 @@ export function HomePage({ socket }) {
     if (state.stlReady) {
       leftRow.appendChild(el('span', {
         class: 'flex items-center gap-1.5 px-2 py-0.5 rounded-full',
-        style: { background: 'rgba(180,255,69,0.12)', fontSize: '0.7rem', color: '#b4ff45' },
+        style: { background: 'rgba(220,38,38,0.12)', fontSize: '0.7rem', color: '#DC2626' },
       }, '\u2713 STL Ready'));
     }
     viewerHeader.appendChild(leftRow);
 
     viewerHeader.appendChild(
       el('div.flex.items-center.gap-2', {
-        style: { color: '#606080', fontSize: '0.72rem' },
+        style: { color: '#8B8278', fontSize: '0.72rem' },
       },
         icon('rotate', { size: 14 }),
         'Drag to rotate',
@@ -225,7 +223,7 @@ export function HomePage({ socket }) {
   // Settings toggle + panel
   const settingsToggle = el('button', {
     class: 'flex items-center justify-between w-full px-4 py-3 rounded-xl border transition-colors text-left',
-    style: { background: '#111120', borderColor: '#1e1e35' },
+    style: { background: '#FFFFFF', borderColor: '#E5DFD3' },
     onClick: () => { state.showSettings = !state.showSettings; renderSettings(); },
   });
   center.appendChild(settingsToggle);
@@ -239,14 +237,14 @@ export function HomePage({ socket }) {
     clear(settingsToggle);
     settingsToggle.append(
       el('div.flex.items-center.gap-2',
-        icon('settings', { size: 16, color: '#b4ff45' }),
-        el('span', { style: { color: '#e0e0f0', fontWeight: 600, fontSize: '0.88rem' } }, 'Adjust 3D Settings'),
+        icon('settings', { size: 16, color: '#DC2626' }),
+        el('span', { style: { color: '#1A1614', fontWeight: 600, fontSize: '0.88rem' } }, 'Adjust 3D Settings'),
       ),
       el('div', {
         style: {
           transition: 'transform 0.2s',
           transform: state.showSettings ? 'rotate(90deg)' : 'rotate(0deg)',
-          color: '#606080',
+          color: '#8B8278',
         },
       }, icon('chevronRight', { size: 16 })),
     );
@@ -256,7 +254,7 @@ export function HomePage({ socket }) {
 
     clear(settingsInner);
     settingsInner.className = 'rounded-2xl border p-5 grid grid-cols-1 sm:grid-cols-2 gap-5';
-    Object.assign(settingsInner.style, { background: '#111120', borderColor: '#1e1e35' });
+    Object.assign(settingsInner.style, { background: '#FFFFFF', borderColor: '#E5DFD3' });
 
     settingsInner.append(
       // Head Height — TARGET_HEAD_HEIGHT_MM, the size the rescaled head
@@ -344,7 +342,7 @@ export function HomePage({ socket }) {
 
     clear(generateBtn);
     Object.assign(generateBtn.style, {
-      background: canGenerate ? 'linear-gradient(135deg, #b4ff45, #7fc718)' : '#252545',
+      background: canGenerate ? 'linear-gradient(135deg, #DC2626, #B91C1C)' : '#E5DFD3',
       color: '#000',
       cursor: canGenerate ? 'pointer' : 'not-allowed',
       opacity: canGenerate ? 1 : 0.6,
@@ -366,12 +364,12 @@ export function HomePage({ socket }) {
 
     clear(downloadBtn);
     downloadBtn.append(
-      icon('creditCard', { size: 16, color: canPurchase ? '#000' : '#808098' }),
+      icon('creditCard', { size: 16, color: canPurchase ? '#000' : '#6B6157' }),
       state.checkoutPending ? 'Redirecting…' : 'Buy STL · $2',
     );
     Object.assign(downloadBtn.style, {
-      background: canPurchase ? 'linear-gradient(135deg, #b4ff45, #7fc718)' : '#252545',
-      color: canPurchase ? '#000' : '#808098',
+      background: canPurchase ? 'linear-gradient(135deg, #DC2626, #B91C1C)' : '#E5DFD3',
+      color: canPurchase ? '#000' : '#6B6157',
       border: 'none',
       cursor: canPurchase ? 'pointer' : 'not-allowed',
       opacity: canPurchase ? 1 : 0.7,
@@ -382,17 +380,17 @@ export function HomePage({ socket }) {
     if (state.stlReady) {
       readyBanner.appendChild(el('div', {
         class: 'fade-up rounded-xl px-4 py-3 border flex items-center gap-3',
-        style: { background: 'rgba(180,255,69,0.06)', borderColor: 'rgba(180,255,69,0.25)' },
+        style: { background: 'rgba(220,38,38,0.06)', borderColor: 'rgba(220,38,38,0.25)' },
       },
         el('span', { style: { fontSize: '1.5rem' } }, '\u{1F389}'),
         el('div',
           el('p', {
-            style: { color: '#b4ff45', fontWeight: 700, fontSize: '0.88rem' },
+            style: { color: '#DC2626', fontWeight: 700, fontSize: '0.88rem' },
           },
             `Your STL is ready — ${state.designTriangles.toLocaleString()} triangles.`,
           ),
           el('p', {
-            style: { color: '#808098', fontSize: '0.78rem' },
+            style: { color: '#6B6157', fontSize: '0.78rem' },
           }, 'Checkout for $2 to download the file, or order it printed and shipped.'),
         ),
       ));
@@ -400,115 +398,62 @@ export function HomePage({ socket }) {
   }
 
   // ──────────────────────────────────────────────────────────────
-  // RIGHT SIDEBAR — previous designs + pricing
+  // RIGHT SIDEBAR — pricing + how-it-works snippet
   // ──────────────────────────────────────────────────────────────
   function renderRight() {
     clear(rightAside);
-    rightAside.appendChild(
-      el('div.flex.items-center.gap-2.mb-1',
-        icon('image', { size: 14, color: '#b4ff45' }),
-        el('span.uppercase', {
-          style: { color: '#9090b0', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.05em' },
-        }, 'Previous 3D Designs'),
-      ),
-    );
 
+    // Pricing card — was at the bottom of the sidebar previously,
+    // promoted to top now that the designs gallery is gone.
     rightAside.appendChild(
       el('div', {
-        class: 'rounded-xl overflow-hidden border relative',
-        style: { background: '#111120', borderColor: '#1e1e35' },
+        class: 'rounded-xl p-4 border',
+        style: { background: '#FFFFFF', borderColor: '#E5DFD3' },
       },
-        el('img', {
-          src: 'https://images.unsplash.com/photo-1651557747176-5aa3c20b6780?w=600&q=80',
-          alt: 'Valve stem',
-          class: 'w-full object-cover',
-          style: { height: '8rem' },
-        }),
-        el('div.absolute.inset-0', {
-          style: { background: 'linear-gradient(to top, rgba(17,17,32,0.9), transparent 50%)' },
-        }),
-        el('div.absolute', { style: { left: '12px', bottom: '12px' } },
-          el('p', { style: { color: '#fff', fontWeight: 700, fontSize: '0.82rem' } }, 'Presta Valve Base'),
-          el('p', { style: { color: '#b4ff45', fontSize: '0.7rem' } }, 'Standard compatible'),
+        el('div.flex.items-center.gap-2.mb-3',
+          icon('creditCard', { size: 14, color: '#DC2626' }),
+          el('span.uppercase', {
+            style: { color: '#6B6157', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.05em' },
+          }, 'Pricing'),
         ),
-      ),
-    );
-
-    for (const d of state.designs) {
-      const isSelected = state.selectedDesign === d.id;
-      const card = el('button', {
-        class: 'w-full text-left rounded-xl overflow-hidden border transition-all duration-200',
-        style: {
-          background: '#111120',
-          borderColor: isSelected ? 'rgba(180,255,69,0.5)' : '#1e1e35',
-        },
-        onClick: () => { state.selectedDesign = isSelected ? null : d.id; renderRight(); },
-      },
-        el('div.flex.items-center.gap-3.p-3',
-          el('div', {
-            class: 'w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 border',
-            style: { borderColor: '#1e1e35' },
-          },
-            el('img', { src: d.thumbnail, alt: d.name, class: 'w-full h-full object-cover' }),
-          ),
-          el('div.flex-1.min-w-0',
-            el('p.truncate', {
-              style: { color: '#e0e0f0', fontWeight: 600, fontSize: '0.82rem' },
-            }, d.name),
-            el('p', { style: { color: '#606080', fontSize: '0.72rem' } }, d.date),
-            el('div.flex.items-center.gap-1.mt-1',
-              ...Array.from({ length: d.stars || 0 }, () =>
-                icon('star', { size: 12, color: '#b4ff45' })
-              ),
-              el('span', {
-                class: 'ml-1 px-1.5 py-0.5 rounded capitalize',
-                style: { background: '#1e1e35', color: '#808098', fontSize: '0.65rem' },
-              }, d.material),
-            ),
-          ),
-        ),
-        isSelected
-          ? el('div.px-3.pb-3.flex.gap-2',
-              el('button', {
-                class: 'flex-1 py-1.5 rounded-lg border transition-colors',
-                style: {
-                  borderColor: 'rgba(180,255,69,0.3)',
-                  color: '#b4ff45',
-                  fontSize: '0.72rem',
-                  fontWeight: 600,
-                  background: 'transparent',
-                },
-                onClick: (e) => { e.stopPropagation(); window.__router?.navigate('/pricing'); },
-              }, 'Download'),
-              el('button', {
-                class: 'flex-1 py-1.5 rounded-lg transition-colors',
-                style: { background: '#ff6b30', color: '#fff', fontSize: '0.72rem', fontWeight: 600 },
-                onClick: (e) => e.stopPropagation(),
-              }, 'Reorder'),
-            )
-          : null,
-      );
-      rightAside.appendChild(card);
-    }
-
-    rightAside.appendChild(
-      el('div', {
-        class: 'rounded-xl p-4 border mt-1',
-        style: { background: '#111120', borderColor: '#1e1e35' },
-      },
-        el('p', { style: { color: '#e0e0f0', fontWeight: 700, fontSize: '0.82rem' } }, 'Pricing'),
-        el('div', { class: 'mt-2 flex flex-col gap-1.5' },
+        el('div', { class: 'flex flex-col gap-2' },
           ...[
-            ['STL Download', '$2.00'],
-            ['Printed Stem', '$19.99'],
-            ['Pack of 4',    '$59.99'],
-          ].map(([label, price]) =>
-            el('div.flex.justify-between.items-center',
-              el('span', { style: { color: '#808098', fontSize: '0.75rem' } }, label),
-              el('span', { style: { color: '#b4ff45', fontSize: '0.78rem', fontWeight: 700 } }, price),
+            ['STL Download', '$2.00',  'instant download'],
+            ['Printed Stem', '$19.99', 'shipped to you'],
+            ['Pack of 4',    '$59.99', 'one for each wheel'],
+          ].map(([label, price, sub]) =>
+            el('div.flex.justify-between.items-start.py-1',
+              el('div.flex.flex-col',
+                el('span', { style: { color: '#1A1614', fontSize: '0.85rem', fontWeight: 600 } }, label),
+                el('span', { style: { color: '#8B8278', fontSize: '0.7rem' } }, sub),
+              ),
+              el('span', { style: { color: '#DC2626', fontSize: '0.95rem', fontWeight: 700 } }, price),
             )
           ),
         ),
+      ),
+    );
+
+    // Workshop reassurance card — fills the visual real estate the
+    // gallery used to occupy and reinforces brand values.
+    rightAside.appendChild(
+      el('div', {
+        class: 'rounded-xl p-4 border',
+        style: { background: '#F5F1E8', borderColor: '#E5DFD3' },
+      },
+        el('div.flex.items-center.gap-2.mb-2',
+          icon('settings', { size: 14, color: '#A88735' }),
+          el('span.uppercase', {
+            style: { color: '#6B6157', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.05em' },
+          }, 'How it prints'),
+        ),
+        el('p', {
+          style: { color: '#3D3A36', fontSize: '0.78rem', lineHeight: 1.5 },
+        }, 'Designed for FDM/PLA on a 0.4 mm nozzle at 0.12–0.16 mm layers. Threads are tuned to a real Presta valve.'),
+        el('p', {
+          class: 'mt-2',
+          style: { color: '#6B6157', fontSize: '0.72rem', lineHeight: 1.5 },
+        }, 'Drop the STL into Bambu Studio, OrcaSlicer, or PrusaSlicer. Cap-down on the bed — no supports.'),
       ),
     );
   }
@@ -613,26 +558,12 @@ export function HomePage({ socket }) {
     }
   }
 
-  // ──────────────────────────────────────────────────────────────
-  // Initial loads
-  // ──────────────────────────────────────────────────────────────
-  async function bootData() {
-    try {
-      const designs = await socket.request('designs.list');
-      state.designs = designs || [];
-    } catch (err) {
-      console.warn('initial load failed', err);
-    }
-    renderRight();
-  }
-
   // First paint
   renderUploader();
   renderViewerHeader();
   renderSettings();
   renderActions();
   renderRight();
-  bootData();
 
   return {
     el: root,
@@ -651,20 +582,20 @@ function legendSwatch(color, label) {
       class: 'inline-block rounded-full',
       style: { width: '8px', height: '8px', background: color },
     }),
-    el('span', { style: { color: '#808098' } }, label),
+    el('span', { style: { color: '#6B6157' } }, label),
   );
 }
 
 function slider({ label, value, min, max, step, display, onInput }) {
   const valueEl = el('span', {
-    style: { color: '#b4ff45', fontSize: '0.8rem', fontWeight: 700 },
+    style: { color: '#DC2626', fontSize: '0.8rem', fontWeight: 700 },
   }, display(value));
   const input = el('input', {
     type: 'range',
     min, max, step,
     value,
     class: 'w-full',
-    style: { accentColor: '#b4ff45' },
+    style: { accentColor: '#DC2626' },
     onInput: (e) => {
       const v = Number(e.target.value);
       valueEl.textContent = display(v);
@@ -673,7 +604,7 @@ function slider({ label, value, min, max, step, display, onInput }) {
   });
   return el('div.flex.flex-col.gap-2',
     el('div.flex.justify-between.items-center',
-      el('label', { style: { color: '#b0b0c8', fontSize: '0.8rem' } }, label),
+      el('label', { style: { color: '#3D3A36', fontSize: '0.8rem' } }, label),
       valueEl,
     ),
     input,
@@ -685,17 +616,17 @@ function colorRow({ value, onInput }) {
     type: 'color',
     value,
     class: 'w-10 h-8 rounded cursor-pointer border',
-    style: { borderColor: '#252545', background: 'transparent' },
+    style: { borderColor: '#E5DFD3', background: 'transparent' },
     onInput: (e) => {
       onInput(e.target.value);
       swatchLabel.textContent = e.target.value;
     },
   });
   const swatchLabel = el('span', {
-    style: { color: '#606080', fontSize: '0.78rem' },
+    style: { color: '#8B8278', fontSize: '0.78rem' },
   }, value);
   return el('div.flex.flex-col.gap-2',
-    el('label', { style: { color: '#b0b0c8', fontSize: '0.8rem' } }, 'Head Color'),
+    el('label', { style: { color: '#3D3A36', fontSize: '0.8rem' } }, 'Head Color'),
     el('div.flex.items-center.gap-3', input, swatchLabel),
   );
 }
@@ -706,9 +637,9 @@ function materialRow({ value, onChange }) {
     return el('button', {
       class: 'flex-1 py-2 rounded-xl capitalize border transition-all',
       style: {
-        background: active ? 'rgba(180,255,69,0.08)' : '#0d0d1e',
-        borderColor: active ? '#b4ff45' : '#252545',
-        color: active ? '#b4ff45' : '#808098',
+        background: active ? 'rgba(220,38,38,0.08)' : '#FFFFFF',
+        borderColor: active ? '#DC2626' : '#E5DFD3',
+        color: active ? '#DC2626' : '#6B6157',
         fontSize: '0.82rem',
         fontWeight: 600,
       },
@@ -716,7 +647,7 @@ function materialRow({ value, onChange }) {
     }, m);
   });
   return el('div.flex.flex-col.gap-2', { class: 'sm:col-span-2' },
-    el('label', { style: { color: '#b0b0c8', fontSize: '0.8rem' } }, 'Material Finish'),
+    el('label', { style: { color: '#3D3A36', fontSize: '0.8rem' } }, 'Material Finish'),
     el('div.flex.gap-2', ...buttons),
   );
 }

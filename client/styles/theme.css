@@ -1,33 +1,80 @@
 @custom-variant dark (&:is(.dark *));
 
+/* BikeHeadz — "Workshop" palette.
+ *
+ * The product is a tactile, FDM-printed bike valve cap. The previous
+ * dark + lime-green palette read as generic dev-mode UI; this one
+ * leans into the cycling-workshop / artisan vibe:
+ *
+ *   • cream paper bg  → warm, premium, unmistakably not dark mode
+ *   • signal red      → the canonical cyclist accent (jersey red)
+ *   • deep ink text   → high-contrast on cream, no eye strain
+ *   • warm graphite   → labels, secondary chrome, valve-cap surfaces
+ *   • workshop slate  → the 3D-viewer background, where chrome STL pops
+ *
+ * All component code references these tokens through CSS vars or
+ * inline hex. Var names are unchanged from the previous palette so
+ * Tailwind v4's @theme inline mapping below keeps working.
+ */
+
 :root {
   --font-size: 16px;
-  --background: #09090f;
-  --foreground: #e0e0f0;
-  --card: #111120;
-  --card-foreground: #e0e0f0;
-  --popover: #111120;
-  --popover-foreground: #e0e0f0;
-  --primary: #b4ff45;
-  --primary-foreground: #000000;
-  --secondary: #1e1e35;
-  --secondary-foreground: #e0e0f0;
-  --muted: #1e1e35;
-  --muted-foreground: #9090b0;
-  --accent: #b4ff45;
-  --accent-foreground: #000000;
-  --destructive: #ff6b30;
-  --destructive-foreground: #ffffff;
-  --border: #1e1e35;
-  --input: #0d0d1e;
-  --input-background: #0d0d1e;
-  --switch-background: #252545;
+
+  /* Surfaces */
+  --background: #FAF7F2;            /* cream paper — page bg */
+  --foreground: #1A1614;            /* deep ink — primary text */
+  --card: #FFFFFF;                  /* clean white card on cream */
+  --card-foreground: #1A1614;
+  --popover: #FFFFFF;
+  --popover-foreground: #1A1614;
+
+  /* Brand — signal red (jersey red) */
+  --primary: #DC2626;
+  --primary-foreground: #FFFFFF;
+  --accent: #DC2626;
+  --accent-foreground: #FFFFFF;
+
+  /* Muted / secondary surfaces */
+  --secondary: #F5F1E8;             /* warm paper, slightly darker than bg */
+  --secondary-foreground: #1A1614;
+  --muted: #F0EBE2;                 /* subtle paper for inactive cards */
+  --muted-foreground: #6B6157;      /* warm gray for secondary text */
+
+  /* Status colors */
+  --destructive: #B91C1C;           /* deep red for errors */
+  --destructive-foreground: #FFFFFF;
+  --warn: #C2410C;                  /* warm orange-rust for warnings */
+
+  /* Inputs & controls */
+  --border: #E5DFD3;                /* warm paper edge */
+  --input: #FFFFFF;
+  --input-background: #FFFFFF;
+  --switch-background: #E5DFD3;
+  --ring: #DC2626;
+
+  /* Brand aliases (legacy var names; inline-style fallbacks) */
+  --brand: #DC2626;
+  --brand-dim: #B91C1C;
+
+  /* Semantic ink/paper scale (use these in new code) */
+  --ink:        #1A1614;            /* deep — headlines, body */
+  --ink-soft:   #3D3A36;            /* graphite — labels */
+  --ink-muted:  #6B6157;            /* warm gray — captions */
+  --ink-faint:  #8B8278;            /* deeper muted — meta info */
+  --paper:      #FAF7F2;            /* cream — page bg */
+  --paper-soft: #F5F1E8;            /* warm paper — sections */
+  --paper-edge: #E5DFD3;            /* hairline borders */
+
+  /* 3D viewer backdrop — workshop slate, contrasts the cream UI and
+   * lets the chrome STL material catch light. The previous near-black
+   * was too low-contrast on a metallic mesh; this is intentionally a
+   * warm graphite that reads as a polished workbench. */
+  --viewer-bg: #2D2A26;
+
+  /* Shape tokens */
   --font-weight-medium: 500;
   --font-weight-normal: 400;
-  --ring: #b4ff45;
   --radius: 0.75rem;
-  --brand: #b4ff45;
-  --brand-dim: #7fc718;
 }
 
 @theme inline {
@@ -54,6 +101,12 @@
   --color-ring: var(--ring);
   --color-brand: var(--brand);
   --color-brand-dim: var(--brand-dim);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-muted: var(--ink-muted);
+  --color-paper: var(--paper);
+  --color-paper-soft: var(--paper-soft);
+  --color-paper-edge: var(--paper-edge);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -73,6 +126,10 @@
   input[type="range"] {
     accent-color: var(--brand);
   }
+
+  /* Subtle paper texture — uncomment to taste once we have a tile asset.
+   * For now we lean on solid cream which is already softer than #FFF. */
+  /* background-image: url('/textures/paper.png'); */
 }
 
 /* Slide-down panel used for collapsible settings. */
@@ -100,12 +157,13 @@
   50%      { opacity: 0.35; }
 }
 
-/* Spinner used by the Generate button during processing. */
+/* Spinner used by the Generate button during processing.
+ * Border now uses primary-foreground so it reads on the red CTA. */
 .spinner {
   width: 1rem;
   height: 1rem;
-  border: 2px solid rgba(0, 0, 0, 0.3);
-  border-top-color: #000;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #FFFFFF;
   border-radius: 9999px;
   animation: spin 0.9s linear infinite;
 }
