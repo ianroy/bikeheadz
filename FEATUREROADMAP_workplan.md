@@ -17,17 +17,19 @@
 
 ```yaml
 state:
-  file_version: 3
+  file_version: 4
   last_touched: 2026-04-29
   last_agent: claude-opus-4.7
   handler_version: v0.1.34               # GPU worker tag deployed on RunPod
-  repo_sha: efe61e2                      # HEAD that landed the v1 pipeline + delivery fix
-  active_phase: 3                        # AI-generation hardening
+  repo_sha: eff3e5a                      # HEAD after the workshop-palette UI commit
+  active_phase: 1                        # gating phase for go-to-market — auth first
   in_progress_tasks: []
   blocked_tasks: []
-  next_suggested_task: P3-006            # failure-corpus replay harness
+  next_suggested_task: P1-001            # magic-link login — gates the whole account dashboard chain
   pause_reason: null
   recent_milestones:
+    - 2026-04-29 — Doc + roadmap regen for go-to-market. 37 new tasks added across all 8 phases focused on user-facing features (account dashboard, photo library, email-the-STL, recovery flows, referrals) and admin tooling (metrics, user management, design viewer, cost tracking, A/B testing, live ops). See section 15 changelog.
+    - 2026-04-29 — Workshop palette UI redesign. Cream + signal-red replaces the dark + lime-green look; viewer lighting overhauled (rim light + warmer ambient); home-page designs gallery removed.
     - v0.1.34 — production end-to-end: TRELLIS → 7-stage pipeline → chunked-yield delivery → Three.js render. The five-version delivery saga is documented in docs/RUNPOD_TRELLIS_PLAYBOOK.md.
     - v1 mesh pipeline shipped (3D_Pipeline.md Phases −1 … 4 done).
     - User-facing sliders live: Crop Tightness, Head Pitch, Head Height, Cap Protrusion.
@@ -102,7 +104,7 @@ is getting tight — you can be re-invoked to continue):
    `pause_reason`; if non-null, stop and report.
 2. Read the full file once. Build a mental index of existing task ids
    (`P{phase}-{NNN}`) so you don't duplicate.
-3. Skim README.md and ProductSpec.md to refresh your mental model.
+3. Skim README.md and ProductSpec.md and 3D_pipeline.md to refresh your mental model.
 4. Skim the codebase: `server/commands/`, `client/pages/`, `.do/app.yaml`,
    and the two migrations. Note anything obviously missing, hacky, or
    TODO-like.
@@ -417,6 +419,93 @@ a Dockerfile for the GPU worker, and first-pass rate limiting.
 - **Agent notes** (append-only, newest first):
   - _(empty)_
 
+### [P0-008] Admin role + `requireAdmin` guard
+- **Status**: [ ]
+- **Phase**: 0
+- **Depends on**: P1-002
+- **Unlocks**: P4-005, P4-006, P4-007, P2-012
+- **Effort**: S
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - `accounts.role` column added (`'user' | 'admin'`, default `'user'`)
+    via append-only migration.
+  - `requireAdmin({ socket })` helper rejects with `auth_required` /
+    `forbidden_admin_only` for non-admin users.
+  - `account.update` cannot self-promote to admin (whitelist of
+    user-mutable fields enforced server-side).
+  - Bootstrap admin via env var `ADMIN_EMAILS` so the first user
+    seeded as admin doesn't need a privileged user already to exist.
+- **Implementation notes**:
+  - Future-proof for `'admin' | 'support' | 'user'` even if we ship
+    only two today — store as text, not bool.
+  - Pair with P0-009 audit log so privileged actions are traceable.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P0-009] Audit log table + helper
+- **Status**: [ ]
+- **Phase**: 0
+- **Depends on**: (none)
+- **Unlocks**: P4-006, P2-007, P2-012
+- **Effort**: S
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - Migration adds `audit_log (id BIGSERIAL, actor_id, action TEXT,
+    target_type TEXT, target_id TEXT, metadata JSONB, created_at)`.
+  - `recordAudit({ actor_id, action, target, metadata })` helper
+    used by every admin-action command.
+  - Admin dashboard later renders this table (P4-006).
+- **Implementation notes**:
+  - Don't index on `actor_id` until we see traffic; the table can be
+    sequential-scanned for the first months.
+  - PII discipline: don't log photo bytes or STL contents — only
+    SHAs and IDs.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P0-010] Feature-flag table + flag-aware helpers
+- **Status**: [ ]
+- **Phase**: 0
+- **Depends on**: P0-008
+- **Unlocks**: staged rollouts (P3-008, P5-001, P2-002)
+- **Effort**: S
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - `feature_flags (key PK, enabled BOOL, percent INT, allowlist
+    JSONB, updated_at)` migration.
+  - `isEnabled(key, { user })` helper checks env override → DB row →
+    default. Returns boolean or rolls dice based on percent.
+  - Admin command `flags.set` (gated by P0-008) flips a flag.
+- **Implementation notes**:
+  - Cache rows in-process for 30 s to avoid hammering the DB on the
+    hot path; invalidate on `flags.set`.
+  - Useful for go-to-market: hide "pack of 4" until inventory is
+    ready, dark-launch best-of-N (P3-004), etc.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P0-011] RunPod endpoint healthcheck from Node
+- **Status**: [ ]
+- **Phase**: 0
+- **Depends on**: P3-002
+- **Unlocks**: cleaner pre-launch readiness checks
+- **Effort**: S
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - `GET /health` returns `{ ok, runpod: { reachable, latencyMs,
+    handlerVersion?, lastChecked } }` when RunPod env is set.
+  - `runpod-client.js` exposes `pingEndpoint()` that hits a tiny
+    pre-warmed test job (or `/health` once the worker has it) at
+    most every 60 s.
+  - DO App Platform's healthcheck won't fail on RunPod hiccups —
+    surface but don't block.
+- **Implementation notes**:
+  - Cache the result; do not block /health on a fresh ping.
+  - This is what tells us pre-launch whether RunPod is wired up
+    correctly without burning a real generate.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
 ---
 
 ## 7. Phase 1 — Identity & accounts
@@ -504,6 +593,107 @@ scoping on designs and purchases, a minimal account settings flow.
     reads.
   - Stripe requires retention of payment records for ~7 years —
     anonymise the `customer_email` but keep the row.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P1-005] Account dashboard — designs gallery + purchase history
+- **Status**: [ ]
+- **Phase**: 1
+- **Depends on**: P1-003
+- **Unlocks**: P1-006, P1-008, retention
+- **Effort**: L
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - `/account` page shows three tabs: **Designs**, **Orders**,
+    **Settings**.
+  - Designs tab lists every generated_design for the current user
+    (with thumbnail, generation date, settings used, paid? flag),
+    paginated 12/page.
+  - Each row has buttons: **Download STL** (paid only),
+    **Re-render with new sliders** (jumps to home with photo
+    pre-loaded, P3-010), **Share** (P5-002), **Delete**.
+  - Orders tab lists every purchase row joined with the design,
+    with Stripe receipt URL and order status.
+  - Settings tab edits `accounts.display_name`, `email`, and email
+    preferences (P1-007).
+- **Implementation notes**:
+  - Replace the current placeholder `client/pages/account.js`
+    (which uses a hardcoded mock dataset) with a real factory that
+    `socket.request('designs.list')` and `socket.request('orders.list')`
+    on mount.
+  - Orders need a join with `generated_designs` — extend
+    `orders.list` to return `{ purchase, design }` pairs.
+  - The home page used to host this gallery (removed in the UI
+    redesign); this is its new home.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P1-006] Photo library — keep uploaded photos, regenerate on demand
+- **Status**: [ ]
+- **Phase**: 1
+- **Depends on**: P1-005
+- **Unlocks**: P3-010 (re-generate from saved photo)
+- **Effort**: M
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - New `user_photos (id UUID PK, account_id, image_b64 BYTEA,
+    sha256 TEXT, filename, uploaded_at, last_used_at)` migration.
+  - On `stl.generate`, persist the photo (deduped by sha256) and
+    link the design row to it via `generated_designs.photo_id`.
+  - `photos.list` socket command returns recent photos for the
+    account (paginated).
+  - `/account` Designs tab shows a thumbnail strip of "Your photos"
+    above the design grid, click → re-generate with that photo.
+  - 90-day TTL with prompt before deletion.
+- **Implementation notes**:
+  - BYTEA is fine for now (photos are <2 MB). DO Spaces (P4-004) is
+    the future home; gate behind a feature flag.
+  - Privacy: hash the photo for dedup, don't OCR the EXIF — strip
+    GPS/orientation server-side before persisting.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P1-007] Email preferences (transactional + marketing opt-out)
+- **Status**: [ ]
+- **Phase**: 1
+- **Depends on**: P1-001
+- **Unlocks**: P2-008, P2-009 (email delivery flows)
+- **Effort**: S
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - `accounts.email_prefs JSONB` column with shape
+    `{ marketing: bool, order_updates: bool, design_reminders: bool }`.
+  - Settings tab on /account toggles each.
+  - `email.send` helper checks the relevant pref before queuing
+    non-transactional mail (transactional bypasses).
+  - One-click unsubscribe link in every marketing email (List-
+    Unsubscribe header + dedicated landing page).
+- **Implementation notes**:
+  - Default opts: order_updates=true, design_reminders=true,
+    marketing=false (don't auto-enroll; CAN-SPAM/CASL friendly).
+  - Use a signed token in the unsubscribe URL so the user doesn't
+    need to log in.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P1-008] Profile management — name + avatar
+- **Status**: [ ]
+- **Phase**: 1
+- **Depends on**: P1-005
+- **Unlocks**: P5-001 (gallery attribution)
+- **Effort**: S
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - Settings tab edits `accounts.display_name` (1–40 chars,
+    profanity-light filter) and avatar.
+  - Avatar is one of: a generated identicon (default), a user-picked
+    color from a palette, or one of their generated heads as a
+    rendered thumbnail.
+  - Header bar shows the avatar + first name when authed.
+- **Implementation notes**:
+  - Identicon: deterministic from `account_id` so it stays stable
+    across sessions.
+  - Profanity filter is a simple wordlist; not a moderation system.
 - **Agent notes** (append-only, newest first):
   - _(empty)_
 
@@ -634,17 +824,136 @@ command.
 ### [P2-007] `payments.refund` admin command
 - **Status**: [ ]
 - **Phase**: 2
-- **Depends on**: P1-002
+- **Depends on**: P1-002, P0-008
 - **Unlocks**: (support tooling)
 - **Effort**: S
 - **Owner**: (unassigned)
 - **Acceptance criteria**:
   - Command refunds a charge by session id, updates
     `purchases.status = 'refunded'`.
-  - Gated on an `ADMIN_EMAILS` env var allowlist.
+  - Gated on `requireAdmin` (P0-008), not the legacy `ADMIN_EMAILS`
+    env allowlist.
+  - Writes an audit log row (P0-009).
 - **Implementation notes**:
   - `stripe.refunds.create({ payment_intent })`.
-  - Future: a tiny admin page. Out of scope here.
+  - Surface in the admin dashboard (P4-006).
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P2-008] Email the STL after purchase
+- **Status**: [ ]
+- **Phase**: 2
+- **Depends on**: P1-007, P2-001
+- **Unlocks**: retention, "I lost the file" support
+- **Effort**: M
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - On `payments.verifySession` resolving paid (or in the webhook
+    handler from P2-001), enqueue an email with the STL attached
+    and a download link to `/account` for re-download.
+  - Email template lives in `server/emails/order-stl.{html,txt}`
+    with handlebars-style placeholders.
+  - Integration test: POST to a Stripe test event → receipt arrives
+    in the dev inbox (Mailpit/Resend dev mode).
+- **Implementation notes**:
+  - STL attachment limit: 25 MB on most providers; our STLs are
+    ~4 MB, fine. If size grows, switch to a signed-URL link only.
+  - Use the same provider chosen in P1-001.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P2-009] Order receipt + tax/VAT line in email
+- **Status**: [ ]
+- **Phase**: 2
+- **Depends on**: P2-008, P2-006
+- **Unlocks**: VAT compliance
+- **Effort**: S
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - Receipt email includes line items, subtotal, tax, total,
+    Stripe receipt URL, and order id.
+  - Pull tax breakdown from the verified session (P2-006).
+- **Implementation notes**:
+  - Stripe sends its own receipt by default — disable that and own
+    the touchpoint, or link out to it. Pick one and document.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P2-010] "I lost my STL" recovery flow
+- **Status**: [ ]
+- **Phase**: 2
+- **Depends on**: P1-001, P2-008
+- **Unlocks**: support deflection
+- **Effort**: S
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - Marketing site includes a "Find my STL" link.
+  - User enters the email used at purchase → magic link with a
+    direct link to /account/orders.
+  - If the design has expired (24 h TTL), surface a friendly
+    "regenerate from your saved photo" CTA (P3-010).
+- **Implementation notes**:
+  - Don't bypass auth — magic-link in, then show.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P2-011] Promo / discount codes
+- **Status**: [ ]
+- **Phase**: 2
+- **Depends on**: P0-008, P0-010
+- **Unlocks**: launch promos, partner deals
+- **Effort**: M
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - `promo_codes (code PK, percent_off, amount_off, max_uses,
+    used_count, expires_at, scope JSONB, created_by, created_at)`
+    migration.
+  - `payments.createCheckoutSession` accepts an optional `promo`
+    field; valid codes apply via Stripe Coupon attached to the
+    session.
+  - Admin command `promos.create` / `promos.list` / `promos.expire`
+    gated by `requireAdmin`.
+- **Implementation notes**:
+  - Use Stripe Coupons under the hood — don't reinvent discount math.
+  - Handle race conditions on `max_uses` with a SELECT … FOR UPDATE.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P2-012] Comp / free-grant flow (admin-driven)
+- **Status**: [ ]
+- **Phase**: 2
+- **Depends on**: P0-008, P0-009
+- **Unlocks**: support, beta tester gifting
+- **Effort**: S
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - Admin command `purchases.comp({ design_id, reason })` creates
+    a `purchases` row with `status='paid'`, `amount_cents=0`,
+    `product='comp_grant'` (new value, migration to update CHECK).
+  - Audit row written (P0-009).
+  - User is emailed (P2-008) with the STL.
+- **Implementation notes**:
+  - Don't touch Stripe — comps live entirely in our DB.
+  - Surface in the user's order list as "Gifted by BikeHeadz."
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P2-013] Abandoned-cart recovery
+- **Status**: [ ]
+- **Phase**: 2
+- **Depends on**: P1-007, P2-001
+- **Unlocks**: conversion lift
+- **Effort**: M
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - Track checkout-session creation; if no `paid` event fires in
+    24h and the user has a verified email + opted in, send a
+    one-shot reminder with a re-checkout link.
+  - Honors P1-007 marketing-pref and includes one-click unsub.
+- **Implementation notes**:
+  - Use the Stripe webhook (P2-001) for the negative signal —
+    `checkout.session.expired`.
+  - Cap to one reminder per session_id; never spam.
 - **Agent notes** (append-only, newest first):
   - _(empty)_
 
@@ -867,6 +1176,70 @@ multi-seed selection, print-ready checks.
 - **Agent notes** (append-only, newest first):
   - _(empty)_
 
+### [P3-010] Re-generate from a saved photo
+- **Status**: [ ]
+- **Phase**: 3
+- **Depends on**: P1-006
+- **Unlocks**: huge UX win for slider exploration + re-orders
+- **Effort**: S
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - `stl.generate` accepts `{ photoId }` as an alternative to
+    `imageData`; server resolves it to the BYTEA blob server-side.
+  - /account Designs tab "Re-render" button opens /home with
+    `?photo=<id>&heads=<presets>` deep-link.
+  - Auth required: `photoId` must belong to the requesting user.
+- **Implementation notes**:
+  - Avoids re-uploading the same multi-MB photo every iteration.
+  - Pairs nicely with P3-003 (TRELLIS-output cache) — same hash
+    gives the same cached head.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P3-011] Post-generation feedback ("did this look like you?")
+- **Status**: [ ]
+- **Phase**: 3
+- **Depends on**: P0-009
+- **Unlocks**: prompt-tuning data, A/B baseline
+- **Effort**: S
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - Post-render the viewer shows an unobtrusive 1-tap rating:
+    👍 / 👎 / 🤷.
+  - Rating + design_id + brief optional reason persisted to
+    `design_feedback` table.
+  - Admin dashboard (P4-005) charts rating-rate over time and
+    correlates with sliders / pipeline_version.
+- **Implementation notes**:
+  - Don't gate downloads on this; it's optional.
+  - Don't show twice for the same design.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P3-012] NSFW + minor-likeness pre-screen
+- **Status**: [ ]
+- **Phase**: 3
+- **Depends on**: P3-001
+- **Unlocks**: launch readiness, TOS enforcement
+- **Effort**: M
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - Photo upload runs a lightweight NSFW classifier (NudeNet or
+    equivalent, server-side); reject with `unsafe_image` if score
+    > threshold.
+  - Same path runs an age estimator; if predicted age < 13, reject
+    with `minor_likeness` and a friendly explanation.
+  - Both rejection paths persist a row to `audit_log` (P0-009)
+    without storing the photo bytes.
+- **Implementation notes**:
+  - Run on the GPU worker (it's already there) — extends
+    mediapipe pre-flight (P3-001).
+  - Tune thresholds against a small labeled set; bias toward
+    false-negatives on the age estimator (it's a soft prior, not
+    a verifier).
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
 ---
 
 ## 10. Phase 4 — Observability & scale
@@ -943,6 +1316,186 @@ logging.
 - **Agent notes** (append-only, newest first):
   - _(empty)_
 
+### [P4-005] Admin dashboard — usage trends + conversion funnel
+- **Status**: [ ]
+- **Phase**: 4
+- **Depends on**: P0-008, P4-002
+- **Unlocks**: P4-006, P4-008
+- **Effort**: L
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - `/admin` route, gated by `requireAdmin` (P0-008), renders four
+    tabs: **Overview**, **Users**, **Designs**, **Money**.
+  - Overview: time-series charts for daily generations, daily
+    purchases, conversion rate (purchases / generations), median
+    end-to-end latency, GPU cost per generation.
+  - Date-range picker (7d / 30d / 90d / custom); all charts honor it.
+  - Server commands `admin.metrics.timeseries({ metric, range })` and
+    `admin.metrics.summary({ range })` returning JSON suitable for
+    a Chart.js / lightweight chart library.
+- **Implementation notes**:
+  - Materialize daily aggregates into a `daily_stats` table updated
+    by a scheduled job — querying `generated_designs` directly
+    won't scale past ~6 months.
+  - Don't ship Chart.js if it adds 200 KB; consider a tiny SVG
+    line-chart helper (~500 lines) instead.
+  - Cache `summary` for 60 s; the dashboard is admin-only so
+    freshness doesn't have to be real-time.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P4-006] Admin user-management page
+- **Status**: [ ]
+- **Phase**: 4
+- **Depends on**: P0-008, P0-009, P4-005
+- **Unlocks**: support workflow
+- **Effort**: M
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - Users tab on /admin lists every account: id, email, signup
+    date, last-active, design count, total spend.
+  - Search by email / id; filter by role / activity recency.
+  - Per-user side panel actions:
+    - Promote to admin (writes audit row)
+    - Comp a free STL (calls P2-012 `purchases.comp`)
+    - Force-logout (invalidate session token)
+    - Soft-delete (with confirmation modal)
+    - View their full audit log (joins audit_log on actor_id)
+  - Paginated 50/page; CSV export of the current view.
+- **Implementation notes**:
+  - Search query: trigram index on `accounts.email` for "starts
+    with" style typing without full table scan.
+  - Force-logout: bump a `session_token_version` on the account row
+    and verify in P1-002 middleware.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P4-007] Admin design-output viewer
+- **Status**: [ ]
+- **Phase**: 4
+- **Depends on**: P0-008, P4-005
+- **Unlocks**: quality triage, abuse review
+- **Effort**: M
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - Designs tab on /admin shows a paginated grid of recent
+    generated_designs with photo thumbnail + STL thumbnail (server-
+    rendered via headless Three.js or pre-baked at generation time).
+  - Per-design side panel: full settings, telemetry timings, user
+    rating (P3-011), download STL, link to user, link to failure
+    corpus row if present.
+  - Abuse-flag button: marks the design hidden, audit-logs the action.
+- **Implementation notes**:
+  - STL thumbnails are expensive — generate once at handler time,
+    cache to `/runpod-volume/thumbs/<design_id>.png`. ~50–80 KB each.
+  - The grid view is a DSAR / take-down workflow as much as it is
+    a dashboard; design accordingly.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P4-008] Cost-tracking dashboard (RunPod GPU $$ per request)
+- **Status**: [ ]
+- **Phase**: 4
+- **Depends on**: P4-005
+- **Unlocks**: pricing experiments, unit-economics
+- **Effort**: M
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - Money tab on /admin shows: daily revenue, daily GPU cost
+    (estimated from RunPod's per-second billing × telemetry
+    `total_ms` per generation), gross margin %.
+  - Breakdown by `pipeline_version` (legacy vs v1) and by
+    cache hit/miss.
+  - Refund / chargeback line subtracted from revenue.
+- **Implementation notes**:
+  - Hard-code a `RUNPOD_GPU_USD_PER_S` env var; the actual cost
+    depends on the GPU type chosen by the endpoint, so this is an
+    estimate not an invoice.
+  - Pull true costs from RunPod's billing API in a follow-up.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P4-009] A/B testing harness
+- **Status**: [ ]
+- **Phase**: 4
+- **Depends on**: P0-010
+- **Unlocks**: data-driven product decisions
+- **Effort**: M
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - `experiments (key PK, variants JSONB, allocation JSONB,
+    started_at, stopped_at)` table.
+  - `assignVariant({ user, key })` helper deterministic per user
+    (sha256(user_id + key) → bucket).
+  - Server emits `[telemetry]` exposure events keyed by experiment.
+  - Admin command to start/stop experiments + per-variant
+    conversion summary on /admin.
+- **Implementation notes**:
+  - Use this for P3-008 (red-line preview rollout), pricing
+    experiments, button copy A/B tests.
+  - Don't ship a full bayesian stats engine; a 95% CI calculator
+    on conversion-rate diff is enough.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P4-010] Live ops view — current GPU queue + recent failures
+- **Status**: [ ]
+- **Phase**: 4
+- **Depends on**: P0-008, P0-011, P3-006
+- **Unlocks**: faster incident response
+- **Effort**: M
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - "Now" panel on /admin shows: in-flight generations, RunPod
+    endpoint health (P0-011), last 50 telemetry events from the
+    worker (success / failure / latency), failure-corpus growth rate.
+  - Auto-refreshes every 5 s via a socket subscription.
+- **Implementation notes**:
+  - Pipe handler stderr through a tail-N buffer in the Node
+    server; no need for a real log aggregator at MVP.
+  - This is the "is the site burning right now?" page on launch
+    day — make it loadable on mobile.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P4-011] Email-engagement metrics
+- **Status**: [ ]
+- **Phase**: 4
+- **Depends on**: P2-008, P4-005
+- **Unlocks**: deliverability tuning, content iteration
+- **Effort**: S
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - Webhooks from the email provider (Resend/Postmark) update
+    `email_events (id, message_id, type, account_id, created_at)`.
+  - Admin dashboard shows open / click / bounce / complaint rates
+    per template, last 30 days.
+  - Auto-suppress addresses that hard-bounce twice.
+- **Implementation notes**:
+  - Don't track opens by default if we want a strict privacy
+    posture — make it a per-template flag.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P4-012] Real-time error stream + alerting
+- **Status**: [ ]
+- **Phase**: 4
+- **Depends on**: P0-005, P4-010
+- **Unlocks**: launch-day on-call discipline
+- **Effort**: S
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - Sentry (P0-005) issues mirrored to a Slack/Discord webhook
+    with rate-limiting (max 1 message per error fingerprint per
+    10 min).
+  - Threshold alerts: error rate > 1%/min for 5 min → page;
+    GPU latency P95 > 60s for 5 min → page.
+- **Implementation notes**:
+  - Reuse Sentry's own alert rules where possible — don't build
+    a parallel system.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
 ---
 
 ## 11. Phase 5 — Creator ecosystem
@@ -989,6 +1542,62 @@ logging.
 - **Agent notes** (append-only, newest first):
   - _(empty)_
 
+### [P5-004] Referral codes — give a friend $2 off
+- **Status**: [ ]
+- **Phase**: 5
+- **Depends on**: P2-011, P1-005
+- **Unlocks**: organic acquisition
+- **Effort**: M
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - Each authed user gets a unique referral code on /account.
+  - Sharing the code → friend gets $2 off first purchase, referrer
+    gets $2 credit applied to their next purchase.
+  - Referral attribution stored on `purchases` (`referred_by`).
+- **Implementation notes**:
+  - Cap at 5 self-referrals per account to prevent loops.
+  - Surface referral leaderboard in the admin dashboard (P4-005).
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P5-005] Public showcase / "wall of fame"
+- **Status**: [ ]
+- **Phase**: 5
+- **Depends on**: P5-001, P1-008
+- **Unlocks**: social proof on the marketing page
+- **Effort**: S
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - `/showcase` page shows the latest 50 opt-in designs in a
+    Pinterest-style masonry grid with display names + remix CTA.
+  - Featured-design carousel embeds on the home page above the fold.
+- **Implementation notes**:
+  - `designs.publish_to_showcase` writes a row to a separate
+    `showcase_entries` table to keep the gallery query fast.
+  - Admin can pin/unpin entries (P4-007).
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P5-006] OpenGraph / Twitter card preview per design
+- **Status**: [ ]
+- **Phase**: 5
+- **Depends on**: P5-002
+- **Unlocks**: shareable social previews
+- **Effort**: S
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - `/d/:token` returns OG and Twitter meta tags so Slack /
+    Discord / Twitter previews show the rendered head + display
+    name.
+  - Image: pre-baked 1200×630 PNG of the model on the workshop
+    backdrop, generated at design-creation time (re-uses the
+    P4-007 thumbnail pipeline).
+- **Implementation notes**:
+  - Server-side rendered HTML for the share URL only — the SPA
+    still hydrates the same route normally for logged-in viewers.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
 ---
 
 ## 12. Phase 6 — i18n & accessibility
@@ -1032,6 +1641,30 @@ logging.
 - **Agent notes** (append-only, newest first):
   - _(empty)_
 
+### [P6-004] Email template i18n
+- **Status**: [ ]
+- **Phase**: 6
+- **Depends on**: P2-008, P6-002
+- **Effort**: S
+- **Acceptance criteria**:
+  - Email templates accept a locale; user's `accounts.locale`
+    drives the choice (default `en`).
+  - First locale ships alongside the second site locale (P6-002).
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P6-005] Localized pricing + tax-inclusive display
+- **Status**: [ ]
+- **Phase**: 6
+- **Depends on**: P6-001, P2-006
+- **Effort**: S
+- **Acceptance criteria**:
+  - EU users see VAT-inclusive prices on /pricing and the home
+    "Buy" CTA.
+  - Currency-formatting honors the locale (£2.00, 2,00 €).
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
 ---
 
 ## 13. Phase 7 — Mobile / PWA / native
@@ -1064,6 +1697,37 @@ logging.
 - **Agent notes** (append-only, newest first):
   - _(empty)_
 
+### [P7-003] SMS magic-link option
+- **Status**: [ ]
+- **Phase**: 7
+- **Depends on**: P1-001
+- **Effort**: M
+- **Acceptance criteria**:
+  - Login flow accepts a phone number alongside email; `auth.requestMagicLink`
+    sends a Twilio SMS with a tap-to-open URL.
+  - Same `auth_tokens` table; tokens are channel-agnostic.
+- **Implementation notes**:
+  - Don't ship as default — gate behind P0-010 feature flag until
+    SMS pricing is dialed in.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P7-004] Mobile-first photo capture flow
+- **Status**: [ ]
+- **Phase**: 7
+- **Depends on**: P7-002
+- **Effort**: S
+- **Acceptance criteria**:
+  - On phones, tapping the upload area opens the rear camera with
+    a face-aligned reticule overlay (uses mediapipe FaceMesh in
+    real-time, P3-001).
+  - Capture button disabled until alignment confidence > 0.7.
+- **Implementation notes**:
+  - The reticule is the killer UX — most "no face detected"
+    rejections are framing problems.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
 ---
 
 ## 14. Cross-cutting backlog (unphased)
@@ -1087,12 +1751,86 @@ research. Agents may pick from here only when explicitly directed.
     checkout → download path; targets for each hop.
 - **Agent notes**: _(empty)_
 
+### [X-003] Marketing landing page polish (above-the-fold + social proof)
+- **Status**: [ ]
+- **Effort**: M
+- **Acceptance criteria**:
+  - Home page above the fold: punchy headline, single demo
+    animation (looped 5s recording), one CTA.
+  - Below: 3-step "how it works", press / showcase tiles (P5-005),
+    FAQ accordion, footer.
+  - Hero animation < 800 KB.
+- **Agent notes**: _(empty)_
+
+### [X-004] TOS, Privacy Policy, Acceptable Use pages
+- **Status**: [ ]
+- **Effort**: S
+- **Acceptance criteria**:
+  - `/terms`, `/privacy`, `/acceptable-use` static pages with
+    versioned copy (date in the URL).
+  - Footer links visible from every page; signup flow has a
+    "by continuing you agree to TOS" hint.
+  - Privacy policy mentions photo retention (90 days, P1-006),
+    failure-corpus retention, and STL retention (24h for free
+    tier, indefinite for purchased).
+- **Implementation notes**:
+  - Have a lawyer review before launch; this task ships the
+    *scaffold* with placeholder copy.
+- **Agent notes**: _(empty)_
+
+### [X-005] First-run onboarding tour
+- **Status**: [ ]
+- **Effort**: S
+- **Acceptance criteria**:
+  - First-time visitor sees a 3-step tooltip walkthrough on the
+    home page (Upload → Adjust → Buy).
+  - Dismissable; remembered via localStorage.
+- **Agent notes**: _(empty)_
+
+### [X-006] FAQ + help center
+- **Status**: [ ]
+- **Effort**: S
+- **Acceptance criteria**:
+  - `/help` page with searchable FAQ (compatible printers,
+    shipping policy, refund policy, photo guidelines, what to
+    do when the print fails).
+  - First 12 questions seeded from anticipated support volume.
+- **Implementation notes**:
+  - Static markdown rendered to HTML at build time. No CMS
+    integration; edit the markdown and redeploy.
+- **Agent notes**: _(empty)_
+
+### [X-007] Launch-readiness checklist
+- **Status**: [ ]
+- **Effort**: S
+- **Acceptance criteria**:
+  - One-page checklist in `docs/LAUNCH_CHECKLIST.md` covering:
+    legal pages live (X-004), Stripe live keys swapped, RunPod
+    Max Workers raised, healthcheck (P0-011) green, error
+    alerting wired (P4-012), Sentry DSN set, admin user seeded,
+    feature flags set to launch defaults.
+  - Each item has a verification command or URL.
+- **Agent notes**: _(empty)_
+
 ---
 
 ## 15. Change log
 
 Agents append one line per session. Most recent at top.
 
+- 2026-04-29 — claude-opus-4.7 — Roadmap regenerate (go-to-market
+  themes). 37 new tasks added: P0-008..011 (admin role, audit log,
+  feature flags, RunPod healthcheck), P1-005..008 (account dashboard,
+  photo library, email prefs, profile), P2-008..013 (email STL,
+  receipts, recovery flow, promos, comps, abandoned-cart), P3-010..012
+  (re-gen from photo, feedback, NSFW/minor screen), P4-005..012 (admin
+  metrics dashboard, user mgmt, design viewer, cost tracking, A/B,
+  live ops, email engagement, alerting), P5-004..006 (referrals,
+  showcase, OG cards), P6-004..005 (email i18n, localized pricing),
+  P7-003..004 (SMS, mobile camera reticule), X-003..007 (marketing
+  polish, TOS/Privacy, onboarding tour, FAQ, launch checklist).
+  next_suggested_task flipped to P1-001 (magic-link auth) — it gates
+  the new user-dashboard chain.
 - 2026-04-29 — claude-opus-4.7 — Doc-regen pass after v0.1.34 lands:
   marked P3-002, P3-003, P3-005 as `[x]`; added P3-006 (failure-corpus
   replay), P3-007 (surface warnings), P3-008 (live red-line preview),
