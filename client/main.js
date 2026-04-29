@@ -30,8 +30,9 @@ import { ContrastToggle } from './components/contrast-toggle.js';
 const root = document.getElementById('root');
 Object.assign(root.style, {
   minHeight: '100vh',
-  background: '#FAF7F2',
-  color: '#1A1614',
+  // Mongoose-BMX tokens — see client/styles/theme.css.
+  background: 'var(--paper)',
+  color: 'var(--ink)',
   display: 'flex',
   flexDirection: 'column',
 });

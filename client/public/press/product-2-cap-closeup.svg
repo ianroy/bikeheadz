@@ -7,19 +7,19 @@
 -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" role="img" aria-label="ValveHeadZ printed cap close-up">
   <!-- workshop paper -->
-  <rect width="1600" height="900" fill="#F2EDE3"/>
+  <rect width="1600" height="900" fill="#E5E0CC"/>
   <!-- workbench shadow under the cap -->
-  <ellipse cx="800" cy="750" rx="500" ry="48" fill="#1A1614" fill-opacity="0.08"/>
+  <ellipse cx="800" cy="750" rx="500" ry="48" fill="#0E0A12" fill-opacity="0.08"/>
 
   <!-- tilted cap (3/4 view) — main body -->
   <g transform="translate(440 200)">
     <!-- cap body main fill -->
-    <rect x="0"   y="120" width="720" height="380" rx="42" fill="#C71F1F"/>
+    <rect x="0"   y="120" width="720" height="380" rx="42" fill="#7B2EFF"/>
     <!-- right-side darker chamfer -->
-    <path d="M 720 120 L 720 500 Q 690 480 690 260 Q 690 160 720 120 Z" fill="#9E1818"/>
+    <path d="M 720 120 L 720 500 Q 690 480 690 260 Q 690 160 720 120 Z" fill="#5A1FCE"/>
     <!-- top oval (cap looks 3D) -->
-    <ellipse cx="360" cy="120" rx="360" ry="64" fill="#E04A4A"/>
-    <ellipse cx="360" cy="120" rx="320" ry="50" fill="#FAF7F2" fill-opacity="0.18"/>
+    <ellipse cx="360" cy="120" rx="360" ry="64" fill="#A267FF"/>
+    <ellipse cx="360" cy="120" rx="320" ry="50" fill="#F5F2E5" fill-opacity="0.18"/>
     <!-- threading bands at the bottom (visible socket) -->
     <g fill="#7C1414">
       <rect x="0" y="450" width="720" height="8"/>
@@ -27,7 +27,7 @@
       <rect x="0" y="486" width="720" height="8"/>
     </g>
     <!-- FDM layer lines — the unmistakable signature of a 3D print -->
-    <g stroke="#9E1818" stroke-width="2" stroke-opacity="0.55">
+    <g stroke="#5A1FCE" stroke-width="2" stroke-opacity="0.55">
       <line x1="0" y1="160" x2="720" y2="160"/>
       <line x1="0" y1="184" x2="720" y2="184"/>
       <line x1="0" y1="208" x2="720" y2="208"/>
@@ -43,7 +43,7 @@
     </g>
 
     <!-- printed head riding on top of the cap -->
-    <g transform="translate(180 -160)" fill="#1A1614">
+    <g transform="translate(180 -160)" fill="#0E0A12">
       <circle cx="180" cy="180" r="170"/>
       <path d="M 22 220 Q 180 360 338 220 L 338 290 Q 180 348 22 290 Z"/>
       <rect x="62" y="280" width="232" height="38" rx="14"/>
@@ -60,16 +60,16 @@
   </g>
 
   <!-- millimeter scale callout in the corner -->
-  <g transform="translate(60 760)" font-family="ui-monospace, monospace" fill="#1A1614">
-    <rect x="0" y="0" width="160" height="44" rx="8" fill="#FAF7F2" stroke="#1A1614" stroke-opacity="0.18"/>
-    <line x1="14" y1="22" x2="146" y2="22" stroke="#1A1614" stroke-width="2"/>
-    <line x1="14" y1="14" x2="14" y2="30" stroke="#1A1614" stroke-width="2"/>
-    <line x1="146" y1="14" x2="146" y2="30" stroke="#1A1614" stroke-width="2"/>
+  <g transform="translate(60 760)" font-family="ui-monospace, monospace" fill="#0E0A12">
+    <rect x="0" y="0" width="160" height="44" rx="8" fill="#F5F2E5" stroke="#0E0A12" stroke-opacity="0.18"/>
+    <line x1="14" y1="22" x2="146" y2="22" stroke="#0E0A12" stroke-width="2"/>
+    <line x1="14" y1="14" x2="14" y2="30" stroke="#0E0A12" stroke-width="2"/>
+    <line x1="146" y1="14" x2="146" y2="30" stroke="#0E0A12" stroke-width="2"/>
     <text x="80" y="28" font-size="14" text-anchor="middle">≈ 30 mm</text>
   </g>
 
   <!-- caption -->
-  <g font-family="-apple-system, system-ui, 'Inter', sans-serif" fill="#6B6157">
+  <g font-family="-apple-system, system-ui, 'Inter', sans-serif" fill="#3D2F4A">
     <text x="60" y="850" font-size="18" letter-spacing="2">PRESS&#160;KIT&#160;·&#160;PRODUCT&#160;02&#160;·&#160;PRINTED&#160;CAP&#160;CLOSE-UP&#160;(FDM,&#160;PLA,&#160;0.16&#160;mm&#160;layers)</text>
   </g>
 </svg>

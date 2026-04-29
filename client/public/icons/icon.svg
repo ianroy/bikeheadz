@@ -16,30 +16,30 @@
 -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="ValveHeadZ">
   <!-- Background tile + bezel. -->
-  <rect width="512" height="512" rx="96" fill="#FAF7F2"/>
-  <rect x="6" y="6" width="500" height="500" rx="92" fill="none" stroke="#1A1614" stroke-opacity="0.06" stroke-width="2"/>
+  <rect width="512" height="512" rx="96" fill="#F5F2E5"/>
+  <rect x="6" y="6" width="500" height="500" rx="92" fill="none" stroke="#0E0A12" stroke-opacity="0.06" stroke-width="2"/>
 
   <!-- Cylindrical cap. -->
   <g transform="translate(108 248)">
     <!-- Side wall. -->
-    <rect x="0" y="0" width="296" height="142" fill="#C71F1F"/>
+    <rect x="0" y="0" width="296" height="142" fill="#7B2EFF"/>
     <!-- Bottom shadow ellipse. -->
-    <ellipse cx="148" cy="142" rx="148" ry="22" fill="#9E1818"/>
+    <ellipse cx="148" cy="142" rx="148" ry="22" fill="#5A1FCE"/>
     <!-- Top ellipse — cylinder cap face. -->
-    <ellipse cx="148" cy="0" rx="148" ry="26" fill="#E04A4A"/>
+    <ellipse cx="148" cy="0" rx="148" ry="26" fill="#A267FF"/>
     <!-- Inner top ellipse for depth. -->
-    <ellipse cx="148" cy="2" rx="138" ry="20" fill="#C71F1F"/>
+    <ellipse cx="148" cy="2" rx="138" ry="20" fill="#7B2EFF"/>
     <!-- Threading bands. -->
-    <rect x="2" y="92"  width="292" height="7" fill="#9E1818"/>
-    <rect x="2" y="110" width="292" height="7" fill="#9E1818"/>
-    <rect x="2" y="128" width="292" height="7" fill="#9E1818"/>
+    <rect x="2" y="92"  width="292" height="7" fill="#5A1FCE"/>
+    <rect x="2" y="110" width="292" height="7" fill="#5A1FCE"/>
+    <rect x="2" y="128" width="292" height="7" fill="#5A1FCE"/>
   </g>
 
   <!-- Neck (joins head to cap). -->
-  <rect x="220" y="200" width="72" height="48" fill="#1A1614"/>
+  <rect x="220" y="200" width="72" height="48" fill="#0E0A12"/>
 
   <!-- ¾-profile head silhouette. -->
-  <polygon fill="#1A1614" points="
+  <polygon fill="#0E0A12" points="
     238,80
     268,80
     298,89
@@ -70,17 +70,17 @@
   <!-- Glasses across the brow — paper cutout with ink lens. -->
   <g transform="translate(256 200)">
     <!-- right lens (the dominant ¾-view lens) -->
-    <rect x="42" y="-12" width="48" height="22" rx="4" fill="#FAF7F2"/>
-    <rect x="46" y="-9"  width="40" height="16" rx="3" fill="#1A1614"/>
+    <rect x="42" y="-12" width="48" height="22" rx="4" fill="#F5F2E5"/>
+    <rect x="46" y="-9"  width="40" height="16" rx="3" fill="#0E0A12"/>
     <!-- left lens (foreshortened) -->
-    <rect x="6"  y="-12" width="27" height="22" rx="4" fill="#FAF7F2"/>
-    <rect x="10" y="-9"  width="19" height="16" rx="3" fill="#1A1614"/>
+    <rect x="6"  y="-12" width="27" height="22" rx="4" fill="#F5F2E5"/>
+    <rect x="10" y="-9"  width="19" height="16" rx="3" fill="#0E0A12"/>
     <!-- nose bridge -->
-    <rect x="33" y="-5"  width="9"  height="6"  fill="#FAF7F2"/>
+    <rect x="33" y="-5"  width="9"  height="6"  fill="#F5F2E5"/>
   </g>
 
   <!-- "VHZ" stamp lower-right. -->
   <g transform="translate(360 460)" font-family="-apple-system, system-ui, 'Inter', sans-serif" font-weight="900" font-size="44" letter-spacing="-1">
-    <text x="0" y="0" fill="#1A1614">VH<tspan fill="#C71F1F">Z</tspan></text>
+    <text x="0" y="0" fill="#0E0A12">VH<tspan fill="#7B2EFF">Z</tspan></text>
   </g>
 </svg>

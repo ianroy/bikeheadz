@@ -64,17 +64,17 @@ export function HelpPage() {
       maxWidth: '760px',
       margin: '48px auto',
       padding: '0 24px',
-      color: 'var(--ink, #1A1614)',
+      color: 'var(--ink, #0E0A12)',
     },
   });
 
   root.appendChild(
-    el('h1', { style: { fontSize: '32px', marginBottom: '8px', color: '#C71F1F' } }, 'Help & FAQ')
+    el('h1', { style: { fontSize: '32px', marginBottom: '8px', color: '#7B2EFF' } }, 'Help & FAQ')
   );
   root.appendChild(
     el(
       'p',
-      { style: { color: '#6B6157', fontSize: '14px', marginBottom: '24px', lineHeight: 1.5 } },
+      { style: { color: '#3D2F4A', fontSize: '14px', marginBottom: '24px', lineHeight: 1.5 } },
       'Common questions about printing, ordering, and the pipeline. Search by keyword — partial matches work.'
     )
   );
@@ -91,8 +91,8 @@ export function HelpPage() {
       fontSize: '16px',
       border: '1px solid #C9C0B0',
       borderRadius: '10px',
-      background: '#FAF7F2',
-      color: '#1A1614',
+      background: '#F5F2E5',
+      color: '#0E0A12',
       marginBottom: '8px',
     },
   });
@@ -103,7 +103,7 @@ export function HelpPage() {
     {
       'aria-live': 'polite',
       style: {
-        color: '#6B6157',
+        color: '#3D2F4A',
         fontSize: '13px',
         marginBottom: '20px',
         minHeight: '18px',
@@ -140,7 +140,7 @@ export function HelpPage() {
               background: '#FFFDF8',
               border: '1px dashed #C9C0B0',
               borderRadius: '10px',
-              color: '#6B6157',
+              color: '#3D2F4A',
               textAlign: 'center',
             },
           },
@@ -157,7 +157,7 @@ export function HelpPage() {
           {
             style: {
               background: '#FFFDF8',
-              border: '1px solid #E5DFD3',
+              border: '1px solid #D7CFB6',
               borderRadius: '10px',
               padding: '14px 18px',
               boxShadow: '0 2px 6px rgba(34, 24, 12, 0.04)',
@@ -169,7 +169,7 @@ export function HelpPage() {
               style: {
                 fontWeight: 600,
                 fontSize: '15px',
-                color: '#1A1614',
+                color: '#0E0A12',
                 cursor: 'pointer',
                 listStyle: 'revert',
               },
@@ -182,7 +182,7 @@ export function HelpPage() {
               style: {
                 marginTop: '10px',
                 lineHeight: 1.6,
-                color: '#1A1614',
+                color: '#0E0A12',
                 fontSize: '14px',
               },
             },

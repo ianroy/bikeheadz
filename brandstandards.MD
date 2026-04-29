@@ -1,8 +1,9 @@
 # ValveHeadZ — Brand Standards
 
-> One-page reference. Workshop palette + the trailing-Z signature are
-> the brand. Everything else (typography, imagery, voice) flows from
-> those two ideas.
+> One-page reference. **Mongoose BMX palette + retro-90s skate-shop
+> vocabulary.** Race day at the trails, 1993. Neon purple is the brand;
+> fluoro green is the loud second; magenta is the third for halftones,
+> errors, and splatter.
 
 Last updated: 2026-04-29 · Maintainer: Ian Roy.
 
@@ -19,172 +20,210 @@ Last updated: 2026-04-29 · Maintainer: Ian Roy.
 - **Don't write**: ValveHeadz, Valveheadz, valveheadZ, VALVEHEADZ in
   body copy, "Valve Headz", "VHZ" as a name (VHZ is the monogram only).
 
-The Z is the brand cue. When the logotype is split-color the trailing
-Z **always** renders in `--brand` red — every other letter sits in
-`--ink`. This is non-negotiable.
+The Z is the brand cue. Whenever the wordmark appears split-color the
+trailing Z is **always** in `--brand` (neon purple); every other
+letter sits in `--ink`. **Italic** with a fluoro-green drop shadow
+wherever the canvas allows. This is non-negotiable.
 
 ## 2. Monogram
 
-`VHZ` — three letters, all caps. Used where the wordmark won't fit:
-favicons over 16px, social-avatar squares, stickers, t-shirt tags.
+`VHZ` — three letters, all caps, italic, drop-shadowed. Used where
+the wordmark won't fit: favicons over 16px, social-avatar squares,
+stickers, t-shirt tags.
 
 In the monogram the **Z is oversized** relative to V and H, and
 shifted up so its top-bar nests over the shoulder of the H. The Z is
-brand-red; V and H are ink.
+neon purple; V and H are ink; both carry the green drop shadow.
 
 Files:
-- `client/public/press/logo-monogram.svg` (source-of-truth, vector)
-- `client/public/press/logo-monogram.png` (800×800, ships with the
-  press kit)
+- `client/public/press/logo-monogram.svg` (canonical vector)
+- `client/public/press/logo-monogram.png` (800×800 PNG, ships with
+  the press kit + GitHub avatar)
 
-## 3. Workshop palette
+## 3. Mongoose BMX palette (LOCKED)
 
-The palette is locked. Six tokens. All palette swatches are visible
-at `client/public/press/palette.png`.
+Six tokens. All swatches: `client/public/press/palette.png`.
 
-| Token        | Hex      | CSS var       | Usage                                          |
-|--------------|----------|---------------|------------------------------------------------|
-| Paper        | `#FAF7F2`| `--paper`     | Default page ground. Workshop cream.           |
-| Paper soft   | `#F2EDE3`| `--paper-soft`| Cards / inset surfaces / kraft accents.        |
-| Brand red    | `#C71F1F`| `--brand`     | The Z. CTAs. Pricing chips. Threading bands.   |
-| Ink          | `#1A1614`| `--ink`       | Default text. Head silhouette in marks.        |
-| Ink muted    | `#6B6157`| `--ink-muted` | Secondary text, captions, dates.               |
-| Gold         | `#7C5E1F`| `--gold`      | Reserved accent — currently only on the
-                                            Step-4 indicator + info banners. AA on cream. |
+| Token         | Hex        | CSS var       | Role                                                       |
+|---------------|------------|---------------|------------------------------------------------------------|
+| Paper         | `#F5F2E5`  | `--paper`     | Page ground. Off-white, slightly warm.                     |
+| Paper soft    | `#E5E0CC`  | `--paper-soft`| Card / inset surfaces / kraft accents.                     |
+| Ink           | `#0E0A12`  | `--ink`       | Default body type, head silhouette in marks.               |
+| Ink muted     | `#3D2F4A`  | `--ink-muted` | Secondary text, captions, dates. Reads as "deep mauve."    |
+| **Brand**     | `#7B2EFF`  | `--brand`     | **The Z. Primary CTAs.** Cap fill in marks.                |
+| Brand dark    | `#5A1FCE`  | `--brand-dim` | Hover/pressed state for primary CTAs.                      |
+| Brand light   | `#A267FF`  | `--brand-light`| Cap top-rim highlight in marks.                            |
+| **Accent 2**  | `#2EFF8C`  | `--accent2`   | **Fluoro green.** Memphis offset shadows. Drop shadow on the wordmark. Active nav underline. |
+| Accent 2 dim  | `#1FCE6E`  | `--accent2-dim`| AAA-mode + dark variant.                                   |
+| **Accent 3**  | `#FF2EAB`  | `--accent3`   | **Hot magenta.** Halftone fields, splatter dots, error-state chips. |
+| Accent 3 dim  | `#CE1F8B`  | `--accent3-dim`| AAA-mode + dark variant.                                   |
+| Gold (legacy) | `#D89E2F`  | `--gold`      | Hot yellow — used only for warning surfaces.               |
+
+### Don't introduce
+
+- A 4th accent. The CMY-style trio (purple / green / magenta) is the
+  brand. New chips reuse one of those three.
+- Pure black `#000` or pure white `#FFF`. Use `--ink` and `--paper`.
 
 ### AAA opt-in (P6-011)
 
-When `<html data-contrast="aaa">` is set the tokens darken further:
-brand red → `#A4111A`, ink → `#0A0907`, gold → `#5C4716`. See
-`client/styles/theme.css`.
+When `<html data-contrast="aaa">` is set: brand → `#5A1FCE`, ink →
+`#050307`, accent2 → `#1FCE6E`, accent3 → `#CE1F8B`.
 
 ### Forced colors (Windows high-contrast)
 
-`@media (forced-colors: active)` aliases the palette to system
-tokens (`CanvasText`, `Canvas`, `GrayText`).
+`@media (forced-colors: active)` aliases palette tokens to system
+keywords (`CanvasText`, `Canvas`, `GrayText`).
 
 ## 4. Typography
 
-- **Wordmark / display**: `-apple-system, BlinkMacSystemFont,
+Headlines and the wordmark are **italic black** for the period
+display feel. System font stack only — no web fonts ship.
+
+- **Display / wordmark**: `-apple-system, BlinkMacSystemFont,
   'Segoe UI', system-ui, 'Inter', 'Helvetica Neue', sans-serif`,
-  weight 900, letter-spacing `-2`. The system stack is intentional —
-  no web-font ships with the SPA.
+  `font-style: italic`, `font-weight: 900`, letter-spacing `-0.02em`.
 - **Body**: same stack, weight 400/500.
-- **Mono** (logs, error frames, scale callouts): `ui-monospace,
+- **Mono** (logs, error frames, mm scale callouts): `ui-monospace,
   'SF Mono', 'JetBrains Mono', monospace`.
 
-Type scale (px) — used by the existing components:
+Helper classes (in `client/styles/theme.css`):
 
+- `.vhz-display` — italic-black display heading.
+- `.vhz-wordmark` — italic + drop-shadow + green-accented `.z` span.
+
+## 5. The cap-and-head mark
+
+The graphic mark abstracts the actual product (chrome 3D-printed
+head wearing glasses, riding on a Schrader valve cap):
+
+1. **Cylindrical cap** — side wall in `--brand`, elliptical top in
+   `--brand-light`, bottom shadow ellipse in `--brand-dim`, three
+   threading bands in `--brand-dim`.
+2. **¾-profile head silhouette** in `--ink` — rounded skull, brow,
+   nose-tip protrusion, chin, jaw curve, back-of-skull. ~25 vertices.
+3. **Glasses** as paper-cream cutouts across the brow line, with an
+   inner ink rect for the lens.
+
+Geometry never changes. Only color (per palette context — primary
+brand vs. inverse vs. forced-colors) varies.
+
+## 6. 90s graphic vocabulary
+
+These are the period gestures. Use sparingly — the mark + wordmark
+already do most of the work; vocabulary elements are seasoning.
+
+- **Italic wordmark with drop shadow** (always, every surface).
+- **Memphis offset boxes** — flat colored shadow rect 6px down+right
+  behind cards, CTAs, and image tiles. Helper: `.vhz-memphis`.
+- **Halftone dot fields** in `--accent3` magenta, density falling off
+  radially. Helper: `.vhz-halftone`.
+- **Zigzag accent strips** in `--accent3` along the top/bottom of
+  hero sections. Helper: `.vhz-zigzag`.
+- **Checker strips** (ink × fluoro green) at the very top of the
+  header / OG card / nav. Helper: `.vhz-checker`.
+- **CMY splatter dots** (purple / green / magenta) sprinkled near the
+  wordmark area. Helper: `.vhz-splatter`.
+
+## 7. CTAs
+
+```css
+.vhz-cta              /* primary — brand fill, white text, ink border */
+.vhz-cta-secondary    /* outlined — paper fill, ink text */
+.vhz-chip             /* fluoro-green pill chip (default) */
+.vhz-chip-magenta     /* hot-magenta pill */
+.vhz-chip-purple      /* neon-purple pill */
 ```
-160  hero headline
-80   page title
-56   section title
-40   subhead / nav-bar at hover
-32   default heading
-22   tagline / chip / caption
-18   secondary body
-14   meta / footnote
-```
 
-## 5. The Schrader cap mark
+Primary CTA labels are italic + uppercase + tracked.
 
-The graphic mark is a **Schrader valve cap viewed from the front**:
-
-- **Cap body** — rounded rectangle in `--brand`, ~ratio 5:2.
-- **Three threading bands** in `--brand-dark` (#9E1818) at the base.
-- **Top rim highlight** in `--brand-light` (#E04A4A) at the cap's
-  top edge — implies the chamfered crown.
-- **Head silhouette** in `--ink` riding on top: circle (skull),
-  trapezoid (jaw taper), small rounded rect (neck).
-
-The mark **never separates** from this construction. Rotation, color
-inversion, and scale are allowed — geometry isn't.
-
-Why Schrader? The product fits a Schrader valve (not Presta). Calling
-it Schrader is a copy invariant — see [docs/DESIGN_DECISIONS.md].
-
-## 6. Files & where they live
+## 8. Files & where they live
 
 ```
 client/public/
-├── favicon.svg / favicon.png           (256×256)
-├── manifest.webmanifest                 PWA manifest, references icons/
-├── og.png                               (1200×630) Open Graph default card
+├── favicon.svg / favicon.png       (256×256)
+├── manifest.webmanifest             PWA manifest
+├── og.png                           (1200×630) Open Graph default card
 ├── icons/
-│   ├── icon.svg                        (512×512 source)
-│   ├── icon-maskable.svg               (Android safe-zone variant)
-│   ├── 192.png   / 512.png             (PWA app icons)
-│   └── maskable-512.png                (round-mask-safe app icon)
+│   ├── icon.svg                    (512×512 source)
+│   ├── icon-maskable.svg           (Android safe-zone)
+│   ├── 192.png   / 512.png         (PWA app icons)
+│   └── maskable-512.png            (round-mask-safe app icon)
 └── press/
-    ├── logo-wordmark.svg / .png        (1600×360)
-    ├── logo-monogram.svg / .png        (800×800)
-    ├── palette.svg / .png              (1200×700 reference card)
+    ├── logo-wordmark.svg / .png    (1600×400)
+    ├── logo-monogram.svg / .png    (800×800)
+    ├── palette.svg / .png          (1200×700 reference)
     ├── product-1-cap-on-valve.svg / .png   (1600×900)
     ├── product-2-cap-closeup.svg / .png    (1600×900)
-    └── product-3-pack-of-four.svg / .png   (1600×900)
+    ├── product-3-pack-of-four.svg / .png   (1600×900)
+    └── palette-options/             6 alt-palette comparison cards +
+                                     contact sheet (kept for reference)
 ```
 
-## 7. Build pipeline (SVG → PNG)
-
-Designers edit `client/public/**/*.svg`. The build step is:
+## 9. Build pipeline
 
 ```bash
 python3 tools/render_brand.py
 ```
 
-This composites the PNGs from PIL primitives so typography is
-deterministic across machines (qlmanage on macOS ignores SVG
-`textLength` / `lengthAdjust`, which broke wordmark layout pre-
-2026-04-29). The script reads the source palette tokens from this
-file and re-emits every PNG listed under §6.
+The PIL renderer is the source of truth for the shipped PNGs because
+macOS `qlmanage` ignores SVG `textLength` / `lengthAdjust` — wordmark
+typography drifts otherwise. SVG sources track the same geometry +
+palette so designers can edit them in Illustrator / Figma / Inkscape.
 
 CI hook: rerun the script whenever a press SVG changes; commit the
 PNGs alongside.
 
-## 8. Copy & voice
+## 10. Copy & voice
 
-- **Tagline**: *Your face on a Schrader valve cap.* Always lowercase
-  except `Schrader`.
+- **Tagline**: *Your face on a Schrader valve cap.* Always
+  capitalize "Schrader."
 - **Subhead**: *$2 STL · printable on any FDM/PLA setup.*
-- **Tone**: workshop-direct. No exclamation marks. No "transform your
-  rides!!!" energy. Imagine a bike-shop owner who's done this fifty
-  times explaining it once.
-- **Print process** is locked and called out explicitly in copy: FDM,
-  PLA, 0.4 mm nozzle, 0.12–0.16 mm layer height. See
-  [3D_Pipeline.md §0].
+- **Tone**: 90s skate-shop — direct, italic-leaning, mildly hyped.
+  Imagine the catalog copy in a 1995 Performance Bicycle insert.
+- **Print process** is locked and named explicitly: FDM, PLA, 0.4 mm
+  nozzle, 0.12–0.16 mm layer height. See [3D_Pipeline.md §0].
 
-## 9. Don'ts
+## 11. Don'ts
 
-- Don't replace the cap mark with a stylized silhouette of just the
-  Z, just the head, or just the cap.
-- Don't use brand red as page background — it doesn't pass AA on
-  long-form text.
-- Don't recolor the head silhouette. It's `--ink`. Always.
-- Don't typeset the name in italics.
-- Don't introduce a third accent color. Six tokens is the budget.
+- Don't substitute pure red (#C71F1F or otherwise) anywhere. Brand
+  red is gone — the brand is neon purple.
+- Don't typeset the name in upright (non-italic) display sizes.
+- Don't replace the cap mark with just a skull, just the Z, or just
+  the cap.
+- Don't recolor the head silhouette — it's `--ink`.
+- Don't introduce a 4th accent.
 
-## 10. Inverse / dark variants
+## 12. Inverse / dark variants
 
-Pending — see roadmap **P6-006** (`prefers-color-scheme: dark`). Until
-that lands, the cream-paper palette is the only sanctioned ground.
+`@media (prefers-color-scheme: dark)` swaps the page ground to a
+near-black violet (`#110A1E`) with cream type. Brand stays neon
+purple; the wordmark drop shadow shifts to magenta for higher
+contrast on the dark ground.
 
-## 11. Press kit usage
+## 13. Press kit usage
 
 `/press` page in the SPA exposes every asset for download. The
-"download all (ZIP)" button is wired but disabled until launch (see
-roadmap **X-015**). External press requests should be pointed at
+"Download all (ZIP)" button is wired but disabled until launch
+(roadmap **X-015**). External press requests should be pointed at
 `/press` or this brand-standards file.
 
-## 12. Logo rotation history
+## 14. Logo / palette rotation history
 
-| Date         | What changed                                                    |
-|--------------|-----------------------------------------------------------------|
-| 2026-04-29   | Brand name **renamed BikeHeadz → ValveHeadZ**. New trailing-Z   |
-|              | signature in red. Monogram BH → VHZ. PNG build pipeline moved   |
-|              | to `tools/render_brand.py` (PIL) for typographic determinism.   |
-| 2026-04-29   | Initial workshop palette + cap-and-head mark established.        |
+| Date         | Change                                                          |
+|--------------|------------------------------------------------------------------|
+| 2026-04-29   | **Palette swap** to Mongoose BMX (neon purple + fluoro green +   |
+|              | hot magenta) on warm cream. Italic wordmark with green drop      |
+|              | shadow becomes the canonical treatment. Memphis offset, halftone,|
+|              | zigzag, checker, splatter all added as utilities.                |
+| 2026-04-29   | Brand name **renamed BikeHeadz → ValveHeadZ**. Trailing-Z        |
+|              | signature established. Monogram BH → VHZ.                        |
+| 2026-04-29   | Mark redesign — cylindrical cap + ¾-profile head + glasses cue,  |
+|              | abstracting the chrome 3D product reference.                     |
+| 2026-04-29   | Initial workshop-cream palette (signal-red brand) established —  |
+|              | superseded same day.                                             |
 
 ---
 
-When in doubt, ask: *does the Z stay red?* If yes, you're probably on
-brand. If no, fix it.
+When in doubt, ask: *does the Z stay neon purple, italic, with a
+green drop shadow?* If yes, you're on brand. If no, fix it.

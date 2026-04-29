@@ -67,16 +67,28 @@ export function HomePage({ socket }) {
   // CENTER — title / uploader / viewer / settings / actions
   // ──────────────────────────────────────────────────────────────
   center.appendChild(
-    el('div',
+    el('div', { class: 'relative' },
       el('h1', {
-        style: { fontSize: '1.6rem', fontWeight: 800, letterSpacing: '-0.03em' },
+        class: 'vhz-display',
+        style: {
+          fontSize: '2.2rem',
+          color: 'var(--ink)',
+          textShadow: '5px 5px 0 var(--accent2)',
+          marginBottom: '0.25rem',
+        },
       },
-        'Your Head on a ',
-        el('span', { style: { color: '#C71F1F' } }, 'Valve Stem'),
+        'Your face on a ',
+        el('span', { style: { color: 'var(--brand)' } }, 'valve cap'),
+        '.',
       ),
       el('p.mt-1', {
-        style: { color: '#6B6157', fontSize: '0.9rem' },
-      }, 'Upload a photo → get a 3D-printable STL file personalized to you'),
+        style: {
+          color: 'var(--ink-muted)',
+          fontSize: '0.95rem',
+          fontStyle: 'italic',
+          fontWeight: 600,
+        },
+      }, 'Upload a photo → 3D-printable STL, designed for the workshop.'),
     ),
   );
 
@@ -99,16 +111,14 @@ export function HomePage({ socket }) {
   function renderUploader() {
     clear(uploaderSlot);
     const box = el('div', {
-      class: 'relative rounded-2xl border-2 border-dashed transition-all duration-200 cursor-pointer',
+      class: 'relative rounded-2xl border-2 border-dashed transition-all duration-200 cursor-pointer vhz-memphis',
       style: {
-        borderColor: state.dragging
-          ? '#C71F1F'
-          : state.photoUrl
-          ? '#E5DFD3'
-          : '#E5DFD3',
-        background: state.dragging
-          ? 'rgba(199,31,31,0.05)'
-          : '#FFFFFF',
+        '--memphis-offset': '6px',
+        '--memphis-color': 'var(--accent2)',
+        borderColor: state.dragging ? 'var(--brand)' : 'var(--ink)',
+        background: state.dragging ? 'color-mix(in srgb, var(--brand) 8%, var(--paper))' : 'var(--paper)',
+        borderWidth: '3px',
+        borderStyle: state.dragging ? 'solid' : 'dashed',
       },
       onClick: () => { if (!state.photoUrl) fileInput.click(); },
       onDragover: (e) => { e.preventDefault(); if (!state.dragging) { state.dragging = true; renderUploader(); } },
@@ -134,27 +144,32 @@ export function HomePage({ socket }) {
           el('span', { style: { fontSize: '2rem' } }, '\u{1F4F7}'),
           el(
             'p',
-            { style: { color: '#1A1614', fontSize: '0.95rem', fontWeight: 600 } },
-            'Drop a photo, paste from clipboard, or click to upload'
+            {
+              style: {
+                color: 'var(--ink)',
+                fontSize: '1rem',
+                fontWeight: 800,
+                fontStyle: 'italic',
+                letterSpacing: '0.02em',
+                textTransform: 'uppercase',
+              },
+            },
+            'Drop a photo · paste · or click upload'
           ),
-          el('p', { style: { color: '#6B6157', fontSize: '0.78rem' } }, 'PNG or JPEG, up to 5 MB'),
+          el('p', {
+            style: { color: 'var(--ink-muted)', fontSize: '0.78rem', fontWeight: 600 },
+          }, 'PNG or JPEG, up to 5 MB'),
           el(
             'button',
             {
-              class: 'mt-2 px-3 py-1.5 rounded-lg border',
-              style: {
-                borderColor: '#C71F1F',
-                background: 'rgba(199,31,31,0.06)',
-                color: '#C71F1F',
-                fontSize: '0.8rem',
-                fontWeight: 600,
-              },
+              class: 'vhz-cta vhz-cta-secondary mt-2',
+              style: { fontSize: '0.78rem', padding: '0.5rem 1rem' },
               onClick: (e) => {
                 e.stopPropagation();
                 loadSamplePhoto();
               },
             },
-            'Try with a sample photo'
+            'Try a sample →'
           )
         )
       );
@@ -166,17 +181,17 @@ export function HomePage({ socket }) {
       box.appendChild(el('div.flex.items-center.gap-4.p-4',
         el('div', {
           class: 'relative w-20 h-20 rounded-xl overflow-hidden flex-shrink-0 border',
-          style: { borderColor: '#E5DFD3' },
+          style: { borderColor: '#D7CFB6' },
         },
           el('img', { src: state.photoUrl, alt: 'Uploaded', class: 'w-full h-full object-cover' }),
         ),
         el('div.flex-1.min-w-0',
           el('p', { style: { fontWeight: 600, fontSize: '0.9rem' } }, state.photoName || 'Photo uploaded'),
-          el('p', { style: { color: '#6B6157', fontSize: '0.78rem' } }, 'Ready to generate your valve stem'),
+          el('p', { style: { color: '#3D2F4A', fontSize: '0.78rem' } }, 'Ready to generate your valve stem'),
         ),
         el('button', {
           class: 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-colors',
-          style: { borderColor: '#E5DFD3', color: '#6B6157', fontSize: '0.78rem', background: 'transparent' },
+          style: { borderColor: '#D7CFB6', color: '#3D2F4A', fontSize: '0.78rem', background: 'transparent' },
           onClick: (e) => { e.stopPropagation(); fileInput.click(); },
         },
           icon('refresh', { size: 14 }),
@@ -187,15 +202,15 @@ export function HomePage({ socket }) {
       box.appendChild(el('div.flex.flex-col.items-center.justify-center.gap-3', { style: { padding: '2.5rem 0' } },
         el('div', {
           class: 'w-14 h-14 rounded-2xl flex items-center justify-center',
-          style: { background: 'linear-gradient(135deg, #F5F1E8, #FAF7F2)', border: '1px solid rgba(199,31,31,0.3)' },
-        }, icon('upload', { size: 24, color: '#C71F1F' })),
+          style: { background: 'linear-gradient(135deg, #E5E0CC, #F5F2E5)', border: '1px solid rgba(123,46,255,0.3)' },
+        }, icon('upload', { size: 24, color: '#7B2EFF' })),
         el('div.text-center',
           el('p', { style: { fontWeight: 600 } }, 'Upload Your Photo'),
-          el('p.mt-1', { style: { color: '#6B6157', fontSize: '0.82rem' } }, 'Drag & drop or click to browse · JPG, PNG, HEIC'),
+          el('p.mt-1', { style: { color: '#3D2F4A', fontSize: '0.82rem' } }, 'Drag & drop or click to browse · JPG, PNG, HEIC'),
         ),
         el('button', {
           class: 'px-5 py-2 rounded-xl transition-all',
-          style: { background: '#C71F1F', color: '#FFFFFF', fontWeight: 700, fontSize: '0.88rem' },
+          style: { background: '#7B2EFF', color: '#FFFFFF', fontWeight: 700, fontSize: '0.88rem' },
         }, 'Choose Photo'),
       ));
     }
@@ -206,12 +221,12 @@ export function HomePage({ socket }) {
   // Viewer
   const viewerSlot = el('div', {
     class: 'rounded-2xl overflow-hidden border',
-    style: { background: '#FFFFFF', borderColor: '#E5DFD3' },
+    style: { background: '#FFFFFF', borderColor: '#D7CFB6' },
   });
   center.appendChild(viewerSlot);
 
   const viewerHeader = el('div.flex.items-center.justify-between.px-4.py-3.border-b', {
-    style: { borderColor: '#E5DFD3' },
+    style: { borderColor: '#D7CFB6' },
   });
   viewerSlot.appendChild(viewerHeader);
 
@@ -220,9 +235,9 @@ export function HomePage({ socket }) {
 
   viewerSlot.appendChild(
     el('div.flex.items-center.gap-6.px-4.py-3.border-t', {
-      style: { borderColor: '#E5DFD3', fontSize: '0.75rem' },
+      style: { borderColor: '#D7CFB6', fontSize: '0.75rem' },
     },
-      legendSwatch('#C71F1F', '3D Scanned Head'),
+      legendSwatch('#7B2EFF', '3D Scanned Head'),
       legendSwatch('#A88735', 'Schrader Valve Stem'),
       legendSwatch('#9CA3AF', 'Chrome Body'),
     ),
@@ -231,16 +246,16 @@ export function HomePage({ socket }) {
   function renderViewerHeader() {
     clear(viewerHeader);
     const leftRow = el('div.flex.items-center.gap-2',
-      icon('layers', { size: 14, color: '#C71F1F' }),
-      el('span', { style: { color: '#1A1614', fontWeight: 600, fontSize: '0.88rem' } }, '3D Model Preview'),
+      icon('layers', { size: 14, color: '#7B2EFF' }),
+      el('span', { style: { color: '#0E0A12', fontWeight: 600, fontSize: '0.88rem' } }, '3D Model Preview'),
     );
     if (state.processing) {
       leftRow.appendChild(el('span', {
         class: 'flex items-center gap-1.5 px-2 py-0.5 rounded-full',
-        style: { background: 'rgba(199,31,31,0.12)', fontSize: '0.7rem', color: '#C71F1F' },
+        style: { background: 'rgba(123,46,255,0.12)', fontSize: '0.7rem', color: '#7B2EFF' },
       },
         el('span.pulse-dot.inline-block.rounded-full', {
-          style: { width: '6px', height: '6px', background: '#C71F1F' },
+          style: { width: '6px', height: '6px', background: '#7B2EFF' },
         }),
         'Processing',
       ));
@@ -248,14 +263,14 @@ export function HomePage({ socket }) {
     if (state.stlReady) {
       leftRow.appendChild(el('span', {
         class: 'flex items-center gap-1.5 px-2 py-0.5 rounded-full',
-        style: { background: 'rgba(199,31,31,0.12)', fontSize: '0.7rem', color: '#C71F1F' },
+        style: { background: 'rgba(123,46,255,0.12)', fontSize: '0.7rem', color: '#7B2EFF' },
       }, '\u2713 STL Ready'));
     }
     viewerHeader.appendChild(leftRow);
 
     viewerHeader.appendChild(
       el('div.flex.items-center.gap-2', {
-        style: { color: '#6B6157', fontSize: '0.72rem' },
+        style: { color: '#3D2F4A', fontSize: '0.72rem' },
       },
         icon('rotate', { size: 14 }),
         'Drag to rotate',
@@ -290,7 +305,7 @@ export function HomePage({ socket }) {
   // Settings toggle + panel
   const settingsToggle = el('button', {
     class: 'flex items-center justify-between w-full px-4 py-3 rounded-xl border transition-colors text-left',
-    style: { background: '#FFFFFF', borderColor: '#E5DFD3' },
+    style: { background: '#FFFFFF', borderColor: '#D7CFB6' },
     onClick: () => { state.showSettings = !state.showSettings; renderSettings(); },
   });
   center.appendChild(settingsToggle);
@@ -304,14 +319,14 @@ export function HomePage({ socket }) {
     clear(settingsToggle);
     settingsToggle.append(
       el('div.flex.items-center.gap-2',
-        icon('settings', { size: 16, color: '#C71F1F' }),
-        el('span', { style: { color: '#1A1614', fontWeight: 600, fontSize: '0.88rem' } }, 'Adjust 3D Settings'),
+        icon('settings', { size: 16, color: '#7B2EFF' }),
+        el('span', { style: { color: '#0E0A12', fontWeight: 600, fontSize: '0.88rem' } }, 'Adjust 3D Settings'),
       ),
       el('div', {
         style: {
           transition: 'transform 0.2s',
           transform: state.showSettings ? 'rotate(90deg)' : 'rotate(0deg)',
-          color: '#6B6157',
+          color: '#3D2F4A',
         },
       }, icon('chevronRight', { size: 16 })),
     );
@@ -321,7 +336,7 @@ export function HomePage({ socket }) {
 
     clear(settingsInner);
     settingsInner.className = 'rounded-2xl border p-5 grid grid-cols-1 sm:grid-cols-2 gap-5';
-    Object.assign(settingsInner.style, { background: '#FFFFFF', borderColor: '#E5DFD3' });
+    Object.assign(settingsInner.style, { background: '#FFFFFF', borderColor: '#D7CFB6' });
 
     settingsInner.append(
       // Head Height — TARGET_HEAD_HEIGHT_MM, the size the rescaled head
@@ -400,18 +415,18 @@ export function HomePage({ socket }) {
       feedbackSlot.appendChild(
         el('div', {
           class: 'rounded-xl px-4 py-2 border',
-          style: { background: '#F5F1E8', borderColor: '#E5DFD3', color: '#3D3A36', fontSize: '0.82rem' },
+          style: { background: '#E5E0CC', borderColor: '#D7CFB6', color: '#3D3A36', fontSize: '0.82rem' },
         }, 'Thanks for the feedback'),
       );
       return;
     }
     const row = el('div', {
       class: 'flex items-center gap-3 rounded-xl px-4 py-2 border',
-      style: { background: '#FFFFFF', borderColor: '#E5DFD3' },
+      style: { background: '#FFFFFF', borderColor: '#D7CFB6' },
     });
     row.appendChild(
       el('span', {
-        style: { color: '#6B6157', fontSize: '0.78rem', fontWeight: 600 },
+        style: { color: '#3D2F4A', fontSize: '0.78rem', fontWeight: 600 },
       }, 'How did we do?'),
     );
     // Spec lists 👍 ❤️ 🤷 against the up/down/meh schema. The middle
@@ -428,7 +443,7 @@ export function HomePage({ socket }) {
       row.appendChild(
         el('button', {
           class: 'px-2 py-1 rounded-lg border transition-colors',
-          style: { borderColor: '#E5DFD3', background: '#FAF7F2', fontSize: '1.05rem', cursor: 'pointer' },
+          style: { borderColor: '#D7CFB6', background: '#F5F2E5', fontSize: '1.05rem', cursor: 'pointer' },
           'aria-label': `feedback ${b.rating}`,
           onClick: () => submitFeedback(designId, b.rating),
         }, b.label),
@@ -470,7 +485,7 @@ export function HomePage({ socket }) {
 
     clear(generateBtn);
     Object.assign(generateBtn.style, {
-      background: canGenerate ? 'linear-gradient(135deg, #C71F1F, #B91C1C)' : '#E5DFD3',
+      background: canGenerate ? 'linear-gradient(135deg, #7B2EFF, #5A1FCE)' : '#D7CFB6',
       color: '#FFFFFF',
       cursor: canGenerate ? 'pointer' : 'not-allowed',
       opacity: canGenerate ? 1 : 0.6,
@@ -492,12 +507,12 @@ export function HomePage({ socket }) {
 
     clear(downloadBtn);
     downloadBtn.append(
-      icon('creditCard', { size: 16, color: canPurchase ? '#FFFFFF' : '#6B6157' }),
+      icon('creditCard', { size: 16, color: canPurchase ? '#FFFFFF' : '#3D2F4A' }),
       state.checkoutPending ? 'Redirecting…' : 'Buy STL · $2',
     );
     Object.assign(downloadBtn.style, {
-      background: canPurchase ? 'linear-gradient(135deg, #C71F1F, #B91C1C)' : '#E5DFD3',
-      color: canPurchase ? '#FFFFFF' : '#6B6157',
+      background: canPurchase ? 'linear-gradient(135deg, #7B2EFF, #5A1FCE)' : '#D7CFB6',
+      color: canPurchase ? '#FFFFFF' : '#3D2F4A',
       border: 'none',
       cursor: canPurchase ? 'pointer' : 'not-allowed',
       opacity: canPurchase ? 1 : 0.7,
@@ -508,17 +523,17 @@ export function HomePage({ socket }) {
     if (state.stlReady) {
       readyBanner.appendChild(el('div', {
         class: 'fade-up rounded-xl px-4 py-3 border flex items-center gap-3',
-        style: { background: 'rgba(199,31,31,0.06)', borderColor: 'rgba(199,31,31,0.25)' },
+        style: { background: 'rgba(123,46,255,0.06)', borderColor: 'rgba(123,46,255,0.25)' },
       },
         el('span', { style: { fontSize: '1.5rem' } }, '\u{1F389}'),
         el('div',
           el('p', {
-            style: { color: '#C71F1F', fontWeight: 700, fontSize: '0.88rem' },
+            style: { color: '#7B2EFF', fontWeight: 700, fontSize: '0.88rem' },
           },
             `Your STL is ready — ${state.designTriangles.toLocaleString()} triangles.`,
           ),
           el('p', {
-            style: { color: '#6B6157', fontSize: '0.78rem' },
+            style: { color: '#3D2F4A', fontSize: '0.78rem' },
           }, 'Checkout for $2 to download the file, or order it printed and shipped.'),
         ),
       ));
@@ -536,12 +551,12 @@ export function HomePage({ socket }) {
     rightAside.appendChild(
       el('div', {
         class: 'rounded-xl p-4 border',
-        style: { background: '#FFFFFF', borderColor: '#E5DFD3' },
+        style: { background: '#FFFFFF', borderColor: '#D7CFB6' },
       },
         el('div.flex.items-center.gap-2.mb-3',
-          icon('creditCard', { size: 14, color: '#C71F1F' }),
+          icon('creditCard', { size: 14, color: '#7B2EFF' }),
           el('span.uppercase', {
-            style: { color: '#6B6157', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.05em' },
+            style: { color: '#3D2F4A', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.05em' },
           }, 'Pricing'),
         ),
         el('div', { class: 'flex flex-col gap-2' },
@@ -552,10 +567,10 @@ export function HomePage({ socket }) {
           ].map(([label, price, sub]) =>
             el('div.flex.justify-between.items-start.py-1',
               el('div.flex.flex-col',
-                el('span', { style: { color: '#1A1614', fontSize: '0.85rem', fontWeight: 600 } }, label),
-                el('span', { style: { color: '#6B6157', fontSize: '0.7rem' } }, sub),
+                el('span', { style: { color: '#0E0A12', fontSize: '0.85rem', fontWeight: 600 } }, label),
+                el('span', { style: { color: '#3D2F4A', fontSize: '0.7rem' } }, sub),
               ),
-              el('span', { style: { color: '#C71F1F', fontSize: '0.95rem', fontWeight: 700 } }, price),
+              el('span', { style: { color: '#7B2EFF', fontSize: '0.95rem', fontWeight: 700 } }, price),
             )
           ),
         ),
@@ -567,20 +582,20 @@ export function HomePage({ socket }) {
     rightAside.appendChild(
       el('div', {
         class: 'rounded-xl p-4 border',
-        style: { background: '#F5F1E8', borderColor: '#E5DFD3' },
+        style: { background: '#E5E0CC', borderColor: '#D7CFB6' },
       },
         el('div.flex.items-center.gap-2.mb-2',
-          icon('settings', { size: 14, color: '#7C5E1F' }),
+          icon('settings', { size: 14, color: '#D89E2F' }),
           el('span.uppercase', {
             style: { color: '#3D3A36', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.05em' },
           }, '3D Printing Tips'),
         ),
         el('p', {
-          style: { color: '#1A1614', fontSize: '0.8rem', lineHeight: 1.5 },
+          style: { color: '#0E0A12', fontSize: '0.8rem', lineHeight: 1.5 },
         }, 'Designed for FDM/PLA on a 0.4 mm nozzle at 0.12–0.16 mm layers. Threads are tuned to a real Schrader valve.'),
         el('p', {
           class: 'mt-2',
-          style: { color: '#1A1614', fontSize: '0.78rem', lineHeight: 1.5, fontWeight: 600 },
+          style: { color: '#0E0A12', fontSize: '0.78rem', lineHeight: 1.5, fontWeight: 600 },
         }, 'Add a 5 mm brim with 0 mm brim-to-object gap.'),
         el('p', {
           class: 'mt-1',
@@ -820,20 +835,20 @@ function legendSwatch(color, label) {
       class: 'inline-block rounded-full',
       style: { width: '8px', height: '8px', background: color },
     }),
-    el('span', { style: { color: '#6B6157' } }, label),
+    el('span', { style: { color: '#3D2F4A' } }, label),
   );
 }
 
 function slider({ label, value, min, max, step, display, onInput }) {
   const valueEl = el('span', {
-    style: { color: '#C71F1F', fontSize: '0.8rem', fontWeight: 700 },
+    style: { color: '#7B2EFF', fontSize: '0.8rem', fontWeight: 700 },
   }, display(value));
   const input = el('input', {
     type: 'range',
     min, max, step,
     value,
     class: 'w-full',
-    style: { accentColor: '#C71F1F' },
+    style: { accentColor: '#7B2EFF' },
     onInput: (e) => {
       const v = Number(e.target.value);
       valueEl.textContent = display(v);
@@ -854,14 +869,14 @@ function colorRow({ value, onInput }) {
     type: 'color',
     value,
     class: 'w-10 h-8 rounded cursor-pointer border',
-    style: { borderColor: '#E5DFD3', background: 'transparent' },
+    style: { borderColor: '#D7CFB6', background: 'transparent' },
     onInput: (e) => {
       onInput(e.target.value);
       swatchLabel.textContent = e.target.value;
     },
   });
   const swatchLabel = el('span', {
-    style: { color: '#6B6157', fontSize: '0.78rem' },
+    style: { color: '#3D2F4A', fontSize: '0.78rem' },
   }, value);
   return el('div.flex.flex-col.gap-2',
     el('label', { style: { color: '#3D3A36', fontSize: '0.8rem' } }, 'Head Color'),
@@ -875,9 +890,9 @@ function materialRow({ value, onChange }) {
     return el('button', {
       class: 'flex-1 py-2 rounded-xl capitalize border transition-all',
       style: {
-        background: active ? 'rgba(199,31,31,0.08)' : '#FFFFFF',
-        borderColor: active ? '#C71F1F' : '#E5DFD3',
-        color: active ? '#C71F1F' : '#6B6157',
+        background: active ? 'rgba(123,46,255,0.08)' : '#FFFFFF',
+        borderColor: active ? '#7B2EFF' : '#D7CFB6',
+        color: active ? '#7B2EFF' : '#3D2F4A',
         fontSize: '0.82rem',
         fontWeight: 600,
       },

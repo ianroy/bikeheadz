@@ -18,8 +18,8 @@ export function LocaleSwitcher() {
     class: 'rounded-lg border px-2 py-1 text-sm transition-colors',
     style: {
       background: '#FFFFFF',
-      borderColor: 'var(--paper-edge, #E5DFD3)',
-      color: 'var(--ink, #1A1614)',
+      borderColor: 'var(--paper-edge, #D7CFB6)',
+      color: 'var(--ink, #0E0A12)',
       fontWeight: 500,
     },
     onChange: (e) => setLocale(e.target.value),
@@ -41,7 +41,7 @@ export function LocaleSwitcher() {
 
   const wrap = el('label', {
     class: 'inline-flex items-center gap-1.5 text-sm',
-    style: { color: 'var(--ink-muted, #6B6157)' },
+    style: { color: 'var(--ink-muted, #3D2F4A)' },
   },
     select,
   );

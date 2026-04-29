@@ -1,82 +1,103 @@
 @custom-variant dark (&:is(.dark *));
 
-/* ValveHeadZ — "Workshop" palette.
+/* ValveHeadZ — "Mongoose BMX" palette.
  *
- * The product is a tactile, FDM-printed bike valve cap. The previous
- * dark + lime-green palette read as generic dev-mode UI; this one
- * leans into the cycling-workshop / artisan vibe:
+ * Race day at the trails, 1993. Neon purple as the dominant brand
+ * accent (the Z), fluoro green as the second punch, hot magenta as
+ * the third for halftones / splatter / chip accents. Off-white paper
+ * + carbon-black ink keep body legible.
  *
- *   • cream paper bg  → warm, premium, unmistakably not dark mode
- *   • signal red      → the canonical cyclist accent (jersey red)
- *   • deep ink text   → high-contrast on cream, no eye strain
- *   • warm graphite   → labels, secondary chrome, valve-cap surfaces
- *   • workshop slate  → the 3D-viewer background, where chrome STL pops
+ * The brand wordmark: "ValveHead" sits in `--ink`; the trailing "Z"
+ * sits in `--brand` (neon purple) — italic + drop-shadowed wherever
+ * displayed. Mark cap fills with `--brand`, head silhouette in
+ * `--ink`, glasses cutout in `--paper`.
  *
- * All component code references these tokens through CSS vars or
- * inline hex. Var names are unchanged from the previous palette so
- * Tailwind v4's @theme inline mapping below keeps working.
+ * 90s graphic vocabulary (skate/BMX/surf-shop circa 1993):
+ *   • italic wordmark with drop shadow
+ *   • Memphis-offset boxes (cards / CTAs sit on top of a flat
+ *     accent2 shadow rect 6px down+right)
+ *   • zigzag accent strips
+ *   • halftone dot fields in `--accent3`
+ *   • CMY-style splatter dots
+ *
+ * Token names match the previous workshop palette so existing code
+ * keeps working — only the values change.
  */
 
 :root {
   --font-size: 16px;
 
   /* Surfaces */
-  --background: #FAF7F2;            /* cream paper — page bg */
-  --foreground: #1A1614;            /* deep ink — primary text */
-  --card: #FFFFFF;                  /* clean white card on cream */
-  --card-foreground: #1A1614;
+  --background: #F5F2E5;            /* warm off-white */
+  --foreground: #0E0A12;            /* carbon ink */
+  --card: #FFFFFF;
+  --card-foreground: #0E0A12;
   --popover: #FFFFFF;
-  --popover-foreground: #1A1614;
+  --popover-foreground: #0E0A12;
 
-  /* Brand — signal red (jersey red) */
-  --primary: #DC2626;
+  /* Brand — neon purple. The Z is always this color. */
+  --primary: #7B2EFF;
   --primary-foreground: #FFFFFF;
-  --accent: #DC2626;
+  --accent: #7B2EFF;
   --accent-foreground: #FFFFFF;
 
   /* Muted / secondary surfaces */
-  --secondary: #F5F1E8;             /* warm paper, slightly darker than bg */
-  --secondary-foreground: #1A1614;
-  --muted: #F0EBE2;                 /* subtle paper for inactive cards */
-  --muted-foreground: #6B6157;      /* warm gray for secondary text */
+  --secondary: #E5E0CC;             /* paper soft */
+  --secondary-foreground: #0E0A12;
+  --muted: #ECE8D6;                 /* between paper and paper-soft */
+  --muted-foreground: #3D2F4A;      /* deep mauve for secondary text */
 
-  /* Status colors */
-  --destructive: #B91C1C;           /* deep red for errors */
+  /* Status colors — keyed off the period CMY trio */
+  --destructive: #FF2EAB;           /* magenta — errors POP */
   --destructive-foreground: #FFFFFF;
-  --warn: #C2410C;                  /* warm orange-rust for warnings */
+  --warn: #FFC417;                  /* hot yellow — kept for warnings */
 
   /* Inputs & controls */
-  --border: #E5DFD3;                /* warm paper edge */
+  --border: #D7CFB6;                /* paper edge */
   --input: #FFFFFF;
   --input-background: #FFFFFF;
-  --switch-background: #E5DFD3;
-  --ring: #DC2626;
+  --switch-background: #D7CFB6;
+  --ring: #7B2EFF;
 
-  /* Brand aliases (legacy var names; inline-style fallbacks) */
-  --brand: #DC2626;
-  --brand-dim: #B91C1C;
+  /* Brand aliases */
+  --brand: #7B2EFF;                 /* neon purple */
+  --brand-dim: #5A1FCE;             /* darker for hover/pressed */
+  --brand-light: #A267FF;           /* lighter for highlights */
+  --brand-red: #FF2EAB;             /* legacy alias — now magenta */
 
-  /* Semantic ink/paper scale (use these in new code) */
-  --ink:        #1A1614;            /* deep — headlines, body */
-  --ink-soft:   #3D3A36;            /* graphite — labels */
-  --ink-muted:  #6B6157;            /* warm gray — captions */
-  --ink-faint:  #8B8278;            /* deeper muted — meta info */
-  --paper:      #FAF7F2;            /* cream — page bg */
-  --paper-soft: #F5F1E8;            /* warm paper — sections */
-  --paper-edge: #E5DFD3;            /* hairline borders */
+  /* 90s trio — these are the brand. */
+  --accent2: #2EFF8C;               /* fluoro green */
+  --accent2-dim: #1FCE6E;
+  --accent3: #FF2EAB;               /* hot magenta */
+  --accent3-dim: #CE1F8B;
 
-  /* 3D viewer backdrop — lighter workshop graphite. Metallic STL
-   * materials read mostly via reflections of their surroundings, so a
-   * darker bg makes chrome look flat regardless of how strong the
-   * direct lights are. The actual fix lives in valve-stem-viewer.js
-   * (RoomEnvironment IBL) — this var is for any non-WebGL surface
-   * that wants to match the viewer chrome. */
-  --viewer-bg: #4A453F;
+  /* Semantic ink/paper scale */
+  --ink:        #0E0A12;
+  --ink-soft:   #221A2C;
+  --ink-muted:  #3D2F4A;
+  --ink-faint:  #6B5C7B;
+  --paper:      #F5F2E5;
+  --paper-soft: #E5E0CC;
+  --paper-edge: #D7CFB6;
+
+  /* 3D viewer backdrop — deep cosmic eggplant rather than slate so
+   * it ties to the rest of the palette. Chrome STL still reads cleanly. */
+  --viewer-bg: #2A1F3D;
+
+  /* Gold legacy alias — kept for AAA mode + step-4 indicator dot. */
+  --gold: #D89E2F;
 
   /* Shape tokens */
   --font-weight-medium: 500;
   --font-weight-normal: 400;
+  --font-weight-bold: 800;
+  --font-weight-black: 900;
   --radius: 0.75rem;
+
+  /* Memphis offset — used by .vhz-memphis utility for the period
+   * "drop-shadow box" effect. */
+  --memphis-offset: 6px;
+  --memphis-color: var(--accent2);
 }
 
 @theme inline {
@@ -103,6 +124,12 @@
   --color-ring: var(--ring);
   --color-brand: var(--brand);
   --color-brand-dim: var(--brand-dim);
+  --color-brand-light: var(--brand-light);
+  --color-brand-red: var(--brand-red);
+  --color-accent2: var(--accent2);
+  --color-accent2-dim: var(--accent2-dim);
+  --color-accent3: var(--accent3);
+  --color-accent3-dim: var(--accent3-dim);
   --color-ink: var(--ink);
   --color-ink-soft: var(--ink-soft);
   --color-ink-muted: var(--ink-muted);
@@ -129,10 +156,150 @@
     accent-color: var(--brand);
   }
 
-  /* Subtle paper texture — uncomment to taste once we have a tile asset.
-   * For now we lean on solid cream which is already softer than #FFF. */
-  /* background-image: url('/textures/paper.png'); */
+  /* Headlines lean italic black for the 90s display look. */
+  h1, h2, h3 {
+    font-style: italic;
+    letter-spacing: -0.02em;
+  }
 }
+
+/* ── 90s GRAPHIC UTILITIES ──────────────────────────────────────────── */
+
+/* Italic wordmark with drop shadow. The signature gesture. */
+.vhz-wordmark {
+  font-style: italic;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+  text-shadow: 4px 4px 0 var(--accent2);
+}
+.vhz-wordmark .z {
+  color: var(--brand);
+  font-size: 1.4em;
+  margin-left: -0.05em;
+}
+
+/* Memphis-offset card — render flat colored shadow box behind the
+ * card, offset 6px right and down. Add `.vhz-memphis` to any
+ * positioned element. */
+.vhz-memphis {
+  position: relative;
+}
+.vhz-memphis::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--memphis-color, var(--accent2));
+  transform: translate(var(--memphis-offset), var(--memphis-offset));
+  z-index: -1;
+}
+
+/* Variant: shadow in accent3 (magenta) instead of accent2. */
+.vhz-memphis.vhz-memphis-magenta {
+  --memphis-color: var(--accent3);
+}
+.vhz-memphis.vhz-memphis-ink {
+  --memphis-color: var(--ink);
+}
+
+/* Halftone dot field — apply to a section background. Density falls
+ * off radially so the dots feel like a fade. */
+.vhz-halftone {
+  background-image:
+    radial-gradient(circle at 12px 12px, var(--accent3) 2px, transparent 2.5px),
+    radial-gradient(circle at 36px 36px, var(--accent3) 1.5px, transparent 2px);
+  background-size: 24px 24px, 24px 24px;
+  background-position: 0 0, 12px 12px;
+  background-color: transparent;
+}
+
+/* Zigzag accent strip. Use as a top/bottom border on heroes. */
+.vhz-zigzag {
+  --zigzag-color: var(--accent3);
+  --zigzag-size: 14px;
+  background:
+    linear-gradient(135deg, var(--zigzag-color) 25%, transparent 25%) -7px 0,
+    linear-gradient(225deg, var(--zigzag-color) 25%, transparent 25%) -7px 0,
+    linear-gradient(315deg, var(--zigzag-color) 25%, transparent 25%),
+    linear-gradient( 45deg, var(--zigzag-color) 25%, transparent 25%);
+  background-size: var(--zigzag-size) var(--zigzag-size);
+  background-color: transparent;
+}
+
+/* Checker strip — top of hero / nav bar accent. */
+.vhz-checker {
+  background-image:
+    linear-gradient(45deg, var(--ink) 25%, transparent 25%, transparent 75%, var(--ink) 75%),
+    linear-gradient(45deg, var(--ink) 25%, transparent 25%, transparent 75%, var(--ink) 75%);
+  background-color: var(--accent2);
+  background-size: 24px 24px;
+  background-position: 0 0, 12px 12px;
+}
+
+/* "Spray dot" texture — tiny multi-color dots scattered on a surface,
+ * pure CSS via radial-gradient stacks. Cheap visual noise that reads
+ * as 90s splatter without an SVG asset. */
+.vhz-splatter {
+  background-image:
+    radial-gradient(circle at 12% 18%, var(--brand) 1.5px, transparent 2px),
+    radial-gradient(circle at 87% 42%, var(--accent2) 2px, transparent 2.5px),
+    radial-gradient(circle at 33% 78%, var(--accent3) 1.5px, transparent 2px),
+    radial-gradient(circle at 65% 14%, var(--brand) 1px, transparent 1.5px),
+    radial-gradient(circle at 22% 56%, var(--accent2) 1px, transparent 1.5px),
+    radial-gradient(circle at 78% 88%, var(--accent3) 2px, transparent 2.5px);
+  background-color: transparent;
+}
+
+/* Italic-black display heading helper. */
+.vhz-display {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, 'Inter', 'Helvetica Neue', sans-serif;
+  font-style: italic;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  line-height: 0.95;
+}
+
+/* CTA button — primary brand fill with optional Memphis shadow. */
+.vhz-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1.5rem;
+  background: var(--brand);
+  color: #FFFFFF;
+  font-style: italic;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  transition: transform 0.08s ease;
+  cursor: pointer;
+}
+.vhz-cta:hover  { transform: translate(-2px, -2px); }
+.vhz-cta:active { transform: translate(2px, 2px); }
+.vhz-cta-secondary {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+/* Tab pill / chip — used for nav / tag clouds. */
+.vhz-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  background: var(--accent2);
+  color: var(--ink);
+  font-weight: 800;
+  font-style: italic;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+}
+.vhz-chip-magenta { background: var(--accent3); color: #FFFFFF; }
+.vhz-chip-purple  { background: var(--brand);  color: #FFFFFF; }
 
 /* Slide-down panel used for collapsible settings. */
 .collapse-panel {
@@ -150,7 +317,7 @@
   min-height: 0;
 }
 
-/* Subtle pulsing dot used on the processing badge. */
+/* Pulsing dot — repurposed for "live" / "processing" indicators. */
 .pulse-dot {
   animation: pulse-dot 1.2s ease-in-out infinite;
 }
@@ -159,8 +326,7 @@
   50%      { opacity: 0.35; }
 }
 
-/* Spinner used by the Generate button during processing.
- * Border now uses primary-foreground so it reads on the red CTA. */
+/* Spinner. */
 .spinner {
   width: 1rem;
   height: 1rem;
@@ -169,99 +335,81 @@
   border-radius: 9999px;
   animation: spin 0.9s linear infinite;
 }
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
+@keyframes spin { to { transform: rotate(360deg); } }
 
-/* Fade-in used for the "STL Ready" banner. */
-.fade-up {
-  animation: fade-up 0.25s ease both;
-}
+/* Fade-in for "STL Ready" banner + similar. */
+.fade-up { animation: fade-up 0.25s ease both; }
 @keyframes fade-up {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* P6-006 — honour reduced-motion preferences. The 3D viewer also reads
- * `html.reduced-motion` from JS to disable auto-rotate; that toggle is
- * applied in client/main.js. */
+/* ── Reduced motion (P6-006) ────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  *, *::before, *::after {
     animation-duration: 0.001s !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001s !important;
     scroll-behavior: auto !important;
   }
-}
-
-/* P6-006 — opt-in dark variant for users with `prefers-color-scheme: dark`.
- * Stretch goal: kept narrow to a deep-graphite + warm-cream pair that still
- * reads as "workshop" (not generic dark mode). The whole site keeps the
- * same red accent so brand recall doesn't drift across themes.
- *
- * Tailwind v4's @custom-variant `dark` (declared at the top of this file)
- * still works for explicit `.dark` classnames; this just gives the system
- * variant for free.
- */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #1B1916;
-    --foreground: #F2EDDF;
-    --card: #232019;
-    --card-foreground: #F2EDDF;
-    --popover: #232019;
-    --popover-foreground: #F2EDDF;
-    --secondary: #2A2620;
-    --secondary-foreground: #F2EDDF;
-    --muted: #25221C;
-    --muted-foreground: #B8AC9C;
-    --border: #3A352B;
-    --input: #232019;
-    --input-background: #232019;
-    --switch-background: #3A352B;
-    --ink: #F2EDDF;
-    --ink-soft: #D5CCB7;
-    --ink-muted: #B8AC9C;
-    --ink-faint: #8E8474;
-    --paper: #1B1916;
-    --paper-soft: #232019;
-    --paper-edge: #3A352B;
+  .vhz-cta:hover, .vhz-cta:active {
+    transform: none !important;
   }
 }
 
-/* P6-011 — AAA opt-in via [data-contrast="aaa"] on <html>.
- *
- * Note: ValveHeadZ tokens use `--brand` (signal red) and `--ink-muted`
- * rather than `--brand-red`/`--muted` — so the AAA overrides target
- * the actual token names. We also introduce `--brand-red` and `--gold`
- * aliases the spec asked for, available in both modes for future use. */
-:root {
-  --brand-red: #C71F1F;             /* alias for --brand, AAA-friendlier hue */
-  --gold:      #7C5E1F;             /* warm metallic accent */
-}
-:root[data-contrast="aaa"] {
-  --brand:     #A4111A;
-  --brand-red: #A4111A;
-  --brand-dim: #7A0C13;
-  --primary:   #A4111A;
-  --accent:    #A4111A;
-  --gold:      #5C4716;
-  --muted-foreground: #4F463D;
-  --ink:       #0A0907;
-  --ink-soft:  #1F1B17;
-  --ink-muted: #4F463D;
-  --foreground: #0A0907;
+/* ── prefers-color-scheme: dark (P6-006) ─────────────────────────────── */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #110A1E;            /* near-black with violet tint */
+    --foreground: #F5F2E5;            /* warm cream type on dark */
+    --card: #1B1228;
+    --card-foreground: #F5F2E5;
+    --popover: #1B1228;
+    --popover-foreground: #F5F2E5;
+    --secondary: #221830;
+    --secondary-foreground: #F5F2E5;
+    --muted: #1F1528;
+    --muted-foreground: #BBA8D1;
+    --border: #3A2D54;
+    --input: #1B1228;
+    --input-background: #1B1228;
+    --switch-background: #3A2D54;
+    --ink: #F5F2E5;
+    --ink-soft: #E2D6F2;
+    --ink-muted: #BBA8D1;
+    --ink-faint: #8C7BA8;
+    --paper: #110A1E;
+    --paper-soft: #1B1228;
+    --paper-edge: #3A2D54;
+    --memphis-color: var(--accent2);
+  }
+  .vhz-wordmark { text-shadow: 4px 4px 0 var(--accent3); }
+  .vhz-checker { background-color: var(--brand); }
 }
 
-/* P6-011 — forced-colors (Windows high-contrast). System-keyword colors
- * (CanvasText / Canvas / GrayText) defer to OS theming, which is the
- * intended behavior for forced-colors mode. */
+/* ── AAA opt-in (P6-011) ────────────────────────────────────────────── */
+:root[data-contrast="aaa"] {
+  --brand:     #5A1FCE;             /* darker neon purple — passes AAA on cream */
+  --brand-dim: #3D1494;
+  --primary:   #5A1FCE;
+  --accent:    #5A1FCE;
+  --accent2:   #1FCE6E;
+  --accent3:   #CE1F8B;
+  --gold:      #5C4716;
+  --muted-foreground: #2A1A40;
+  --ink:       #050307;
+  --ink-soft:  #14091F;
+  --ink-muted: #2A1A40;
+  --foreground: #050307;
+}
+
+/* ── Forced colors (P6-011) ─────────────────────────────────────────── */
 @media (forced-colors: active) {
   :root {
     --brand:     CanvasText;
     --brand-red: CanvasText;
+    --accent2:   ButtonText;
+    --accent3:   LinkText;
     --ink:       CanvasText;
     --ink-soft:  CanvasText;
     --ink-muted: GrayText;
@@ -270,4 +418,6 @@
     --background: Canvas;
     --foreground: CanvasText;
   }
+  .vhz-memphis::before { display: none; }
+  .vhz-wordmark { text-shadow: none; }
 }

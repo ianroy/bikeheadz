@@ -5,7 +5,7 @@ export function CheckoutReturnPage({ socket, sessionId }) {
   const root = el('div.max-w-2xl.mx-auto.px-4.py-14.text-center');
   const card = el('div', {
     class: 'rounded-2xl p-8 border',
-    style: { background: '#FFFFFF', borderColor: '#E5DFD3' },
+    style: { background: '#FFFFFF', borderColor: '#D7CFB6' },
   });
   root.appendChild(card);
 
@@ -15,10 +15,10 @@ export function CheckoutReturnPage({ socket, sessionId }) {
       card.append(
         el('div', {
           class: 'w-14 h-14 rounded-2xl mx-auto flex items-center justify-center',
-          style: { background: 'rgba(199,31,31,0.1)', border: '1px solid rgba(199,31,31,0.3)' },
-        }, el('span.spinner', { style: { width: '22px', height: '22px', borderColor: 'rgba(199,31,31,0.3)', borderTopColor: '#C71F1F' } })),
+          style: { background: 'rgba(123,46,255,0.1)', border: '1px solid rgba(123,46,255,0.3)' },
+        }, el('span.spinner', { style: { width: '22px', height: '22px', borderColor: 'rgba(123,46,255,0.3)', borderTopColor: '#7B2EFF' } })),
         el('h1.mt-5', { style: { fontWeight: 700, fontSize: '1.3rem' } }, 'Verifying your payment…'),
-        el('p.mt-2', { style: { color: '#6B6157', fontSize: '0.9rem' } }, 'One moment — Stripe is confirming the charge.'),
+        el('p.mt-2', { style: { color: '#3D2F4A', fontSize: '0.9rem' } }, 'One moment — Stripe is confirming the charge.'),
       );
     } else if (status.state === 'requires_action') {
       // P2-019 — 3DS / SCA challenge in flight. Friendly copy + auto
@@ -26,10 +26,10 @@ export function CheckoutReturnPage({ socket, sessionId }) {
       card.append(
         el('div', {
           class: 'w-14 h-14 rounded-2xl mx-auto flex items-center justify-center',
-          style: { background: 'rgba(199,31,31,0.1)', border: '1px solid rgba(199,31,31,0.3)' },
-        }, el('span.spinner', { style: { width: '22px', height: '22px', borderColor: 'rgba(199,31,31,0.3)', borderTopColor: '#C71F1F' } })),
+          style: { background: 'rgba(123,46,255,0.1)', border: '1px solid rgba(123,46,255,0.3)' },
+        }, el('span.spinner', { style: { width: '22px', height: '22px', borderColor: 'rgba(123,46,255,0.3)', borderTopColor: '#7B2EFF' } })),
         el('h1.mt-5', { style: { fontWeight: 700, fontSize: '1.3rem' } }, 'Confirming with your bank…'),
-        el('p.mt-2', { style: { color: '#6B6157', fontSize: '0.9rem' } },
+        el('p.mt-2', { style: { color: '#3D2F4A', fontSize: '0.9rem' } },
           'Your bank is asking for an extra check. We’ll keep an eye on it — this usually takes a few seconds.'),
       );
     } else if (status.state === 'requires_action_timeout') {
@@ -43,14 +43,14 @@ export function CheckoutReturnPage({ socket, sessionId }) {
           'Your bank didn’t finish the security check. You haven’t been charged.'),
         el('button', {
           class: 'mt-6 inline-flex items-center gap-2 px-6 py-3 rounded-xl transition-all',
-          style: { background: 'linear-gradient(135deg, #C71F1F, #B91C1C)', color: '#FFFFFF', fontWeight: 800, fontSize: '0.95rem' },
+          style: { background: 'linear-gradient(135deg, #7B2EFF, #5A1FCE)', color: '#FFFFFF', fontWeight: 800, fontSize: '0.95rem' },
           onClick: () => { if (status.url) window.location.assign(status.url); },
         }, 'Try again'),
         el('div.mt-4',
           el('a', {
             href: '/pricing',
             'data-link': '',
-            style: { color: '#6B6157', fontSize: '0.82rem' },
+            style: { color: '#3D2F4A', fontSize: '0.82rem' },
           }, 'Back to pricing'),
         ),
       );
@@ -58,16 +58,16 @@ export function CheckoutReturnPage({ socket, sessionId }) {
       card.append(
         el('div', {
           class: 'w-14 h-14 rounded-2xl mx-auto flex items-center justify-center',
-          style: { background: 'rgba(199,31,31,0.12)', border: '1px solid rgba(199,31,31,0.35)' },
-        }, icon('download', { size: 24, color: '#C71F1F' })),
+          style: { background: 'rgba(123,46,255,0.12)', border: '1px solid rgba(123,46,255,0.35)' },
+        }, icon('download', { size: 24, color: '#7B2EFF' })),
         el('h1.mt-5', { style: { fontWeight: 800, fontSize: '1.4rem' } }, 'Payment received!'),
         el('p.mt-2', { style: { color: '#3D3A36', fontSize: '0.95rem' } }, `Your ${formatMoney(status.amount, status.currency)} purchase is complete.`),
         status.customerEmail
-          ? el('p.mt-1', { style: { color: '#6B6157', fontSize: '0.8rem' } }, `Receipt: ${status.customerEmail}`)
+          ? el('p.mt-1', { style: { color: '#3D2F4A', fontSize: '0.8rem' } }, `Receipt: ${status.customerEmail}`)
           : null,
         el('button', {
           class: 'mt-6 inline-flex items-center gap-2 px-6 py-3 rounded-xl transition-all',
-          style: { background: 'linear-gradient(135deg, #C71F1F, #B91C1C)', color: '#FFFFFF', fontWeight: 800, fontSize: '0.95rem' },
+          style: { background: 'linear-gradient(135deg, #7B2EFF, #5A1FCE)', color: '#FFFFFF', fontWeight: 800, fontSize: '0.95rem' },
           onClick: () => triggerDownload(status.design),
         },
           icon('download', { size: 16, color: '#FFFFFF' }),
@@ -77,14 +77,14 @@ export function CheckoutReturnPage({ socket, sessionId }) {
           el('a', {
             href: '/',
             'data-link': '',
-            style: { color: '#6B6157', fontSize: '0.82rem' },
+            style: { color: '#3D2F4A', fontSize: '0.82rem' },
           }, 'Back to designer →'),
         ),
       );
     } else if (status.state === 'pending') {
       card.append(
         el('h1', { style: { fontWeight: 700, fontSize: '1.25rem' } }, 'Still processing…'),
-        el('p.mt-2', { style: { color: '#6B6157', fontSize: '0.9rem' } }, 'Your payment is being finalized. This page will retry automatically.'),
+        el('p.mt-2', { style: { color: '#3D2F4A', fontSize: '0.9rem' } }, 'Your payment is being finalized. This page will retry automatically.'),
       );
     } else {
       card.append(
@@ -98,7 +98,7 @@ export function CheckoutReturnPage({ socket, sessionId }) {
           href: '/pricing',
           'data-link': '',
           class: 'inline-block mt-6 px-5 py-2.5 rounded-xl transition-all',
-          style: { background: '#E5DFD3', color: '#1A1614', fontSize: '0.85rem', fontWeight: 600 },
+          style: { background: '#D7CFB6', color: '#0E0A12', fontSize: '0.85rem', fontWeight: 600 },
         }, 'Back to pricing'),
       );
     }

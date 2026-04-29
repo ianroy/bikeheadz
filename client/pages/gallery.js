@@ -6,12 +6,12 @@ export function GalleryPage({ socket }) {
   const root = el('main', { style: { maxWidth: '1100px', margin: '32px auto', padding: '0 24px' } });
   const heading = el(
     'h1',
-    { style: { fontSize: '28px', marginBottom: '8px', color: '#C71F1F' } },
+    { style: { fontSize: '28px', marginBottom: '8px', color: '#7B2EFF' } },
     'Showcase'
   );
   const sub = el(
     'p',
-    { style: { color: '#6B6157', marginBottom: '24px', lineHeight: 1.5 } },
+    { style: { color: '#3D2F4A', marginBottom: '24px', lineHeight: 1.5 } },
     'Designs riders chose to share. Hit Remix on any tile to start a new design from those settings.'
   );
   const status = el('p', { 'aria-live': 'polite' });
@@ -49,17 +49,17 @@ export function GalleryPage({ socket }) {
         style: {
           display: 'block',
           background: '#FFFDF8',
-          border: '1px solid #E5DFD3',
+          border: '1px solid #D7CFB6',
           borderRadius: '12px',
           padding: '12px',
           textDecoration: 'none',
-          color: 'var(--ink, #1A1614)',
+          color: 'var(--ink, #0E0A12)',
         },
       },
       el('div', {
         style: {
           aspectRatio: '1 / 1',
-          background: '#4A453F',
+          background: '#2A1F3D',
           borderRadius: '8px',
           marginBottom: '10px',
         },
@@ -71,7 +71,7 @@ export function GalleryPage({ socket }) {
       ),
       el(
         'div',
-        { style: { fontSize: '12px', color: '#6B6157' } },
+        { style: { fontSize: '12px', color: '#3D2F4A' } },
         new Date(d.created_at).toLocaleDateString()
       )
     );
@@ -84,13 +84,13 @@ export function ShareDesignPage({ socket, designId }) {
   const root = el('main', {
     style: { maxWidth: '760px', margin: '32px auto', padding: '0 24px' },
   });
-  const heading = el('h1', { style: { fontSize: '26px', color: '#C71F1F', marginBottom: '8px' } }, '');
-  const sub = el('p', { style: { color: '#6B6157', marginBottom: '20px' } }, '');
+  const heading = el('h1', { style: { fontSize: '26px', color: '#7B2EFF', marginBottom: '8px' } }, '');
+  const sub = el('p', { style: { color: '#3D2F4A', marginBottom: '20px' } }, '');
   const ctaRow = el('div', { style: { display: 'flex', gap: '8px', marginTop: '16px' } });
   const placeholder = el('div', {
     style: {
       aspectRatio: '4/3',
-      background: '#4A453F',
+      background: '#2A1F3D',
       borderRadius: '12px',
       marginBottom: '12px',
     },
@@ -111,7 +111,7 @@ export function ShareDesignPage({ socket, designId }) {
             'data-link': true,
             style: {
               padding: '10px 16px',
-              background: '#C71F1F',
+              background: '#7B2EFF',
               color: '#FFFFFF',
               borderRadius: '10px',
               textDecoration: 'none',
@@ -128,9 +128,9 @@ export function ShareDesignPage({ socket, designId }) {
                 'data-link': true,
                 style: {
                   padding: '10px 16px',
-                  background: '#FAF7F2',
+                  background: '#F5F2E5',
                   border: '1px solid #C9C0B0',
-                  color: '#1A1614',
+                  color: '#0E0A12',
                   borderRadius: '10px',
                   textDecoration: 'none',
                 },

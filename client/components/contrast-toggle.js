@@ -39,9 +39,9 @@ export function ContrastToggle() {
     'aria-pressed': isOn() ? 'true' : 'false',
     class: 'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-sm transition-colors',
     style: {
-      background: 'var(--paper-soft, #F5F1E8)',
-      borderColor: 'var(--paper-edge, #E5DFD3)',
-      color: 'var(--ink, #1A1614)',
+      background: 'var(--paper-soft, #E5E0CC)',
+      borderColor: 'var(--paper-edge, #D7CFB6)',
+      color: 'var(--ink, #0E0A12)',
       fontWeight: 500,
     },
     onClick: () => {
@@ -60,8 +60,8 @@ export function ContrastToggle() {
       width: '0.75rem',
       height: '0.75rem',
       borderRadius: '9999px',
-      background: 'linear-gradient(90deg, var(--ink, #1A1614) 50%, var(--paper, #FAF7F2) 50%)',
-      border: '1px solid var(--ink, #1A1614)',
+      background: 'linear-gradient(90deg, var(--ink, #0E0A12) 50%, var(--paper, #F5F2E5) 50%)',
+      border: '1px solid var(--ink, #0E0A12)',
     },
   });
   const label = el('span', {}, isOn() ? 'AAA on' : 'AAA off');

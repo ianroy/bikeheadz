@@ -11,7 +11,7 @@ export function LoginPage({ socket, query }) {
       maxWidth: '480px',
       margin: '64px auto',
       padding: '0 24px',
-      color: 'var(--ink, #1A1614)',
+      color: 'var(--ink, #0E0A12)',
     },
   });
 
@@ -20,7 +20,7 @@ export function LoginPage({ socket, query }) {
     {
       style: {
         background: '#FFFDF8',
-        border: '1px solid #E5DFD3',
+        border: '1px solid #D7CFB6',
         borderRadius: '14px',
         padding: '32px 28px',
         boxShadow: '0 6px 18px rgba(34, 24, 12, 0.06)',
@@ -30,16 +30,16 @@ export function LoginPage({ socket, query }) {
 
   const heading = el(
     'h1',
-    { style: { fontSize: '24px', marginBottom: '8px', color: '#C71F1F' } },
+    { style: { fontSize: '24px', marginBottom: '8px', color: '#7B2EFF' } },
     'Sign in to ValveHeadZ'
   );
   const sub = el(
     'p',
-    { style: { color: '#6B6157', marginBottom: '24px', lineHeight: 1.5 } },
+    { style: { color: '#3D2F4A', marginBottom: '24px', lineHeight: 1.5 } },
     'We’ll email you a one-time link. No password to remember.'
   );
 
-  const status = el('p', { 'aria-live': 'polite', style: { minHeight: '20px', marginBottom: '12px', color: '#1A1614' } });
+  const status = el('p', { 'aria-live': 'polite', style: { minHeight: '20px', marginBottom: '12px', color: '#0E0A12' } });
 
   const input = el('input', {
     type: 'email',
@@ -54,8 +54,8 @@ export function LoginPage({ socket, query }) {
       border: '1px solid #C9C0B0',
       borderRadius: '10px',
       marginBottom: '12px',
-      background: '#FAF7F2',
-      color: '#1A1614',
+      background: '#F5F2E5',
+      color: '#0E0A12',
     },
   });
 
@@ -67,7 +67,7 @@ export function LoginPage({ socket, query }) {
         width: '100%',
         padding: '12px',
         fontSize: '16px',
-        background: '#C71F1F',
+        background: '#7B2EFF',
         color: '#FFFFFF',
         border: 'none',
         borderRadius: '10px',
@@ -103,9 +103,9 @@ export function LoginPage({ socket, query }) {
                 style: {
                   display: 'inline-block',
                   padding: '8px 12px',
-                  background: '#FAF7F2',
+                  background: '#F5F2E5',
                   border: '1px dashed #C9C0B0',
-                  color: '#7C5E1F',
+                  color: '#D89E2F',
                   borderRadius: '8px',
                   fontSize: '13px',
                   textDecoration: 'none',

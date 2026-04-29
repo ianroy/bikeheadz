@@ -57,9 +57,9 @@ export function setupInstallPrompt({ socket } = {}) {
       type: 'button',
       class: 'px-4 py-2 rounded-lg text-sm font-semibold transition-colors',
       style: {
-        background: '#C71F1F',
+        background: '#7B2EFF',
         color: '#FFFFFF',
-        border: '1px solid #C71F1F',
+        border: '1px solid #7B2EFF',
       },
       onClick: async () => {
         if (!deferredPrompt) { hideBanner(); return; }
@@ -77,8 +77,8 @@ export function setupInstallPrompt({ socket } = {}) {
       class: 'px-4 py-2 rounded-lg text-sm font-semibold transition-colors',
       style: {
         background: 'transparent',
-        color: '#1A1614',
-        border: '1px solid #E5DFD3',
+        color: '#0E0A12',
+        border: '1px solid #D7CFB6',
       },
       onClick: () => {
         setDismissed();
@@ -92,15 +92,15 @@ export function setupInstallPrompt({ socket } = {}) {
       class: 'fixed left-1/2 -translate-x-1/2 flex items-center gap-3 px-4 py-3 rounded-2xl shadow-2xl',
       style: {
         bottom: '16px',
-        background: '#FAF7F2',
-        border: '1px solid #E5DFD3',
+        background: '#F5F2E5',
+        border: '1px solid #D7CFB6',
         zIndex: 1000,
         maxWidth: 'calc(100vw - 32px)',
       },
     },
       el('div.flex.flex-col', { style: { lineHeight: '1.2' } },
-        el('span', { style: { fontWeight: 700, color: '#1A1614', fontSize: '0.95rem' } }, 'Install ValveHeadZ'),
-        el('span', { style: { color: '#6B6157', fontSize: '0.8rem' } }, 'Add to your home screen for fast access.'),
+        el('span', { style: { fontWeight: 700, color: '#0E0A12', fontSize: '0.95rem' } }, 'Install ValveHeadZ'),
+        el('span', { style: { color: '#3D2F4A', fontSize: '0.8rem' } }, 'Add to your home screen for fast access.'),
       ),
       el('div.flex.items-center.gap-2', {}, dismissBtn, installBtn),
     );

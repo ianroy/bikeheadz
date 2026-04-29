@@ -7,22 +7,22 @@
   tag).
 -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" width="800" height="800" role="img" aria-label="ValveHeadZ monogram">
-  <rect width="800" height="800" rx="120" fill="#FAF7F2"/>
-  <rect x="8" y="8" width="784" height="784" rx="116" fill="none" stroke="#1A1614" stroke-opacity="0.06" stroke-width="3"/>
+  <rect width="800" height="800" rx="120" fill="#F5F2E5"/>
+  <rect x="8" y="8" width="784" height="784" rx="116" fill="none" stroke="#0E0A12" stroke-opacity="0.06" stroke-width="3"/>
 
   <!-- cap profile, larger than in the app icon -->
   <g transform="translate(120 360)">
-    <rect x="0"  y="80" width="560" height="220" rx="28" fill="#C71F1F"/>
-    <g fill="#9E1818">
+    <rect x="0"  y="80" width="560" height="220" rx="28" fill="#7B2EFF"/>
+    <g fill="#5A1FCE">
       <rect x="0" y="248" width="560" height="8"/>
       <rect x="0" y="266" width="560" height="8"/>
       <rect x="0" y="284" width="560" height="8"/>
     </g>
-    <rect x="22" y="86" width="516" height="10" rx="5" fill="#E04A4A"/>
+    <rect x="22" y="86" width="516" height="10" rx="5" fill="#A267FF"/>
   </g>
 
   <!-- head -->
-  <g transform="translate(280 80)" fill="#1A1614">
+  <g transform="translate(280 80)" fill="#0E0A12">
     <circle cx="120" cy="120" r="118"/>
     <path d="M 22 156 Q 120 240 218 156 L 218 220 Q 120 250 22 220 Z"/>
     <rect x="42" y="208" width="156" height="28" rx="12"/>
@@ -31,6 +31,6 @@
   <!-- VHZ letterform — "VH" in ink, "Z" in brand red so the monogram
        echoes the wordmark's split-color treatment. -->
   <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, 'Inter', sans-serif" font-weight="900" letter-spacing="-6" text-anchor="middle">
-    <text x="400" y="640" font-size="140" fill="#1A1614">VH<tspan fill="#C71F1F">Z</tspan></text>
+    <text x="400" y="640" font-size="140" fill="#0E0A12">VH<tspan fill="#7B2EFF">Z</tspan></text>
   </g>
 </svg>

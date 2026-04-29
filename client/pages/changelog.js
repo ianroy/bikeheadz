@@ -31,7 +31,7 @@ function inline(text) {
   out = out.replace(
     /`([^`]+?)`/g,
     (_, code) =>
-      `<code style="background:#F1ECE2;padding:1px 6px;border-radius:4px;font-size:0.92em;color:#7C5E1F;">${code}</code>`
+      `<code style="background:#F1ECE2;padding:1px 6px;border-radius:4px;font-size:0.92em;color:#D89E2F;">${code}</code>`
   );
   // [text](url) — only http(s) and relative paths.
   out = out.replace(
@@ -40,7 +40,7 @@ function inline(text) {
       const safeHref = href.startsWith('http') || href.startsWith('/') || href.startsWith('#')
         ? href
         : '#';
-      return `<a href="${safeHref}" style="color:#C71F1F;text-decoration:underline;">${label}</a>`;
+      return `<a href="${safeHref}" style="color:#7B2EFF;text-decoration:underline;">${label}</a>`;
     }
   );
   return out;
@@ -65,7 +65,7 @@ function mdToHtml(md) {
     // Horizontal rule.
     if (/^---+\s*$/.test(line)) {
       out.push(
-        '<hr style="border:none;border-top:1px solid #E5DFD3;margin:32px 0;" />'
+        '<hr style="border:none;border-top:1px solid #D7CFB6;margin:32px 0;" />'
       );
       i++;
       continue;
@@ -77,7 +77,7 @@ function mdToHtml(md) {
       const level = heading[1].length;
       const fontSize = { 1: '32px', 2: '22px', 3: '18px', 4: '16px', 5: '15px', 6: '14px' }[level];
       const margin = { 1: '8px', 2: '24px', 3: '20px', 4: '16px', 5: '12px', 6: '12px' }[level];
-      const color = level === 1 ? '#C71F1F' : '#1A1614';
+      const color = level === 1 ? '#7B2EFF' : '#0E0A12';
       const weight = level <= 2 ? '700' : '600';
       out.push(
         `<h${level} style="font-size:${fontSize};margin-top:${margin};margin-bottom:8px;color:${color};font-weight:${weight};">${inline(heading[2])}</h${level}>`
@@ -94,7 +94,7 @@ function mdToHtml(md) {
         i++;
       }
       out.push(
-        `<blockquote style="border-left:3px solid #C9C0B0;padding:8px 14px;margin:12px 0;color:#6B6157;background:#FAF7F2;border-radius:0 8px 8px 0;">${inline(items.join(' '))}</blockquote>`
+        `<blockquote style="border-left:3px solid #C9C0B0;padding:8px 14px;margin:12px 0;color:#3D2F4A;background:#F5F2E5;border-radius:0 8px 8px 0;">${inline(items.join(' '))}</blockquote>`
       );
       continue;
     }
@@ -140,7 +140,7 @@ function markdownPage(markdown) {
       maxWidth: '760px',
       margin: '48px auto',
       padding: '0 24px',
-      color: 'var(--ink, #1A1614)',
+      color: 'var(--ink, #0E0A12)',
     },
   });
   // Renderer output is built from escaped text + the small fixed set of

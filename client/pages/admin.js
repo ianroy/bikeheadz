@@ -25,12 +25,12 @@ export function AdminPage({ socket }) {
   });
   const heading = el(
     'h1',
-    { style: { fontSize: '28px', color: '#C71F1F', marginBottom: '8px' } },
+    { style: { fontSize: '28px', color: '#7B2EFF', marginBottom: '8px' } },
     'Admin'
   );
   const sub = el(
     'p',
-    { style: { color: '#6B6157', marginBottom: '20px' } },
+    { style: { color: '#3D2F4A', marginBottom: '20px' } },
     'Operator-only dashboard. Every action is audit-logged.'
   );
   const tabBar = el('div', {
@@ -38,7 +38,7 @@ export function AdminPage({ socket }) {
       display: 'flex',
       gap: '8px',
       marginBottom: '20px',
-      borderBottom: '1px solid #E5DFD3',
+      borderBottom: '1px solid #D7CFB6',
     },
   });
   const content = el('div');
@@ -53,10 +53,10 @@ export function AdminPage({ socket }) {
           padding: '10px 14px',
           border: 'none',
           background: 'transparent',
-          color: active ? '#C71F1F' : '#6B6157',
+          color: active ? '#7B2EFF' : '#3D2F4A',
           fontSize: '0.9rem',
           fontWeight: active ? 700 : 500,
-          borderBottom: active ? '2px solid #C71F1F' : '2px solid transparent',
+          borderBottom: active ? '2px solid #7B2EFF' : '2px solid transparent',
           cursor: 'pointer',
         },
         onClick: () => {
@@ -87,13 +87,13 @@ export function AdminPage({ socket }) {
       {
         style: {
           background: '#FFFFFF',
-          border: '1px solid #E5DFD3',
+          border: '1px solid #D7CFB6',
           borderRadius: '12px',
           padding: '16px',
           marginBottom: '12px',
         },
       },
-      el('h2', { style: { fontSize: '14px', fontWeight: 700, marginBottom: '12px', color: '#1A1614' } }, title),
+      el('h2', { style: { fontSize: '14px', fontWeight: 700, marginBottom: '12px', color: '#0E0A12' } }, title),
       body
     );
   }
@@ -101,16 +101,16 @@ export function AdminPage({ socket }) {
   function statRow(label, value) {
     return el(
       'div',
-      { style: { display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #F0EBE2' } },
-      el('span', { style: { color: '#6B6157', fontSize: '0.85rem' } }, label),
-      el('span', { style: { color: '#1A1614', fontSize: '0.9rem', fontWeight: 600 } }, value)
+      { style: { display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #ECE8D6' } },
+      el('span', { style: { color: '#3D2F4A', fontSize: '0.85rem' } }, label),
+      el('span', { style: { color: '#0E0A12', fontSize: '0.9rem', fontWeight: 600 } }, value)
     );
   }
 
   function renderOverview() {
     const wrap = el('div');
     if (!state.summary) {
-      wrap.appendChild(el('p', { style: { color: '#6B6157' } }, state.loaded ? 'No data yet.' : 'Loading…'));
+      wrap.appendChild(el('p', { style: { color: '#3D2F4A' } }, state.loaded ? 'No data yet.' : 'Loading…'));
       return wrap;
     }
     const s = state.summary;
@@ -137,7 +137,7 @@ export function AdminPage({ socket }) {
   function renderUsers() {
     const wrap = el('div');
     if (!state.users.length) {
-      wrap.appendChild(el('p', { style: { color: '#6B6157' } }, state.loaded ? 'No users.' : 'Loading…'));
+      wrap.appendChild(el('p', { style: { color: '#3D2F4A' } }, state.loaded ? 'No users.' : 'Loading…'));
       return wrap;
     }
     const table = el('table', {
@@ -145,7 +145,7 @@ export function AdminPage({ socket }) {
         width: '100%',
         borderCollapse: 'collapse',
         background: '#FFFFFF',
-        border: '1px solid #E5DFD3',
+        border: '1px solid #D7CFB6',
         borderRadius: '8px',
         overflow: 'hidden',
       },
@@ -156,11 +156,11 @@ export function AdminPage({ socket }) {
         {},
         el(
           'tr',
-          { style: { background: '#F5F1E8' } },
+          { style: { background: '#E5E0CC' } },
           ...['Email', 'Role', 'Designs', 'Spend', 'Last login', 'Actions'].map((h) =>
             el(
               'th',
-              { style: { padding: '10px', textAlign: 'left', fontSize: '0.78rem', color: '#6B6157' } },
+              { style: { padding: '10px', textAlign: 'left', fontSize: '0.78rem', color: '#3D2F4A' } },
               h
             )
           )
@@ -172,7 +172,7 @@ export function AdminPage({ socket }) {
       tbody.appendChild(
         el(
           'tr',
-          { style: { borderTop: '1px solid #E5DFD3' } },
+          { style: { borderTop: '1px solid #D7CFB6' } },
           el('td', { style: { padding: '8px 10px', fontSize: '0.85rem' } }, u.email),
           el(
             'td',
@@ -181,8 +181,8 @@ export function AdminPage({ socket }) {
               'span',
               {
                 style: {
-                  background: u.role === 'admin' ? 'rgba(199,31,31,0.1)' : '#E5DFD3',
-                  color: u.role === 'admin' ? '#C71F1F' : '#6B6157',
+                  background: u.role === 'admin' ? 'rgba(123,46,255,0.1)' : '#D7CFB6',
+                  color: u.role === 'admin' ? '#7B2EFF' : '#3D2F4A',
                   padding: '2px 6px',
                   borderRadius: '4px',
                   fontSize: '0.7rem',
@@ -200,7 +200,7 @@ export function AdminPage({ socket }) {
           ),
           el(
             'td',
-            { style: { padding: '8px 10px', fontSize: '0.85rem', color: '#6B6157' } },
+            { style: { padding: '8px 10px', fontSize: '0.85rem', color: '#3D2F4A' } },
             u.last_login_at ? new Date(u.last_login_at).toLocaleDateString() : '—'
           ),
           el(
@@ -211,7 +211,7 @@ export function AdminPage({ socket }) {
               {
                 style: {
                   background: 'transparent',
-                  color: '#6B6157',
+                  color: '#3D2F4A',
                   border: '1px solid #C9C0B0',
                   borderRadius: '6px',
                   padding: '4px 8px',
@@ -235,7 +235,7 @@ export function AdminPage({ socket }) {
   function renderLive() {
     const wrap = el('div');
     if (!state.live) {
-      wrap.appendChild(el('p', { style: { color: '#6B6157' } }, 'Loading…'));
+      wrap.appendChild(el('p', { style: { color: '#3D2F4A' } }, 'Loading…'));
       return wrap;
     }
     wrap.appendChild(
@@ -258,10 +258,10 @@ export function AdminPage({ socket }) {
             ...state.live.recent.slice(0, 20).map((a) =>
               el(
                 'li',
-                { style: { padding: '4px 0', fontSize: '0.8rem', borderBottom: '1px solid #F0EBE2' } },
-                el('span', { style: { color: '#6B6157' } }, new Date(a.created_at).toLocaleTimeString()),
+                { style: { padding: '4px 0', fontSize: '0.8rem', borderBottom: '1px solid #ECE8D6' } },
+                el('span', { style: { color: '#3D2F4A' } }, new Date(a.created_at).toLocaleTimeString()),
                 ' ',
-                el('span', { style: { color: '#1A1614', fontWeight: 600 } }, a.action),
+                el('span', { style: { color: '#0E0A12', fontWeight: 600 } }, a.action),
                 a.target_type ? ` ${a.target_type}=${a.target_id || ''}` : ''
               )
             )
@@ -276,7 +276,7 @@ export function AdminPage({ socket }) {
     const wrap = el('div');
     if (!state.slowQueries.length) {
       wrap.appendChild(
-        el('p', { style: { color: '#6B6157' } }, 'No slow-query data (pg_stat_statements may be off).')
+        el('p', { style: { color: '#3D2F4A' } }, 'No slow-query data (pg_stat_statements may be off).')
       );
       return wrap;
     }
@@ -295,7 +295,7 @@ export function AdminPage({ socket }) {
               ...['Query', 'Calls', 'Mean (ms)'].map((h) =>
                 el(
                   'th',
-                  { style: { textAlign: 'left', padding: '6px', color: '#6B6157' } },
+                  { style: { textAlign: 'left', padding: '6px', color: '#3D2F4A' } },
                   h
                 )
               )
@@ -374,7 +374,7 @@ export function AdminPage({ socket }) {
         'button',
         {
           style: {
-            background: '#C71F1F',
+            background: '#7B2EFF',
             color: '#fff',
             border: 'none',
             padding: '8px 14px',
@@ -408,7 +408,7 @@ export function AdminPage({ socket }) {
   function renderFlags() {
     const wrap = el('div');
     if (!state.flags.length) {
-      wrap.appendChild(el('p', { style: { color: '#6B6157' } }, 'No flags yet.'));
+      wrap.appendChild(el('p', { style: { color: '#3D2F4A' } }, 'No flags yet.'));
       return wrap;
     }
     wrap.appendChild(
@@ -428,8 +428,8 @@ export function AdminPage({ socket }) {
                 'button',
                 {
                   style: {
-                    background: f.enabled ? '#C71F1F' : '#E5DFD3',
-                    color: f.enabled ? '#fff' : '#1A1614',
+                    background: f.enabled ? '#7B2EFF' : '#D7CFB6',
+                    color: f.enabled ? '#fff' : '#0E0A12',
                     border: 'none',
                     padding: '4px 10px',
                     borderRadius: '6px',
@@ -472,7 +472,7 @@ export function AdminPage({ socket }) {
               border: '1px solid #C9C0B0',
               borderRadius: '12px',
               background: '#FFFDF8',
-              color: '#6B6157',
+              color: '#3D2F4A',
             },
           },
           'You need admin permissions to view this page.'
@@ -531,8 +531,8 @@ export function AdminPage({ socket }) {
       padding: '6px 10px',
       border: '1px solid #C9C0B0',
       borderRadius: '6px',
-      background: '#FAF7F2',
-      color: '#1A1614',
+      background: '#F5F2E5',
+      color: '#0E0A12',
       fontSize: '0.85rem',
       flex: 1,
     };

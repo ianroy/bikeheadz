@@ -22,19 +22,19 @@ export function ShareButton({ url, title, text } = {}) {
       'inline-flex items-center gap-2 px-4 py-2 rounded-lg border '
       + 'transition-colors duration-150 cursor-pointer text-sm font-semibold',
     style: {
-      background: '#FAF7F2',
-      color: '#1A1614',
-      borderColor: '#E5DFD3',
+      background: '#F5F2E5',
+      color: '#0E0A12',
+      borderColor: '#D7CFB6',
     },
     onMouseenter: () => {
       button.style.background = '#FFFFFF';
-      button.style.borderColor = '#C71F1F';
-      button.style.color = '#C71F1F';
+      button.style.borderColor = '#7B2EFF';
+      button.style.color = '#7B2EFF';
     },
     onMouseleave: () => {
-      button.style.background = '#FAF7F2';
-      button.style.borderColor = '#E5DFD3';
-      button.style.color = '#1A1614';
+      button.style.background = '#F5F2E5';
+      button.style.borderColor = '#D7CFB6';
+      button.style.color = '#0E0A12';
     },
     onClick: handleClick,
   },
@@ -77,8 +77,8 @@ export function ShareButton({ url, title, text } = {}) {
       class: 'absolute left-1/2 -translate-x-1/2 mt-2 px-3 py-1.5 rounded-md text-xs font-medium shadow-lg whitespace-nowrap',
       style: {
         top: '100%',
-        background: '#1A1614',
-        color: '#FAF7F2',
+        background: '#0E0A12',
+        color: '#F5F2E5',
         zIndex: 50,
       },
     }, message);

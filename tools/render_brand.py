@@ -27,7 +27,7 @@ Outputs:
 Run:
   python3 tools/render_brand.py
 """
-import pathlib, sys
+import math, pathlib, random, sys
 from PIL import Image, ImageDraw, ImageFont
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -35,16 +35,21 @@ PUB = ROOT / 'client/public'
 ICONS = PUB / 'icons'
 PRESS = PUB / 'press'
 
-# Workshop palette — must match client/styles/theme.css
-PAPER = (250, 247, 242, 255)        # #FAF7F2
-PAPER_SOFT = (242, 237, 227, 255)   # #F2EDE3
-PAPER_EDGE = (201, 192, 177, 255)   # #C9C0B1
-INK = (26, 22, 20, 255)             # #1A1614
-INK_MUTED = (107, 97, 87, 255)      # #6B6157
-BRAND = (199, 31, 31, 255)          # #C71F1F
-BRAND_DARK = (158, 24, 24, 255)     # #9E1818
-BRAND_LIGHT = (224, 74, 74, 255)    # #E04A4A
-GOLD = (124, 94, 31, 255)           # #7C5E1F
+# Mongoose BMX palette — must match client/styles/theme.css.
+# Race day at the trails, 1993. Neon purple + fluoro green + magenta.
+PAPER       = (245, 242, 229, 255)  # #F5F2E5  off-white
+PAPER_SOFT  = (229, 224, 204, 255)  # #E5E0CC
+PAPER_EDGE  = (215, 207, 182, 255)  # #D7CFB6
+INK         = (14, 10, 18, 255)     # #0E0A12  carbon
+INK_MUTED   = (61, 47, 74, 255)     # #3D2F4A  deep mauve
+BRAND       = (123, 46, 255, 255)   # #7B2EFF  neon purple — the Z
+BRAND_DARK  = (90, 31, 206, 255)    # #5A1FCE
+BRAND_LIGHT = (162, 103, 255, 255)  # #A267FF
+ACCENT2     = (46, 255, 140, 255)   # #2EFF8C  fluoro green — Memphis offset, accents
+ACCENT2_DIM = (31, 206, 110, 255)   # #1FCE6E
+ACCENT3     = (255, 46, 171, 255)   # #FF2EAB  hot magenta — halftones, splatter, errors
+ACCENT3_DIM = (206, 31, 139, 255)   # #CE1F8B
+GOLD        = (216, 158, 47, 255)   # #D89E2F  hot yellow — warnings only
 
 # macOS system fonts — Helvetica.ttc has Helvetica Black at index 9 typically
 def font(size, weight='black'):
@@ -85,6 +90,84 @@ def text_w(draw, text, fnt):
         return r - l
     except Exception:
         return draw.textsize(text, font=fnt)[0]
+
+
+def draw_italic_text(draw, xy, text, font_obj, fill, skew=0.16, shadow=None, shadow_offset=(4, 4)):
+    """Render text into a temporary bitmap, shear-X for italic, paste.
+
+    Used by every wordmark surface so the 90s italic + drop-shadow look
+    is consistent. `shadow=None` skips the shadow.
+    """
+    l, t, r, b = draw.textbbox((0, 0), text, font=font_obj)
+    tw = r - l + 24; th = b - t + 24
+    layer = Image.new('RGBA', (tw, th), (0, 0, 0, 0))
+    ld = ImageDraw.Draw(layer)
+    if shadow is not None:
+        ld.text((-l + shadow_offset[0], -t + shadow_offset[1]), text, font=font_obj, fill=shadow)
+    ld.text((-l, -t), text, font=font_obj, fill=fill)
+    sheared = layer.transform(
+        (tw + int(th * skew), th),
+        Image.AFFINE,
+        (1, -skew, 0, 0, 1, 0),
+        resample=Image.BICUBIC,
+    )
+    draw._image.paste(sheared, (xy[0], xy[1]), sheared)
+    # Width consumed by the sheared text (without the 24px padding margin).
+    return (r - l + int(th * skew), th)
+
+
+def draw_halftone(im, accent, ox, oy, w, h, dot_min=1, dot_max=10, spacing=22):
+    """Radial halftone field — denser at the center, fading at edges."""
+    layer = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+    ld = ImageDraw.Draw(layer)
+    cx, cy = w // 2, h // 2
+    max_d = math.hypot(cx, cy)
+    for y in range(0, h, spacing):
+        for x in range((y // spacing) % 2 * (spacing // 2), w, spacing):
+            d = math.hypot(x - cx, y - cy)
+            t = 1 - d / max_d
+            r = int(dot_min + (dot_max - dot_min) * max(0, t))
+            if r < 1: continue
+            ld.ellipse([x - r, y - r, x + r, y + r], fill=accent)
+    im.paste(layer, (ox, oy), layer)
+
+
+def draw_splatter(im, ox, oy, w, h, palette, seed=11, count=80):
+    """Multi-color spray dots."""
+    rng = random.Random(seed)
+    layer = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+    ld = ImageDraw.Draw(layer)
+    for _ in range(count):
+        x = rng.randint(0, w); y = rng.randint(0, h)
+        r = rng.choice([1, 1, 2, 2, 3, 4, 6])
+        c = rng.choice(palette)
+        c = (c[0], c[1], c[2], int(rng.uniform(0.4, 0.95) * 255))
+        ld.ellipse([x - r, y - r, x + r, y + r], fill=c)
+    im.paste(layer, (ox, oy), layer)
+
+
+def draw_zigzag(draw, x, y, w, color, height=14, period=24, width=4):
+    """Period zigzag accent strip."""
+    pts = []; cx = x; up = True
+    while cx <= x + w:
+        pts.append((cx, y if up else y + height))
+        cx += period // 2; up = not up
+    for i in range(len(pts) - 1):
+        draw.line([pts[i], pts[i + 1]], fill=color, width=width)
+
+
+def draw_checker(draw, x, y, w, h, color_a, color_b, tile=24):
+    """Checkered nav strip."""
+    cols = (w + tile - 1) // tile
+    rows = (h + tile - 1) // tile
+    for r in range(rows):
+        for c in range(cols):
+            fill = color_a if (r + c) % 2 == 0 else color_b
+            draw.rectangle(
+                [x + c * tile, y + r * tile,
+                 x + min((c + 1) * tile, w), y + min((r + 1) * tile, h)],
+                fill=fill,
+            )
 
 
 # ── Mark primitives — draw the cap+head on a Pillow canvas. ────────────
@@ -200,55 +283,92 @@ def draw_cap_and_head(im, draw, ox, oy, scale=1.0):
     )
 
 
-def render_wordmark(out_path, w=1600, h=360):
+def render_wordmark(out_path, w=1600, h=400):
+    """ValveHeadZ wordmark — italic, with green drop shadow.
+
+    Mongoose-BMX vocabulary: italic "ValveHead" in ink with a
+    fluoro-green drop shadow + oversized neon-purple "Z" in italic.
+    Magenta halftone field bottom-right; spray-dot splatter near
+    the wordmark.
+    """
     im = Image.new('RGBA', (w, h), PAPER)
     draw = ImageDraw.Draw(im)
-    # Mark on the left
-    draw_cap_and_head(im, draw, ox=60, oy=70, scale=1.0)
-    # Wordmark: "ValveHead" in ink + "Z" oversized in red
-    fnt_main = font(170, 'black')
+
+    # Halftone field bottom-right (decorative, low-density).
+    draw_halftone(im, (ACCENT3[0], ACCENT3[1], ACCENT3[2], 110),
+                  ox=900, oy=80, w=700, h=320, dot_min=1, dot_max=8, spacing=24)
+
+    # Mark on the left.
+    draw_cap_and_head(im, draw, ox=20, oy=90, scale=1.0)
+
+    # Splatter sprinkle near the wordmark area.
+    draw_splatter(im, ox=290, oy=40, w=900, h=240,
+                  palette=[BRAND, ACCENT2, ACCENT3], seed=42, count=60)
+
+    # Wordmark: italic "ValveHead" with fluoro-green drop shadow + oversized purple Z.
+    fnt_main = font(150, 'black')
     fnt_z    = font(230, 'black')
     fnt_tag  = font(22,  'medium')
     text_x = 320
-    base_y = 230
-    main = "ValveHead"
-    draw.text((text_x, base_y - 130), main, font=fnt_main, fill=INK)
-    main_w = text_w(draw, main, fnt_main)
-    # Z: nudge slightly to overlap stem of "d" — visual coupling
-    z_x = text_x + main_w - 6
-    draw.text((z_x, base_y - 165), "Z", font=fnt_z, fill=BRAND)
-    # tagline
-    tagline = "YOUR FACE ON A SCHRADER VALVE CAP"
-    draw.text((text_x, base_y + 40), tagline, font=fnt_tag, fill=INK_MUTED)
+    base_y = 250
+
+    drop = (ACCENT2[0], ACCENT2[1], ACCENT2[2], 235)
+    # "ValveHead"
+    draw_italic_text(draw, (text_x, base_y - 145), "ValveHead", fnt_main,
+                     fill=INK, skew=0.16, shadow=drop, shadow_offset=(6, 6))
+    # Estimate the consumed width to position the Z.
+    main_w = text_w(draw, "ValveHead", fnt_main)
+    z_x = text_x + main_w + int(150 * 0.16) - 24
+    draw_italic_text(draw, (z_x, base_y - 175), "Z", fnt_z,
+                     fill=BRAND, skew=0.16, shadow=drop, shadow_offset=(8, 8))
+
+    # Tagline (italic small caps look — `YOUR FACE…`).
+    draw.text((text_x, base_y + 60), "YOUR FACE ON A SCHRADER VALVE CAP",
+              font=fnt_tag, fill=INK_MUTED)
+
     im.save(out_path)
     return im
 
 
 def render_monogram(out_path, size=800):
-    """Vertical layout: shared cap+head mark in the top half, "VHZ"
-    wordmark in the bottom half (VH ink, oversized red Z)."""
+    """Square monogram. Shared cap+head mark on top, italic "VHZ" below
+    with VH in ink and oversized neon-purple Z, fluoro drop shadow.
+    Memphis offset behind the entire tile."""
     im = Image.new('RGBA', (size, size), PAPER)
     draw = ImageDraw.Draw(im)
-    draw.rounded_rectangle([0, 0, size - 1, size - 1], radius=120, fill=PAPER)
-    draw.rounded_rectangle([8, 8, size - 9, size - 9], radius=116,
-                           outline=(26, 22, 20, 16), width=3)
-    # Shared mark, scaled to fill ~360px of vertical space.
-    mark_scale = 1.6
+    # Memphis offset shadow (fluoro green) behind the rounded tile.
+    offset = 14
+    draw.rounded_rectangle(
+        [offset, offset, size - 1, size - 1], radius=120, fill=ACCENT2
+    )
+    draw.rounded_rectangle(
+        [0, 0, size - 1 - offset, size - 1 - offset], radius=120, fill=PAPER
+    )
+    # Inner bezel.
+    draw.rounded_rectangle(
+        [8, 8, size - 9 - offset, size - 9 - offset],
+        radius=116, outline=INK, width=3
+    )
+    # Halftone field in the upper background (subtle).
+    draw_halftone(im, (ACCENT3[0], ACCENT3[1], ACCENT3[2], 90),
+                  ox=80, oy=60, w=620, h=300, dot_min=1, dot_max=6, spacing=22)
+    # Shared mark, centered horizontally.
+    mark_scale = 1.5
     mark_w = int(round(290 * mark_scale))
-    ox = (size - mark_w) // 2
+    ox = (size - offset - mark_w) // 2
     oy = 70
     draw_cap_and_head(im, draw, ox=ox, oy=oy, scale=mark_scale)
-    # VHZ wordmark — bottom half. VH in ink, Z oversized brand-red.
+    # "VHZ" wordmark (italic, drop shadow) — VH ink, Z neon purple oversize.
     fnt_main = font(180, 'black')
     fnt_z    = font(280, 'black')
-    main = "VH"
-    z = "Z"
-    mw = text_w(draw, main, fnt_main)
-    total_w = mw + text_w(draw, z, fnt_z) - 12
-    base_x = (size - total_w) // 2
-    base_y = 580
-    draw.text((base_x, base_y), main, font=fnt_main, fill=INK)
-    draw.text((base_x + mw - 12, base_y - 50), z, font=fnt_z, fill=BRAND)
+    drop = (ACCENT3[0], ACCENT3[1], ACCENT3[2], 235)
+    mw = text_w(draw, "VH", fnt_main)
+    base_x = (size - offset - (mw + text_w(draw, "Z", fnt_z) - 12)) // 2
+    base_y = 600
+    draw_italic_text(draw, (base_x, base_y - 140), "VH", fnt_main,
+                     fill=INK, skew=0.16, shadow=drop, shadow_offset=(6, 6))
+    draw_italic_text(draw, (base_x + mw - 24, base_y - 190), "Z", fnt_z,
+                     fill=BRAND, skew=0.16, shadow=drop, shadow_offset=(8, 8))
     im.save(out_path)
     return im
 
@@ -346,31 +466,39 @@ def render_palette(out_path, w=1200, h=700):
 
 
 def render_og(out_path, w=1200, h=630):
-    """OG card: cream ground + cap mark + wordmark + tagline.
-
-    Layout: 1200×630 (Open Graph spec). Mark on the left at scale 1.5
-    (380px tall). Wordmark anchored x=440, sized so 'ValveHeadZ' fully
-    fits within the right margin (1140 cap).
-    """
+    """OG card — italic wordmark + Memphis-offset card + checker/zigzag
+    accents. 1200×630 Open Graph spec."""
     im = Image.new('RGBA', (w, h), PAPER)
     draw = ImageDraw.Draw(im)
-    # decorative diagonal threads
-    for i in range(0, w, 90):
-        draw.line([(i, 0), (i + h, h)], fill=(26, 22, 20, 8), width=1)
-    # mark on the left
+
+    # Top checker strip.
+    draw_checker(draw, x=0, y=0, w=w, h=22, color_a=INK, color_b=ACCENT2, tile=22)
+    # Zigzag below.
+    draw_zigzag(draw, x=0, y=30, w=w, color=ACCENT3, height=10, period=22, width=3)
+    # Halftone field (lower right).
+    draw_halftone(im, (ACCENT3[0], ACCENT3[1], ACCENT3[2], 90),
+                  ox=600, oy=200, w=600, h=430, dot_min=1, dot_max=10, spacing=24)
+    # Mark on the left.
     draw_cap_and_head(im, draw, ox=60, oy=200, scale=1.5)
-    # wordmark — sized so ValveHead + Z fits within (440 → 1140) = 700 px
-    fnt_main = font(96, 'black')
-    fnt_z = font(140, 'black')
-    main = "ValveHead"
-    draw.text((440, 270), main, font=fnt_main, fill=INK)
-    main_w = text_w(draw, main, fnt_main)
-    draw.text((440 + main_w - 4, 246), "Z", font=fnt_z, fill=BRAND)
-    # tagline
-    fnt_tag = font(26, 'medium')
-    draw.text((440, 430), "Your face on a Schrader valve cap.",
+    # Splatter sprinkle around the wordmark.
+    draw_splatter(im, ox=380, oy=140, w=820, h=280,
+                  palette=[BRAND, ACCENT2, ACCENT3], seed=99, count=70)
+
+    # Italic wordmark with drop shadow.
+    fnt_main = font(110, 'black')
+    fnt_z = font(160, 'black')
+    drop = (ACCENT2[0], ACCENT2[1], ACCENT2[2], 230)
+    draw_italic_text(draw, (440, 250), "ValveHead", fnt_main,
+                     fill=INK, skew=0.16, shadow=drop, shadow_offset=(5, 5))
+    main_w = text_w(draw, "ValveHead", fnt_main)
+    draw_italic_text(draw, (440 + main_w + 4, 222), "Z", fnt_z,
+                     fill=BRAND, skew=0.16, shadow=drop, shadow_offset=(7, 7))
+
+    # Tagline.
+    fnt_tag = font(28, 'medium')
+    draw.text((440, 410), "Your face on a Schrader valve cap.",
               font=fnt_tag, fill=INK_MUTED)
-    draw.text((440, 470), "$2 STL · printable on any FDM/PLA setup.",
+    draw.text((440, 450), "$2 STL · printable on any FDM/PLA setup.",
               font=fnt_tag, fill=INK_MUTED)
     im.save(out_path)
     return im

@@ -7,12 +7,12 @@
 import { el } from '../dom.js';
 
 const PALETTE = [
-  { name: 'Workshop ink', hex: '#1A1614', token: '--ink', light: false },
-  { name: 'Workshop paper', hex: '#FAF7F2', token: '--paper', light: true },
+  { name: 'Workshop ink', hex: '#0E0A12', token: '--ink', light: false },
+  { name: 'Workshop paper', hex: '#F5F2E5', token: '--paper', light: true },
   { name: 'Paper soft', hex: '#FFFDF8', token: '--paper-soft', light: true },
-  { name: 'Brand red', hex: '#C71F1F', token: 'red-600', light: false },
-  { name: 'Workshop gold', hex: '#7C5E1F', token: 'gold-700', light: false },
-  { name: 'Muted clay', hex: '#6B6157', token: 'muted-500', light: false },
+  { name: 'Brand red', hex: '#7B2EFF', token: 'red-600', light: false },
+  { name: 'Workshop gold', hex: '#D89E2F', token: 'gold-700', light: false },
+  { name: 'Muted clay', hex: '#3D2F4A', token: 'muted-500', light: false },
 ];
 
 const ABOUT =
@@ -29,8 +29,8 @@ function sectionShell(title, body) {
           fontSize: '20px',
           fontWeight: 600,
           marginBottom: '14px',
-          color: '#1A1614',
-          borderBottom: '1px solid #E5DFD3',
+          color: '#0E0A12',
+          borderBottom: '1px solid #D7CFB6',
           paddingBottom: '6px',
         },
       },
@@ -49,14 +49,14 @@ function logoSvg() {
   svg.setAttribute('height', '72');
   svg.setAttribute('aria-label', 'ValveHeadZ wordmark');
   svg.innerHTML = `
-    <g fill="#C71F1F">
+    <g fill="#7B2EFF">
       <path d="M14 18 L4 40 L14 62 L20 62 L12 40 L20 18 Z" />
       <path d="M346 18 L356 40 L346 62 L340 62 L348 40 L340 18 Z" />
       <text x="180" y="50" text-anchor="middle"
             font-family="Georgia, 'Times New Roman', serif"
             font-size="34" font-weight="700"
             letter-spacing="3"
-            fill="#C71F1F">VALVEHEADZ</text>
+            fill="#7B2EFF">VALVEHEADZ</text>
       <rect x="32" y="58" width="296" height="2" />
     </g>`;
   return svg;
@@ -70,12 +70,12 @@ function monogramSvg() {
   svg.setAttribute('height', '96');
   svg.setAttribute('aria-label', 'ValveHeadZ monogram');
   svg.innerHTML = `
-    <circle cx="50" cy="50" r="46" fill="#C71F1F" />
+    <circle cx="50" cy="50" r="46" fill="#7B2EFF" />
     <text x="50" y="64" text-anchor="middle"
           font-family="Georgia, 'Times New Roman', serif"
           font-size="56" font-weight="700"
-          fill="#FAF7F2">B</text>
-    <circle cx="50" cy="50" r="46" fill="none" stroke="#FAF7F2" stroke-width="2" stroke-dasharray="2 6" />`;
+          fill="#F5F2E5">B</text>
+    <circle cx="50" cy="50" r="46" fill="none" stroke="#F5F2E5" stroke-width="2" stroke-dasharray="2 6" />`;
   return svg;
 }
 
@@ -88,13 +88,13 @@ function productSilhouette(label) {
   svg.setAttribute('height', 'auto');
   svg.setAttribute('aria-label', label);
   svg.innerHTML = `
-    <rect width="200" height="200" fill="#FAF7F2" />
-    <ellipse cx="100" cy="86" rx="44" ry="52" fill="#1A1614" opacity="0.85" />
-    <rect x="68" y="138" width="64" height="20" rx="3" fill="#1A1614" opacity="0.85" />
-    <rect x="76" y="158" width="48" height="22" rx="3" fill="#7C5E1F" />
-    <rect x="76" y="158" width="48" height="3" fill="#1A1614" opacity="0.4" />
-    <rect x="76" y="166" width="48" height="3" fill="#1A1614" opacity="0.4" />
-    <rect x="76" y="174" width="48" height="3" fill="#1A1614" opacity="0.4" />`;
+    <rect width="200" height="200" fill="#F5F2E5" />
+    <ellipse cx="100" cy="86" rx="44" ry="52" fill="#0E0A12" opacity="0.85" />
+    <rect x="68" y="138" width="64" height="20" rx="3" fill="#0E0A12" opacity="0.85" />
+    <rect x="76" y="158" width="48" height="22" rx="3" fill="#D89E2F" />
+    <rect x="76" y="158" width="48" height="3" fill="#0E0A12" opacity="0.4" />
+    <rect x="76" y="166" width="48" height="3" fill="#0E0A12" opacity="0.4" />
+    <rect x="76" y="174" width="48" height="3" fill="#0E0A12" opacity="0.4" />`;
   return svg;
 }
 
@@ -104,9 +104,9 @@ function paletteSwatch({ name, hex, token, light }) {
     {
       style: {
         background: hex,
-        color: light ? '#1A1614' : '#FFFFFF',
+        color: light ? '#0E0A12' : '#FFFFFF',
         borderRadius: '10px',
-        border: '1px solid #E5DFD3',
+        border: '1px solid #D7CFB6',
         padding: '20px 16px',
         minHeight: '110px',
         display: 'flex',
@@ -131,7 +131,7 @@ function productCard(caption) {
     {
       style: {
         background: '#FFFDF8',
-        border: '1px solid #E5DFD3',
+        border: '1px solid #D7CFB6',
         borderRadius: '12px',
         padding: '14px',
         margin: 0,
@@ -144,22 +144,22 @@ function productCard(caption) {
       'div',
       {
         style: {
-          background: '#FAF7F2',
+          background: '#F5F2E5',
           borderRadius: '8px',
           overflow: 'hidden',
-          border: '1px solid #E5DFD3',
+          border: '1px solid #D7CFB6',
         },
       },
       productSilhouette(caption)
     ),
     el(
       'figcaption',
-      { style: { color: '#6B6157', fontSize: '13px', lineHeight: 1.5 } },
+      { style: { color: '#3D2F4A', fontSize: '13px', lineHeight: 1.5 } },
       caption,
       el('br'),
       el(
         'span',
-        { style: { color: '#7C5E1F' } },
+        { style: { color: '#D89E2F' } },
         'photo coming soon — replace under client/public/press/'
       )
     )
@@ -172,17 +172,17 @@ export function PressPage() {
       maxWidth: '880px',
       margin: '48px auto',
       padding: '0 24px',
-      color: 'var(--ink, #1A1614)',
+      color: 'var(--ink, #0E0A12)',
     },
   });
 
   root.appendChild(
-    el('h1', { style: { fontSize: '32px', marginBottom: '8px', color: '#C71F1F' } }, 'Press kit')
+    el('h1', { style: { fontSize: '32px', marginBottom: '8px', color: '#7B2EFF' } }, 'Press kit')
   );
   root.appendChild(
     el(
       'p',
-      { style: { color: '#6B6157', fontSize: '14px', marginBottom: '8px', lineHeight: 1.5 } },
+      { style: { color: '#3D2F4A', fontSize: '14px', marginBottom: '8px', lineHeight: 1.5 } },
       'Brand assets, palette, product photos, and a short about-us blurb. Use these freely — credit appreciated, not required.'
     )
   );
@@ -195,8 +195,8 @@ export function PressPage() {
         'div',
         {
           style: {
-            background: '#FAF7F2',
-            border: '1px solid #E5DFD3',
+            background: '#F5F2E5',
+            border: '1px solid #D7CFB6',
             borderRadius: '12px',
             padding: '32px 24px',
             display: 'flex',
@@ -216,8 +216,8 @@ export function PressPage() {
         'div',
         {
           style: {
-            background: '#FAF7F2',
-            border: '1px solid #E5DFD3',
+            background: '#F5F2E5',
+            border: '1px solid #D7CFB6',
             borderRadius: '12px',
             padding: '24px',
             display: 'flex',
@@ -228,7 +228,7 @@ export function PressPage() {
         monogramSvg(),
         el(
           'p',
-          { style: { color: '#6B6157', fontSize: '14px', lineHeight: 1.5, margin: 0 } },
+          { style: { color: '#3D2F4A', fontSize: '14px', lineHeight: 1.5, margin: 0 } },
           'For favicons, app icons, and tight spaces. Background-safe at 16 px and up.'
         )
       )
@@ -282,11 +282,11 @@ export function PressPage() {
         {
           style: {
             background: '#FFFDF8',
-            border: '1px solid #E5DFD3',
+            border: '1px solid #D7CFB6',
             borderRadius: '12px',
             padding: '20px 22px',
             lineHeight: 1.65,
-            color: '#1A1614',
+            color: '#0E0A12',
             margin: 0,
           },
         },
@@ -310,8 +310,8 @@ export function PressPage() {
           style: {
             padding: '12px 24px',
             fontSize: '15px',
-            background: '#E5DFD3',
-            color: '#6B6157',
+            background: '#D7CFB6',
+            color: '#3D2F4A',
             border: '1px solid #C9C0B0',
             borderRadius: '10px',
             cursor: 'not-allowed',
@@ -322,7 +322,7 @@ export function PressPage() {
       ),
       el(
         'p',
-        { style: { color: '#6B6157', fontSize: '12px', marginTop: '8px' } },
+        { style: { color: '#3D2F4A', fontSize: '12px', marginTop: '8px' } },
         'A consolidated ZIP will be available after launch.'
       )
     )

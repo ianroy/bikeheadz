@@ -3,12 +3,12 @@ import { icon } from '../icons.js';
 
 const STATUS_COLORS = {
   Shipped: '#1D4ED8',
-  Delivered: '#C71F1F',
+  Delivered: '#7B2EFF',
   Processing: '#C2410C',
-  Paid: '#7C5E1F',
-  Refunded: '#6B6157',
+  Paid: '#D89E2F',
+  Refunded: '#3D2F4A',
   Printing: '#C2410C',
-  'In Queue': '#6B6157',
+  'In Queue': '#3D2F4A',
 };
 
 export function AccountPage({ socket }) {
@@ -26,13 +26,13 @@ export function AccountPage({ socket }) {
 
   const profileHeader = el('div', {
     class: 'rounded-2xl p-6 border mb-6 flex items-center gap-5',
-    style: { background: '#FFFFFF', borderColor: '#E5DFD3' },
+    style: { background: '#FFFFFF', borderColor: '#D7CFB6' },
   });
   root.appendChild(profileHeader);
 
   const tabBar = el('div', {
     class: 'flex rounded-xl p-1 mb-5 gap-1',
-    style: { background: '#FFFFFF', border: '1px solid #E5DFD3' },
+    style: { background: '#FFFFFF', border: '1px solid #D7CFB6' },
   });
   root.appendChild(tabBar);
 
@@ -49,7 +49,7 @@ export function AccountPage({ socket }) {
           'div',
           {
             class: 'w-20 h-20 rounded-2xl flex items-center justify-center',
-            style: { background: 'linear-gradient(135deg, #F5F1E8, #FFFFFF)', fontSize: '1.875rem' },
+            style: { background: 'linear-gradient(135deg, #E5E0CC, #FFFFFF)', fontSize: '1.875rem' },
           },
           '\u{1F6B4}'
         )
@@ -57,7 +57,7 @@ export function AccountPage({ socket }) {
       el(
         'div.flex-1',
         el('h1', { style: { fontWeight: 800, fontSize: '1.3rem' } }, state.profile.displayName || 'Guest'),
-        el('p', { style: { color: '#6B6157', fontSize: '0.85rem' } }, state.profile.email || 'Not signed in'),
+        el('p', { style: { color: '#3D2F4A', fontSize: '0.85rem' } }, state.profile.email || 'Not signed in'),
         el(
           'div.flex.items-center.gap-3.mt-2',
           state.user
@@ -66,8 +66,8 @@ export function AccountPage({ socket }) {
                 {
                   class: 'px-2 py-0.5 rounded-full',
                   style: {
-                    background: 'rgba(199,31,31,0.12)',
-                    color: '#C71F1F',
+                    background: 'rgba(123,46,255,0.12)',
+                    color: '#7B2EFF',
                     fontSize: '0.72rem',
                     fontWeight: 700,
                   },
@@ -77,7 +77,7 @@ export function AccountPage({ socket }) {
             : null,
           el(
             'span',
-            { style: { color: '#6B6157', fontSize: '0.75rem' } },
+            { style: { color: '#3D2F4A', fontSize: '0.75rem' } },
             `${state.designs.length} designs · ${state.orders.length} orders`
           )
         )
@@ -91,7 +91,7 @@ export function AccountPage({ socket }) {
               class: 'flex items-center gap-1.5 transition-colors',
               style: {
                 color: '#FFFFFF',
-                background: '#C71F1F',
+                background: '#7B2EFF',
                 fontSize: '0.85rem',
                 padding: '8px 12px',
                 borderRadius: '10px',
@@ -105,7 +105,7 @@ export function AccountPage({ socket }) {
             'button',
             {
               class: 'flex items-center gap-1.5 transition-colors',
-              style: { color: '#6B6157', fontSize: '0.8rem' },
+              style: { color: '#3D2F4A', fontSize: '0.8rem' },
               onClick: signOut,
             },
             icon('logOut', { size: 16 }),
@@ -129,8 +129,8 @@ export function AccountPage({ socket }) {
           {
             class: 'flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg transition-all',
             style: {
-              background: active ? '#C71F1F' : 'transparent',
-              color: active ? '#FFFFFF' : '#6B6157',
+              background: active ? '#7B2EFF' : 'transparent',
+              color: active ? '#FFFFFF' : '#3D2F4A',
               fontWeight: active ? 700 : 500,
               fontSize: '0.85rem',
             },
@@ -140,7 +140,7 @@ export function AccountPage({ socket }) {
               renderTabs();
             },
           },
-          icon(tab.ico, { size: 16, color: active ? '#FFFFFF' : '#6B6157' }),
+          icon(tab.ico, { size: 16, color: active ? '#FFFFFF' : '#3D2F4A' }),
           tab.label
         )
       );
@@ -169,7 +169,7 @@ export function AccountPage({ socket }) {
       strip.appendChild(
         el(
           'p',
-          { style: { color: '#6B6157', fontSize: '0.75rem', margin: '0 8px 0 0', whiteSpace: 'nowrap' } },
+          { style: { color: '#3D2F4A', fontSize: '0.75rem', margin: '0 8px 0 0', whiteSpace: 'nowrap' } },
           'Your photos:'
         )
       );
@@ -184,9 +184,9 @@ export function AccountPage({ socket }) {
                 width: '48px',
                 height: '48px',
                 borderRadius: '8px',
-                background: '#E5DFD3',
+                background: '#D7CFB6',
                 border: '1px solid #C9C0B0',
-                color: '#6B6157',
+                color: '#3D2F4A',
                 fontSize: '0.65rem',
                 display: 'flex',
                 alignItems: 'center',
@@ -207,7 +207,7 @@ export function AccountPage({ socket }) {
       wrap.appendChild(
         el(
           'p',
-          { style: { color: '#6B6157', fontSize: '0.85rem', padding: '1.5rem', textAlign: 'center' } },
+          { style: { color: '#3D2F4A', fontSize: '0.85rem', padding: '1.5rem', textAlign: 'center' } },
           state.user
             ? 'No designs yet — make one from the home page.'
             : 'Sign in to see your designs.'
@@ -222,7 +222,7 @@ export function AccountPage({ socket }) {
           'div',
           {
             class: 'rounded-xl border transition-colors',
-            style: { background: '#FFFFFF', borderColor: '#E5DFD3' },
+            style: { background: '#FFFFFF', borderColor: '#D7CFB6' },
           },
           el(
             'div.flex.items-center.gap-4.p-4',
@@ -230,7 +230,7 @@ export function AccountPage({ socket }) {
               'div',
               {
                 class: 'w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 border',
-                style: { background: '#4A453F', borderColor: '#E5DFD3' },
+                style: { background: '#2A1F3D', borderColor: '#D7CFB6' },
               },
               ''
             ),
@@ -238,10 +238,10 @@ export function AccountPage({ socket }) {
               'div.flex-1',
               el(
                 'p',
-                { style: { color: '#1A1614', fontWeight: 600, fontSize: '0.9rem' } },
+                { style: { color: '#0E0A12', fontWeight: 600, fontSize: '0.9rem' } },
                 d.photo_name || d.filename || 'Untitled design'
               ),
-              el('p', { style: { color: '#6B6157', fontSize: '0.75rem' } }, date),
+              el('p', { style: { color: '#3D2F4A', fontSize: '0.75rem' } }, date),
               el(
                 'div',
                 { class: 'flex items-center gap-2 mt-1.5' },
@@ -250,7 +250,7 @@ export function AccountPage({ socket }) {
                       'span',
                       {
                         class: 'px-1.5 py-0.5 rounded',
-                        style: { background: 'rgba(199,31,31,0.12)', color: '#C71F1F', fontSize: '0.65rem' },
+                        style: { background: 'rgba(123,46,255,0.12)', color: '#7B2EFF', fontSize: '0.65rem' },
                       },
                       'PAID'
                     )
@@ -260,7 +260,7 @@ export function AccountPage({ socket }) {
                       'span',
                       {
                         class: 'px-1.5 py-0.5 rounded',
-                        style: { background: '#E5DFD3', color: '#6B6157', fontSize: '0.65rem' },
+                        style: { background: '#D7CFB6', color: '#3D2F4A', fontSize: '0.65rem' },
                       },
                       'PUBLIC'
                     )
@@ -274,7 +274,7 @@ export function AccountPage({ socket }) {
                     'button',
                     {
                       class: 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-colors',
-                      style: { borderColor: '#E5DFD3', color: '#6B6157', fontSize: '0.75rem' },
+                      style: { borderColor: '#D7CFB6', color: '#3D2F4A', fontSize: '0.75rem' },
                       onClick: () => downloadStl(d),
                     },
                     icon('download', { size: 14 }),
@@ -294,7 +294,7 @@ export function AccountPage({ socket }) {
                 'button',
                 {
                   class: 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors',
-                  style: { background: 'transparent', color: '#6B6157', fontSize: '0.75rem' },
+                  style: { background: 'transparent', color: '#3D2F4A', fontSize: '0.75rem' },
                   onClick: () => deleteDesign(d),
                 },
                 icon('trash2', { size: 14 })
@@ -312,7 +312,7 @@ export function AccountPage({ socket }) {
           href: '/',
           'data-link': true,
           class: 'flex items-center justify-center gap-2 py-4 rounded-xl border-2 border-dashed transition-colors mt-1',
-          style: { borderColor: '#E5DFD3', color: '#6B6157', textDecoration: 'none' },
+          style: { borderColor: '#D7CFB6', color: '#3D2F4A', textDecoration: 'none' },
         },
         el('span', { style: { fontSize: '1.2rem' } }, '+'),
         el('span', { style: { fontSize: '0.85rem', fontWeight: 600 } }, 'Create New Design')
@@ -327,7 +327,7 @@ export function AccountPage({ socket }) {
       wrap.appendChild(
         el(
           'p',
-          { style: { color: '#6B6157', fontSize: '0.85rem', padding: '1.5rem', textAlign: 'center' } },
+          { style: { color: '#3D2F4A', fontSize: '0.85rem', padding: '1.5rem', textAlign: 'center' } },
           state.loaded ? 'No orders yet.' : 'Loading orders…'
         )
       );
@@ -336,24 +336,24 @@ export function AccountPage({ socket }) {
       wrap.appendChild(
         el(
           'div',
-          { class: 'rounded-xl border p-4', style: { background: '#FFFFFF', borderColor: '#E5DFD3' } },
+          { class: 'rounded-xl border p-4', style: { background: '#FFFFFF', borderColor: '#D7CFB6' } },
           el(
             'div.flex.items-start.justify-between.gap-3',
             el(
               'div.flex-1',
               el(
                 'div.flex.items-center.gap-2.mb-1',
-                el('span', { style: { color: '#1A1614', fontWeight: 600, fontSize: '0.88rem' } }, order.name),
+                el('span', { style: { color: '#0E0A12', fontWeight: 600, fontSize: '0.88rem' } }, order.name),
                 el(
                   'span',
                   {
                     class: 'px-2 py-0.5 rounded-full',
                     style: {
-                      background: `${STATUS_COLORS[order.status] || '#6B6157'}18`,
+                      background: `${STATUS_COLORS[order.status] || '#3D2F4A'}18`,
                       color: STATUS_COLORS[order.status] || '#3D3A36',
                       fontSize: '0.68rem',
                       fontWeight: 700,
-                      border: `1px solid ${STATUS_COLORS[order.status] || '#6B6157'}30`,
+                      border: `1px solid ${STATUS_COLORS[order.status] || '#3D2F4A'}30`,
                     },
                   },
                   order.status
@@ -361,13 +361,13 @@ export function AccountPage({ socket }) {
               ),
               el(
                 'p',
-                { style: { color: '#6B6157', fontSize: '0.75rem' } },
+                { style: { color: '#3D2F4A', fontSize: '0.75rem' } },
                 `${order.id} · ${order.date} · Qty: ${order.qty}`
               )
             ),
             el(
               'div.text-right',
-              el('p', { style: { color: '#C71F1F', fontWeight: 700, fontSize: '0.9rem' } }, order.price)
+              el('p', { style: { color: '#7B2EFF', fontWeight: 700, fontSize: '0.9rem' } }, order.price)
             )
           )
         )
@@ -383,8 +383,8 @@ export function AccountPage({ socket }) {
       class: 'rounded-xl px-4 py-2.5 border',
       style: {
         background: '#FFFFFF',
-        color: '#1A1614',
-        borderColor: '#E5DFD3',
+        color: '#0E0A12',
+        borderColor: '#D7CFB6',
         fontSize: '0.9rem',
         outline: 'none',
       },
@@ -392,14 +392,14 @@ export function AccountPage({ socket }) {
         state.profile.displayName = e.target.value;
       },
     });
-    const emailDisplay = el('p', { style: { color: '#6B6157', fontSize: '0.85rem' } }, state.profile.email);
+    const emailDisplay = el('p', { style: { color: '#3D2F4A', fontSize: '0.85rem' } }, state.profile.email);
 
     wrap.appendChild(
       el(
         'div',
         {
           class: 'rounded-2xl border p-5',
-          style: { background: '#FFFFFF', borderColor: '#E5DFD3' },
+          style: { background: '#FFFFFF', borderColor: '#D7CFB6' },
         },
         el('h3.mb-4', { style: { fontWeight: 700, fontSize: '0.95rem' } }, 'Profile'),
         el(
@@ -407,13 +407,13 @@ export function AccountPage({ socket }) {
           el(
             'div',
             { class: 'flex flex-col gap-1.5' },
-            el('label', { style: { color: '#6B6157', fontSize: '0.8rem' } }, 'Display Name'),
+            el('label', { style: { color: '#3D2F4A', fontSize: '0.8rem' } }, 'Display Name'),
             nameInput
           ),
           el(
             'div',
             { class: 'flex flex-col gap-1.5' },
-            el('label', { style: { color: '#6B6157', fontSize: '0.8rem' } }, 'Email'),
+            el('label', { style: { color: '#3D2F4A', fontSize: '0.8rem' } }, 'Email'),
             emailDisplay
           )
         ),
@@ -422,7 +422,7 @@ export function AccountPage({ socket }) {
           {
             class: 'mt-4 px-5 py-2 rounded-xl transition-all',
             style: {
-              background: '#C71F1F',
+              background: '#7B2EFF',
               color: '#FFFFFF',
               fontWeight: 700,
               fontSize: '0.85rem',
@@ -450,7 +450,7 @@ export function AccountPage({ socket }) {
       'div',
       {
         class: 'rounded-2xl border p-5',
-        style: { background: '#FFFFFF', borderColor: '#E5DFD3' },
+        style: { background: '#FFFFFF', borderColor: '#D7CFB6' },
       },
       el('h3.mb-4', { style: { fontWeight: 700, fontSize: '0.95rem' } }, 'Email preferences')
     );
@@ -459,7 +459,7 @@ export function AccountPage({ socket }) {
         'div',
         {
           class: 'flex items-center justify-between py-2.5',
-          style: { borderBottom: '1px solid #E5DFD3' },
+          style: { borderBottom: '1px solid #D7CFB6' },
         },
         el('span', { style: { color: '#3D3A36', fontSize: '0.85rem' } }, p.label),
         toggleSwitch(state.profile.emailPrefs[p.key] !== false, async (v) => {
@@ -479,12 +479,12 @@ export function AccountPage({ socket }) {
           'div',
           {
             class: 'rounded-2xl border p-5',
-            style: { background: '#FFFFFF', borderColor: '#E5DFD3' },
+            style: { background: '#FFFFFF', borderColor: '#D7CFB6' },
           },
           el('h3.mb-2', { style: { fontWeight: 700, fontSize: '0.95rem' } }, 'Privacy & data'),
           el(
             'p',
-            { style: { color: '#6B6157', fontSize: '0.8rem', marginBottom: '12px' } },
+            { style: { color: '#3D2F4A', fontSize: '0.8rem', marginBottom: '12px' } },
             'Export everything we have on you, or delete your account.'
           ),
           el(
@@ -493,7 +493,7 @@ export function AccountPage({ socket }) {
               'button',
               {
                 class: 'px-4 py-2 rounded-xl border',
-                style: { borderColor: '#E5DFD3', color: '#1A1614', fontSize: '0.8rem' },
+                style: { borderColor: '#D7CFB6', color: '#0E0A12', fontSize: '0.8rem' },
                 onClick: exportData,
               },
               'Download my data'
@@ -502,7 +502,7 @@ export function AccountPage({ socket }) {
               'button',
               {
                 class: 'px-4 py-2 rounded-xl',
-                style: { background: '#6B6157', color: '#fff', fontSize: '0.8rem' },
+                style: { background: '#3D2F4A', color: '#fff', fontSize: '0.8rem' },
                 onClick: deleteAccount,
               },
               'Delete account'
@@ -535,12 +535,12 @@ export function AccountPage({ socket }) {
           width: '42px',
           height: '22px',
           border: 'none',
-          background: on ? '#C71F1F' : '#E5DFD3',
+          background: on ? '#7B2EFF' : '#D7CFB6',
           cursor: 'pointer',
         },
         onClick: () => {
           on = !on;
-          track.style.background = on ? '#C71F1F' : '#E5DFD3';
+          track.style.background = on ? '#7B2EFF' : '#D7CFB6';
           knob.style.transform = on ? 'translateX(22px)' : 'translateX(2px)';
           onChange(on);
         },

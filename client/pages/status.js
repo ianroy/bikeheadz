@@ -8,9 +8,9 @@ import { el, clear } from '../dom.js';
 
 const COLORS = {
   green: { bg: '#E6F4EA', border: '#86C5A0', dot: '#2F855A' },
-  red: { bg: '#FBE9E9', border: '#E89A9A', dot: '#C71F1F' },
-  amber: { bg: '#FAF1DC', border: '#D8B665', dot: '#7C5E1F' },
-  grey: { bg: '#F1ECE2', border: '#C9C0B0', dot: '#6B6157' },
+  red: { bg: '#FBE9E9', border: '#E89A9A', dot: '#7B2EFF' },
+  amber: { bg: '#FAF1DC', border: '#D8B665', dot: '#D89E2F' },
+  grey: { bg: '#F1ECE2', border: '#C9C0B0', dot: '#3D2F4A' },
 };
 
 function formatUptime(seconds) {
@@ -54,15 +54,15 @@ function tile({ label, color, statusText, detail }) {
           boxShadow: `0 0 0 3px ${palette.dot}22`,
         },
       }),
-      el('h2', { style: { fontSize: '15px', fontWeight: 600, margin: 0, color: '#1A1614' } }, label)
+      el('h2', { style: { fontSize: '15px', fontWeight: 600, margin: 0, color: '#0E0A12' } }, label)
     ),
     el(
       'p',
-      { style: { margin: 0, fontSize: '14px', color: '#1A1614', fontWeight: 600 } },
+      { style: { margin: 0, fontSize: '14px', color: '#0E0A12', fontWeight: 600 } },
       statusText
     ),
     detail
-      ? el('p', { style: { margin: 0, fontSize: '12px', color: '#6B6157', lineHeight: 1.5 } }, detail)
+      ? el('p', { style: { margin: 0, fontSize: '12px', color: '#3D2F4A', lineHeight: 1.5 } }, detail)
       : null
   );
 }
@@ -153,23 +153,23 @@ export function StatusPage({ socket }) {
       maxWidth: '880px',
       margin: '48px auto',
       padding: '0 24px',
-      color: 'var(--ink, #1A1614)',
+      color: 'var(--ink, #0E0A12)',
     },
   });
 
   root.appendChild(
-    el('h1', { style: { fontSize: '32px', marginBottom: '8px', color: '#C71F1F' } }, 'System status')
+    el('h1', { style: { fontSize: '32px', marginBottom: '8px', color: '#7B2EFF' } }, 'System status')
   );
   const subtitle = el(
     'p',
-    { style: { color: '#6B6157', fontSize: '14px', marginBottom: '24px', lineHeight: 1.5 } },
+    { style: { color: '#3D2F4A', fontSize: '14px', marginBottom: '24px', lineHeight: 1.5 } },
     'A live snapshot of the four moving parts that have to be healthy for end-to-end use. Refreshed at most once per minute.'
   );
   root.appendChild(subtitle);
 
   const status = el('p', {
     'aria-live': 'polite',
-    style: { color: '#6B6157', fontSize: '13px', marginBottom: '16px', minHeight: '18px' },
+    style: { color: '#3D2F4A', fontSize: '13px', marginBottom: '16px', minHeight: '18px' },
   });
   status.textContent = 'Loading status…';
   root.appendChild(status);
@@ -184,7 +184,7 @@ export function StatusPage({ socket }) {
   root.appendChild(grid);
 
   const meta = el('p', {
-    style: { color: '#6B6157', fontSize: '12px', marginTop: '20px' },
+    style: { color: '#3D2F4A', fontSize: '12px', marginTop: '20px' },
   });
   root.appendChild(meta);
 
@@ -201,7 +201,7 @@ export function StatusPage({ socket }) {
             border: `1px solid ${COLORS.red.border}`,
             borderRadius: '12px',
             padding: '20px',
-            color: '#1A1614',
+            color: '#0E0A12',
             fontSize: '14px',
           },
         },

@@ -17,13 +17,13 @@ function legalShell({ title, intro, sections }) {
         maxWidth: '760px',
         margin: '48px auto',
         padding: '0 24px',
-        color: 'var(--ink, #1A1614)',
+        color: 'var(--ink, #0E0A12)',
       },
     },
-    el('h1', { style: { fontSize: '32px', marginBottom: '8px', color: '#C71F1F' } }, title),
+    el('h1', { style: { fontSize: '32px', marginBottom: '8px', color: '#7B2EFF' } }, title),
     el(
       'p',
-      { style: { color: '#6B6157', fontSize: '14px', marginBottom: '32px' } },
+      { style: { color: '#3D2F4A', fontSize: '14px', marginBottom: '32px' } },
       `Last updated ${VERSION}`
     ),
     intro ? el('p', { style: { lineHeight: 1.6 } }, intro) : null,

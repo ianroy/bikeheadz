@@ -8,7 +8,7 @@ const COPY = {
     'Manifold STL ready for FDM or resin',
     'Instant download after payment',
   ],
-  color: '#C71F1F',
+  color: '#7B2EFF',
   cta: 'Download for $2',
 };
 
@@ -28,10 +28,10 @@ export function PricingPage({ socket, designId: initialDesignId = null, cancelle
         style: { fontSize: '2.2rem', fontWeight: 800, letterSpacing: '-0.04em' },
       },
         'Download your ',
-        el('span', { style: { color: '#C71F1F' } }, 'valve stem'),
+        el('span', { style: { color: '#7B2EFF' } }, 'valve stem'),
       ),
       el('p.max-w-2xl.mx-auto', {
-        style: { color: '#6B6157', fontSize: '1rem' },
+        style: { color: '#3D2F4A', fontSize: '1rem' },
       },
         'Pay once, keep the STL. No subscription.',
       ),
@@ -44,7 +44,7 @@ export function PricingPage({ socket, designId: initialDesignId = null, cancelle
   const card = el('div');
   root.appendChild(card);
 
-  const footer = el('div', { class: 'mt-8 text-center', style: { color: '#6B6157', fontSize: '0.78rem' } },
+  const footer = el('div', { class: 'mt-8 text-center', style: { color: '#3D2F4A', fontSize: '0.78rem' } },
     'Payments are processed by Stripe. We never see your card details.',
   );
   root.appendChild(footer);
@@ -66,13 +66,13 @@ export function PricingPage({ socket, designId: initialDesignId = null, cancelle
     if (!state.enabled) {
       banner.appendChild(el('div', {
         class: 'mb-6 rounded-xl px-4 py-3 border',
-        style: { background: 'rgba(255,214,0,0.05)', borderColor: 'rgba(255,214,0,0.2)', color: '#7C5E1F', fontSize: '0.85rem' },
+        style: { background: 'rgba(255,214,0,0.05)', borderColor: 'rgba(255,214,0,0.2)', color: '#D89E2F', fontSize: '0.85rem' },
       }, 'Stripe is not configured in this environment (STRIPE_SECRET_KEY missing). Checkout is disabled.'));
     }
     if (!state.designId) {
       banner.appendChild(el('div', {
         class: 'mb-6 rounded-xl px-4 py-3 border flex items-center justify-between gap-3 flex-wrap',
-        style: { background: '#FFFFFF', borderColor: '#E5DFD3' },
+        style: { background: '#FFFFFF', borderColor: '#D7CFB6' },
       },
         el('span', { style: { color: '#3D3A36', fontSize: '0.85rem' } },
           'You need to generate a design before you can download it.',
@@ -81,7 +81,7 @@ export function PricingPage({ socket, designId: initialDesignId = null, cancelle
           href: '/',
           'data-link': '',
           class: 'px-4 py-2 rounded-xl transition-all',
-          style: { background: '#C71F1F', color: '#FFFFFF', fontWeight: 700, fontSize: '0.8rem' },
+          style: { background: '#7B2EFF', color: '#FFFFFF', fontWeight: 700, fontSize: '0.8rem' },
         }, 'Start generating'),
       ));
     }
@@ -91,7 +91,7 @@ export function PricingPage({ socket, designId: initialDesignId = null, cancelle
     clear(card);
     if (!state.item) {
       card.appendChild(el('div', {
-        style: { color: '#6B6157', padding: '2rem', textAlign: 'center' },
+        style: { color: '#3D2F4A', padding: '2rem', textAlign: 'center' },
       }, 'Loading pricing…'));
       return;
     }
@@ -101,14 +101,14 @@ export function PricingPage({ socket, designId: initialDesignId = null, cancelle
 
     card.appendChild(el('div', {
       class: 'rounded-2xl p-6 border flex flex-col gap-4 relative overflow-hidden',
-      style: { background: '#FFFFFF', borderColor: 'rgba(199,31,31,0.35)' },
+      style: { background: '#FFFFFF', borderColor: 'rgba(123,46,255,0.35)' },
     },
       el('span', {
         class: 'absolute px-2 py-0.5 rounded-full',
         style: {
           top: '12px', right: '12px',
-          background: 'rgba(199,31,31,0.12)',
-          color: '#C71F1F',
+          background: 'rgba(123,46,255,0.12)',
+          color: '#7B2EFF',
           fontSize: '0.65rem',
           fontWeight: 700,
           letterSpacing: '0.08em',
@@ -117,13 +117,13 @@ export function PricingPage({ socket, designId: initialDesignId = null, cancelle
       }, COPY.highlight),
       el('div',
         el('h3', { style: { fontWeight: 700, fontSize: '1.1rem' } }, item.name),
-        el('p.mt-1', { style: { color: '#6B6157', fontSize: '0.82rem', lineHeight: 1.5 } }, item.description),
+        el('p.mt-1', { style: { color: '#3D2F4A', fontSize: '0.82rem', lineHeight: 1.5 } }, item.description),
       ),
       el('div.flex.items-baseline.gap-1',
         el('span', {
-          style: { color: '#C71F1F', fontWeight: 800, fontSize: '2rem' },
+          style: { color: '#7B2EFF', fontWeight: 800, fontSize: '2rem' },
         }, formatMoney(item.unitAmount, item.currency)),
-        el('span', { style: { color: '#6B6157', fontSize: '0.75rem' } }, 'one-time'),
+        el('span', { style: { color: '#3D2F4A', fontSize: '0.75rem' } }, 'one-time'),
       ),
       el('ul.flex.flex-col.gap-2',
         ...COPY.bullets.map((b) =>
@@ -139,8 +139,8 @@ export function PricingPage({ socket, designId: initialDesignId = null, cancelle
       el('button', {
         class: 'mt-auto w-full flex items-center justify-center gap-2 py-3 rounded-xl transition-all',
         style: {
-          background: disabled ? '#E5DFD3' : 'linear-gradient(135deg, #C71F1F, #B91C1C)',
-          color: disabled ? '#6B6157' : '#000',
+          background: disabled ? '#D7CFB6' : 'linear-gradient(135deg, #7B2EFF, #5A1FCE)',
+          color: disabled ? '#3D2F4A' : '#000',
           fontWeight: 700,
           fontSize: '0.9rem',
           cursor: disabled ? 'not-allowed' : 'pointer',
@@ -149,7 +149,7 @@ export function PricingPage({ socket, designId: initialDesignId = null, cancelle
         disabled,
         onClick: startCheckout,
       },
-        icon('creditCard', { size: 16, color: disabled ? '#6B6157' : '#000' }),
+        icon('creditCard', { size: 16, color: disabled ? '#3D2F4A' : '#000' }),
         state.busy ? 'Redirecting…' : COPY.cta,
       ),
     ));

@@ -25,7 +25,7 @@ export function SlicerButtons({ shareUrl } = {}) {
   const hint = el('div', {
     class: 'text-xs',
     style: {
-      color: '#6B6157',
+      color: '#3D2F4A',
       display: 'none',
       marginTop: '8px',
     },
@@ -46,20 +46,20 @@ export function SlicerButtons({ shareUrl } = {}) {
       rel: 'noopener',
       class: 'inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-semibold border transition-colors',
       style: {
-        background: '#FAF7F2',
-        color: '#1A1614',
-        borderColor: '#E5DFD3',
+        background: '#F5F2E5',
+        color: '#0E0A12',
+        borderColor: '#D7CFB6',
         textDecoration: 'none',
       },
       onMouseenter: () => {
         a.style.background = '#FFFFFF';
-        a.style.borderColor = '#C71F1F';
-        a.style.color = '#C71F1F';
+        a.style.borderColor = '#7B2EFF';
+        a.style.color = '#7B2EFF';
       },
       onMouseleave: () => {
-        a.style.background = '#FAF7F2';
-        a.style.borderColor = '#E5DFD3';
-        a.style.color = '#1A1614';
+        a.style.background = '#F5F2E5';
+        a.style.borderColor = '#D7CFB6';
+        a.style.color = '#0E0A12';
       },
       onTouchstart: () => armFallback(),
       onClick: () => armFallback(),

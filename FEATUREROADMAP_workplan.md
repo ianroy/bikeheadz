@@ -73,6 +73,7 @@ Legend for checkbox states:
 
 | Decision | Pick | Decided | Tutorial / status |
 |---|---|---|---|
+| Brand palette | **Mongoose BMX** (neon purple + fluoro green + hot magenta on warm cream) | 2026-04-29 | Picked from the six retro-90s options under `client/public/press/palette-options/`. Tokens: `--brand #7B2EFF`, `--accent2 #2EFF8C`, `--accent3 #FF2EAB`, `--paper #F5F2E5`, `--ink #0E0A12`. Italic wordmark with fluoro-green drop shadow + Memphis-offset cards + halftone fields are the canonical 90s vocabulary. Spec: [brandstandards.MD](brandstandards.MD). |
 | Print-on-demand vendor (P2-004) | **Sculpteo** | 2026-04-29 | Tutorial: [docs/SETUP_SCULPTEO.md](docs/SETUP_SCULPTEO.md). Unblocks P2-005 + P2-016 + P5-004 chain. |
 | SMS provider (P7-003) | **Twilio** | 2026-04-29 | Tutorial: [docs/SETUP_TWILIO.md](docs/SETUP_TWILIO.md). |
 | Blob/CDN (P4-004 / P4-016) | **DO Spaces** | 2026-04-29 | Tutorial: [docs/SETUP_DO_SPACES.md](docs/SETUP_DO_SPACES.md). |
@@ -84,12 +85,15 @@ Legend for checkbox states:
 
 ### C. Standing rules
 
-- Workshop palette is locked (see [brandstandards.MD](brandstandards.MD)).
+- Mongoose BMX palette is locked (see [brandstandards.MD](brandstandards.MD)).
+  Brand red is **gone** — neon purple `#7B2EFF` is the brand. Fluoro
+  green `#2EFF8C` is the loud second; hot magenta `#FF2EAB` is the third.
 - Schrader (not Presta) is the canonical valve type — copy must say
   "Schrader."
 - Logo wordmark is "ValveHeadZ" — capital V, capital H, capital Z;
-  one word, no space. When split-color, "ValveHead" sits in ink and the
-  trailing "Z" sits in brand red. Monogram is "VHZ."
+  one word, no space. **Italic** with a **fluoro-green drop shadow**.
+  When split-color, "ValveHead" sits in ink and the trailing "Z" sits
+  in neon purple. Monogram is "VHZ" (italic, same drop-shadow rule).
 
 ---
 

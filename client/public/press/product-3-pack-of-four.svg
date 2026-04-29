@@ -7,21 +7,21 @@
 -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" role="img" aria-label="ValveHeadZ pack of four caps">
   <!-- workshop paper background -->
-  <rect width="1600" height="900" fill="#FAF7F2"/>
+  <rect width="1600" height="900" fill="#F5F2E5"/>
   <!-- card under the four caps (slightly off-white kraft) -->
-  <rect x="80" y="200" width="1440" height="500" rx="20" fill="#F2EDE3" stroke="#C9C0B1" stroke-width="2"/>
+  <rect x="80" y="200" width="1440" height="500" rx="20" fill="#E5E0CC" stroke="#D7CFB6" stroke-width="2"/>
   <!-- shadow strip below card -->
-  <rect x="80" y="700" width="1440" height="14" fill="#1A1614" fill-opacity="0.06"/>
+  <rect x="80" y="700" width="1440" height="14" fill="#0E0A12" fill-opacity="0.06"/>
 
   <!-- 4 caps, 320px apart -->
   <g>
     <!-- cap 1 -->
     <g transform="translate(180 290)">
-      <rect x="0" y="120" width="240" height="160" rx="18" fill="#C71F1F"/>
-      <g fill="#9E1818"><rect x="0" y="240" width="240" height="6"/><rect x="0" y="252" width="240" height="6"/></g>
-      <rect x="14" y="124" width="212" height="6" rx="3" fill="#E04A4A"/>
+      <rect x="0" y="120" width="240" height="160" rx="18" fill="#7B2EFF"/>
+      <g fill="#5A1FCE"><rect x="0" y="240" width="240" height="6"/><rect x="0" y="252" width="240" height="6"/></g>
+      <rect x="14" y="124" width="212" height="6" rx="3" fill="#A267FF"/>
       <!-- head: round, smiling -->
-      <g transform="translate(60 0)" fill="#1A1614">
+      <g transform="translate(60 0)" fill="#0E0A12">
         <circle cx="60" cy="64" r="58"/>
         <path d="M 14 86 Q 60 134 106 86 L 106 116 Q 60 138 14 116 Z"/>
         <rect x="22" y="112" width="76" height="14" rx="6"/>
@@ -29,10 +29,10 @@
     </g>
     <!-- cap 2 — head with a little hair tuft -->
     <g transform="translate(500 290)">
-      <rect x="0" y="120" width="240" height="160" rx="18" fill="#C71F1F"/>
-      <g fill="#9E1818"><rect x="0" y="240" width="240" height="6"/><rect x="0" y="252" width="240" height="6"/></g>
-      <rect x="14" y="124" width="212" height="6" rx="3" fill="#E04A4A"/>
-      <g transform="translate(60 0)" fill="#1A1614">
+      <rect x="0" y="120" width="240" height="160" rx="18" fill="#7B2EFF"/>
+      <g fill="#5A1FCE"><rect x="0" y="240" width="240" height="6"/><rect x="0" y="252" width="240" height="6"/></g>
+      <rect x="14" y="124" width="212" height="6" rx="3" fill="#A267FF"/>
+      <g transform="translate(60 0)" fill="#0E0A12">
         <circle cx="60" cy="64" r="58"/>
         <path d="M 14 86 Q 60 134 106 86 L 106 116 Q 60 138 14 116 Z"/>
         <rect x="22" y="112" width="76" height="14" rx="6"/>
@@ -42,10 +42,10 @@
     </g>
     <!-- cap 3 — profile head -->
     <g transform="translate(820 290)">
-      <rect x="0" y="120" width="240" height="160" rx="18" fill="#C71F1F"/>
-      <g fill="#9E1818"><rect x="0" y="240" width="240" height="6"/><rect x="0" y="252" width="240" height="6"/></g>
-      <rect x="14" y="124" width="212" height="6" rx="3" fill="#E04A4A"/>
-      <g transform="translate(60 0)" fill="#1A1614">
+      <rect x="0" y="120" width="240" height="160" rx="18" fill="#7B2EFF"/>
+      <g fill="#5A1FCE"><rect x="0" y="240" width="240" height="6"/><rect x="0" y="252" width="240" height="6"/></g>
+      <rect x="14" y="124" width="212" height="6" rx="3" fill="#A267FF"/>
+      <g transform="translate(60 0)" fill="#0E0A12">
         <!-- profile silhouette -->
         <path d="M 56 6
                  Q 110 14 112 70
@@ -60,15 +60,15 @@
     </g>
     <!-- cap 4 — head with glasses (homage to the canary photo) -->
     <g transform="translate(1140 290)">
-      <rect x="0" y="120" width="240" height="160" rx="18" fill="#C71F1F"/>
-      <g fill="#9E1818"><rect x="0" y="240" width="240" height="6"/><rect x="0" y="252" width="240" height="6"/></g>
-      <rect x="14" y="124" width="212" height="6" rx="3" fill="#E04A4A"/>
-      <g transform="translate(60 0)" fill="#1A1614">
+      <rect x="0" y="120" width="240" height="160" rx="18" fill="#7B2EFF"/>
+      <g fill="#5A1FCE"><rect x="0" y="240" width="240" height="6"/><rect x="0" y="252" width="240" height="6"/></g>
+      <rect x="14" y="124" width="212" height="6" rx="3" fill="#A267FF"/>
+      <g transform="translate(60 0)" fill="#0E0A12">
         <circle cx="60" cy="64" r="58"/>
         <path d="M 14 86 Q 60 134 106 86 L 106 116 Q 60 138 14 116 Z"/>
         <rect x="22" y="112" width="76" height="14" rx="6"/>
         <!-- glasses -->
-        <g fill="none" stroke="#FAF7F2" stroke-width="3">
+        <g fill="none" stroke="#F5F2E5" stroke-width="3">
           <rect x="22" y="58" width="30" height="20" rx="4"/>
           <rect x="68" y="58" width="30" height="20" rx="4"/>
           <line x1="52" y1="68" x2="68" y2="68"/>
@@ -78,12 +78,12 @@
   </g>
 
   <!-- title across the top of the card -->
-  <g font-family="-apple-system, system-ui, 'Inter', sans-serif" fill="#1A1614">
+  <g font-family="-apple-system, system-ui, 'Inter', sans-serif" fill="#0E0A12">
     <text x="800" y="260" font-size="28" font-weight="800" text-anchor="middle">PACK OF FOUR · YOUR CREW ON FOUR VALVES</text>
   </g>
 
   <!-- caption -->
-  <g font-family="-apple-system, system-ui, 'Inter', sans-serif" fill="#6B6157">
+  <g font-family="-apple-system, system-ui, 'Inter', sans-serif" fill="#3D2F4A">
     <text x="60" y="850" font-size="18" letter-spacing="2">PRESS&#160;KIT&#160;·&#160;PRODUCT&#160;03&#160;·&#160;PACK&#160;OF&#160;FOUR&#160;($59.99&#160;TIER)</text>
   </g>
 </svg>
