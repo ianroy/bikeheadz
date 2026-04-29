@@ -1,0 +1,65 @@
+name: Canary
+
+# P4-013 — Synthetic canary every 30 min.
+# Connects to APP_URL via socket.io, fires stl.generate with a fixture
+# photo, asserts a *.result arrives within budget. The fixture file
+# (tools/canary/canary-photo.jpg) is intentionally not committed; the
+# runner exits 0 if it's missing so this workflow stays green until ops
+# drops a real consented portrait there.
+
+on:
+  schedule:
+    - cron: '0,30 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  canary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node 22.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run canary
+        id: canary
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CANARY_TOKEN: ${{ secrets.CANARY_TOKEN }}
+        run: |
+          set +e
+          node tools/canary_runner.js > canary.out 2> canary.err
+          echo "exit=$?" >> "$GITHUB_OUTPUT"
+          set -e
+
+      - name: Report
+        if: always()
+        run: |
+          {
+            echo "## Canary"
+            echo ""
+            echo "Exit: ${{ steps.canary.outputs.exit }}"
+            echo ""
+            echo "### stdout"
+            echo '```json'
+            cat canary.out 2>/dev/null || echo "(empty)"
+            echo '```'
+            echo ""
+            echo "### stderr"
+            echo '```json'
+            cat canary.err 2>/dev/null || echo "(empty)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ steps.canary.outputs.exit }}" != "0" ]; then
+            exit 1
+          fi

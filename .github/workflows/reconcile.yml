@@ -1,0 +1,63 @@
+name: Stripe reconcile
+
+# P4-019 — daily 06:00 UTC.
+# Diffs the last 24h of Stripe Checkout sessions against our purchases
+# table and writes audit_log rows for any mismatches. Idempotent within
+# 24h via a (session_id, kind) hash. Exit code 2 on any mismatch.
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node 22.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Reconcile
+        id: reconcile
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+        run: |
+          set +e
+          node tools/reconcile_stripe.js > reconcile.out 2> reconcile.err
+          echo "exit=$?" >> "$GITHUB_OUTPUT"
+          set -e
+
+      - name: Report
+        if: always()
+        run: |
+          {
+            echo "## Stripe reconciliation"
+            echo ""
+            echo "Exit: ${{ steps.reconcile.outputs.exit }}"
+            echo ""
+            echo "### Summary"
+            echo '```json'
+            cat reconcile.out 2>/dev/null || echo "(empty)"
+            echo '```'
+            echo ""
+            echo "### Mismatches (stderr)"
+            echo '```'
+            cat reconcile.err 2>/dev/null || echo "(none)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ steps.reconcile.outputs.exit }}" != "0" ]; then
+            exit 1
+          fi
