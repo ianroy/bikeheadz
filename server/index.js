@@ -10,7 +10,8 @@ import { initDb, closeDb, db, hasDb } from './db.js';
 import { logStripeConfig, getStripe, webhookEnabled, stripeEnabled } from './stripe-client.js';
 import { startExpiryJob, designStore } from './design-store.js';
 import { initSentry, captureException } from './sentry.js';
-import { attachUserFromCookie, consumeForHttpRedirect, seedAdmins } from './commands/auth.js';
+import { attachUserFromCookie, consumeForHttpRedirect } from './commands/auth.js';
+import { seedAdmins } from './auth.js';
 import { runpodEnabled, pingRunpod } from './workers/runpod-client.js';
 import { sendEmail } from './email.js';
 
