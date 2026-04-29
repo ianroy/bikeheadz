@@ -219,6 +219,24 @@ def stage1_5_repair(head: trimesh.Trimesh, C: Constants) -> trimesh.Trimesh:
     Two paths: pymeshlab if available (non-convex hole closure works),
     trimesh-only fallback (weaker on TRELLIS-style hair/ear holes).
     """
+    # P3-009 — hard-fail only on truly broken inputs; everything else is a
+    # warn-and-continue. The original v0.1.33 gate was a flat
+    # `is_watertight` raise, which blocked every user because TRELLIS
+    # routinely emits non-watertight meshes (see §8.2). The right gate
+    # distinguishes "geometry malformed" from "topology imperfect."
+    if head is None or len(head.vertices) == 0 or len(head.faces) < 4:
+        raise PipelineError(
+            ErrorCode.INVALID_MESH,
+            "Stage 1.5 received an empty or near-empty mesh "
+            f"(vertices={len(head.vertices) if head is not None else 0}, "
+            f"faces={len(head.faces) if head is not None else 0}).",
+        )
+    if not np.all(np.isfinite(head.vertices)):
+        raise PipelineError(
+            ErrorCode.INVALID_MESH,
+            "Stage 1.5 received a mesh with NaN/Inf vertex coords.",
+        )
+
     # 1) Drop floaters — TRELLIS occasionally hallucinates 1–3 stray
     # voxel-clusters (§8.2 defect catalogue). Keep only the largest
     # connected component by face count.

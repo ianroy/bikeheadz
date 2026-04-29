@@ -51,6 +51,7 @@ class ErrorCode(str, Enum):
     # Stage 1.5 (repair).
     NON_MANIFOLD_INPUT_UNREPAIRABLE = "non_manifold_input_unrepairable"
     REPAIR_TIMEOUT = "repair_timeout"
+    INVALID_MESH = "invalid_mesh"  # P3-009 — empty / NaN / <4 faces; truly broken input
 
     # Stage 2 (crop).
     NECK_NOT_FOUND = "neck_not_found"                # heuristic couldn't pick z_cut
@@ -92,6 +93,9 @@ USER_MESSAGES: dict[ErrorCode, str] = {
     ),
     ErrorCode.NON_MANIFOLD_INPUT_UNREPAIRABLE: (
         "The generated mesh has defects we couldn't repair. Try a different photo."
+    ),
+    ErrorCode.INVALID_MESH: (
+        "The generated mesh is empty or malformed. Try a clearer, well-lit photo."
     ),
     ErrorCode.REPAIR_TIMEOUT: (
         "Mesh repair took too long. Try again, or use a different photo."

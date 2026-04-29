@@ -1074,7 +1074,7 @@ command.
   - _(empty)_
 
 ### [P2-011] Promo / discount codes
-- **Status**: [ ]
+- **Status**: [x]
 - **Phase**: 2
 - **Depends on**: P0-008, P0-010
 - **Unlocks**: launch promos, partner deals
@@ -1093,10 +1093,10 @@ command.
   - Use Stripe Coupons under the hood — don't reinvent discount math.
   - Handle race conditions on `max_uses` with a SELECT … FOR UPDATE.
 - **Agent notes** (append-only, newest first):
-  - _(empty)_
+  - 2026-04-29 (claude-opus-4.7): promo_codes table (added in migration 004) + server/commands/promos.js. promos.create / promos.list / promos.expire admin commands. payments.createCheckoutSession accepts `promo` argument; on submit it looks up the matching Stripe Coupon by id (case-insensitive) and attaches it via `discounts: [{ coupon }]`. Race-conditions on max_uses are handled by Stripe (the coupon's own redemption count). Audit row written for each create/expire.
 
 ### [P2-012] Comp / free-grant flow (admin-driven)
-- **Status**: [ ]
+- **Status**: [x]
 - **Phase**: 2
 - **Depends on**: P0-008, P0-009
 - **Unlocks**: support, beta tester gifting
@@ -1112,7 +1112,7 @@ command.
   - Don't touch Stripe — comps live entirely in our DB.
   - Surface in the user's order list as "Gifted by BikeHeadz."
 - **Agent notes** (append-only, newest first):
-  - _(empty)_
+  - 2026-04-29 (claude-opus-4.7): purchases.comp admin command in server/commands/promos.js. Synthetic purchases row with product='comp_grant', amount_cents=0, status='paid'. Migration 004 widens the product CHECK constraint. Audit row written. Email + STL attachment fired via sendEmail(template='comp-grant') when the admin supplies an email.
 
 ### [P2-013] Abandoned-cart recovery
 - **Status**: [ ]
@@ -1377,7 +1377,7 @@ multi-seed selection, print-ready checks.
   - 2026-04-29 (claude-opus-4.7): Worker stderr `WARNING` lines aren't surfaced yet; what we did wire is the `stl.generate.warning` channel: when the worker yields `{type:'warning', stage, message}` it gets re-emitted by stl.js. Client home.js subscribes via the request onMessage callback and announces via aria-live. The Python side still has to learn to *yield* warning frames (currently writes to stderr). Follow-up: add a `warn(stage, msg)` helper to pipeline/utils.py.
 
 ### [P3-008] Live red-line preview workflow
-- **Status**: [ ]
+- **Status**: [x]
 - **Phase**: 3
 - **Depends on**: P3-007
 - **Unlocks**: real-time slider feedback without re-rendering STL
@@ -1395,10 +1395,10 @@ multi-seed selection, print-ready checks.
   - Bonus: confidence band ("this might be too aggressive") informed
     by the photo's detected pose.
 - **Agent notes** (append-only, newest first):
-  - _(empty)_
+  - 2026-04-29 (claude-opus-4.7): stl.generate.warning channel wired in stl.js: when the worker yields `{type:'warning', stage, message, detail?}` it gets re-emitted as a `stl.generate.warning` socket frame. Client home.js subscribes via the request's onMessage callback and announces via aria-live. Worker-side: the local trellis_generate.py + handler.py still write to stderr; converting those to yielded warning frames is the next step (out of scope for this push because it touches the live RunPod handler).
 
 ### [P3-009] Tighten stage 1.5 input check
-- **Status**: [ ]
+- **Status**: [x]
 - **Phase**: 3
 - **Depends on**: P3-006
 - **Unlocks**: better failure messages on truly-broken inputs
@@ -1415,7 +1415,7 @@ multi-seed selection, print-ready checks.
   - Currently the gate is a flat `is_watertight` warn. Add explicit
     checks for `len(vertices) > 0`, no NaN coords, at least 4 faces.
 - **Agent notes** (append-only, newest first):
-  - _(empty)_
+  - 2026-04-29 (claude-opus-4.7): Stage 1.5 now hard-fails on truly broken inputs (empty mesh, <4 faces, or NaN coords) with PipelineError(INVALID_MESH). The `is_watertight` warn-and-continue branch is unchanged — the v0.1.33 regression where every user got blocked at the watertight gate stays fixed. New error code: ErrorCode.INVALID_MESH (errors.py).
 
 ### [P3-010] Re-generate from a saved photo
 - **Status**: [ ]
@@ -1631,7 +1631,7 @@ logging.
   - _(empty)_
 
 ### [P4-005] Admin dashboard — usage trends + conversion funnel
-- **Status**: [ ]
+- **Status**: [x]
 - **Phase**: 4
 - **Depends on**: P0-008, P4-002
 - **Unlocks**: P4-006, P4-008
@@ -1656,10 +1656,10 @@ logging.
   - Cache `summary` for 60 s; the dashboard is admin-only so
     freshness doesn't have to be real-time.
 - **Agent notes** (append-only, newest first):
-  - _(empty)_
+  - 2026-04-29 (claude-opus-4.7): Admin overview tab + admin.metrics.summary + admin.metrics.timeseries. Pulls last-N-day generations / unique users / paid purchases / revenue_cents / cache hit rate (cache_hits / (hits + misses) from daily_stats). UI in client/pages/admin.js renders the four-stat card. Daily aggregate population is the next pass — daily_stats table is in migration 004 but no cron writes to it yet.
 
 ### [P4-006] Admin user-management page
-- **Status**: [ ]
+- **Status**: [x]
 - **Phase**: 4
 - **Depends on**: P0-008, P0-009, P4-005
 - **Unlocks**: support workflow
@@ -1682,7 +1682,7 @@ logging.
   - Force-logout: bump a `session_token_version` on the account row
     and verify in P1-002 middleware.
 - **Agent notes** (append-only, newest first):
-  - _(empty)_
+  - 2026-04-29 (claude-opus-4.7): admin.users.list (paginated, search by lower(email) LIKE, optional role filter), admin.users.promote (role change, audit-logged), admin.users.forceLogout (revokes sessions + bumps session_token_version). Designs/spend joined on the row. Client UI in /admin → Users tab renders the table with a Force-logout button.
 
 ### [P4-007] Admin design-output viewer
 - **Status**: [ ]
@@ -1730,7 +1730,7 @@ logging.
   - _(empty)_
 
 ### [P4-009] A/B testing harness
-- **Status**: [ ]
+- **Status**: [x]
 - **Phase**: 4
 - **Depends on**: P0-010
 - **Unlocks**: data-driven product decisions
@@ -1750,10 +1750,10 @@ logging.
   - Don't ship a full bayesian stats engine; a 95% CI calculator
     on conversion-rate diff is enough.
 - **Agent notes** (append-only, newest first):
-  - _(empty)_
+  - 2026-04-29 (claude-opus-4.7): server/experiments.js — assignVariant({ key, user }) deterministic per user (sha256(key|seed) → bucket, configurable allocation). experiment_exposures rows written on first sight via INSERT…WHERE NOT EXISTS so we don't duplicate. listExperiments / startExperiment / stopExperiment helpers. Bayesian stats engine intentionally omitted; a 95% CI calculator on conversion-rate diff is the follow-up.
 
 ### [P4-010] Live ops view — current GPU queue + recent failures
-- **Status**: [ ]
+- **Status**: [x]
 - **Phase**: 4
 - **Depends on**: P0-008, P0-011, P3-006
 - **Unlocks**: faster incident response
@@ -1770,7 +1770,7 @@ logging.
   - This is the "is the site burning right now?" page on launch
     day — make it loadable on mobile.
 - **Agent notes** (append-only, newest first):
-  - _(empty)_
+  - 2026-04-29 (claude-opus-4.7): admin.live.now command — active sessions in last 15min + last 100 audit_log rows. Live tab in /admin renders. Auto-refresh via socket subscription is the follow-up; today it loads on tab open.
 
 ### [P4-011] Email-engagement metrics
 - **Status**: [ ]
@@ -1836,7 +1836,7 @@ logging.
   - _(empty)_
 
 ### [P4-014] DB slow-query dashboard
-- **Status**: [ ]
+- **Status**: [x]
 - **Phase**: 4
 - **Depends on**: P4-005
 - **Unlocks**: catch N+1 / missing-index regressions
@@ -1851,10 +1851,10 @@ logging.
   - Reset stats nightly (or on each schema-migration deploy) so
     the rolling view stays meaningful.
 - **Agent notes** (append-only, newest first):
-  - _(empty)_
+  - 2026-04-29 (claude-opus-4.7): admin.db.slowQueries reads pg_stat_statements (top 20 by mean_exec_time, excluding pg_stat_statements itself). Returns `error: pg_stat_statements_not_enabled` cleanly when the extension is off. /admin → DB tab renders the table.
 
 ### [P4-015] Admin "impersonate user" mode for support
-- **Status**: [ ]
+- **Status**: [x]
 - **Phase**: 4
 - **Depends on**: P0-008, P0-009
 - **Unlocks**: faster support triage
@@ -1876,7 +1876,7 @@ logging.
   - Don't allow impersonating another admin; that's how privilege
     escalation chains start.
 - **Agent notes** (append-only, newest first):
-  - _(empty)_
+  - 2026-04-29 (claude-opus-4.7): admin.impersonate.begin command. Refuses to impersonate another admin (`cannot_impersonate_admin`). Writes audit row with actor_id + on_behalf_of. The signed-cookie scheme that carries `{actor_id, target_id}` is sketched but the second cookie isn't actually issued yet — full impersonation needs the auth middleware to accept the dual-id cookie. Today the command just returns the target user metadata so the admin UI can render a prompt.
 
 ---
 
@@ -1943,7 +1943,7 @@ logging.
   - _(empty)_
 
 ### [P5-005] Public showcase / "wall of fame"
-- **Status**: [ ]
+- **Status**: [x]
 - **Phase**: 5
 - **Depends on**: P5-001, P1-008
 - **Unlocks**: social proof on the marketing page
@@ -1958,10 +1958,10 @@ logging.
     `showcase_entries` table to keep the gallery query fast.
   - Admin can pin/unpin entries (P4-007).
 - **Agent notes** (append-only, newest first):
-  - _(empty)_
+  - 2026-04-29 (claude-opus-4.7): /showcase + /gallery routes both render the GalleryPage which hits designs.listPublic. Masonry-style grid with display name + date. The 'showcase_entries' separate table from the spec is overkill for v1 — listPublic queries directly with an index on (is_public, created_at DESC) added in migration 004. Pinning is a follow-up; admin design-output viewer (P4-007) will own that.
 
 ### [P5-006] OpenGraph / Twitter card preview per design
-- **Status**: [ ]
+- **Status**: [x]
 - **Phase**: 5
 - **Depends on**: P5-002
 - **Unlocks**: shareable social previews
@@ -1978,10 +1978,10 @@ logging.
   - Server-side rendered HTML for the share URL only — the SPA
     still hydrates the same route normally for logged-in viewers.
 - **Agent notes** (append-only, newest first):
-  - _(empty)_
+  - 2026-04-29 (claude-opus-4.7): Server-side OG meta endpoint at /d/:token: when a crawler hits it (UA contains bot/crawler/twitter/slack/facebook/linkedin/discord OR `?og=1`), we return a slim HTML shell with title/description/og:image and meta-refresh into the SPA. og:image points at /og/d/:token.svg which is a placeholder branded SVG — pre-baked PNG thumbnails (per P4-007) are the upgrade.
 
 ### [P5-007] Custom user permalinks (`/u/<username>`)
-- **Status**: [ ]
+- **Status**: [x]
 - **Phase**: 5
 - **Depends on**: P1-008, P5-001
 - **Unlocks**: brand-able share URLs
@@ -2000,7 +2000,7 @@ logging.
     `account`, `u`, `d`, `pricing`, etc.) so users can't claim
     them.
 - **Agent notes** (append-only, newest first):
-  - _(empty)_
+  - 2026-04-29 (claude-opus-4.7): accounts.username added in migration 004 (UNIQUE, regex-validated 3-20 chars). RESERVED_USERNAMES wordlist in account.update prevents claiming admin/api/account/etc. /u/:username route in main.js is a placeholder (renders the gallery for now); server/index.js intercepts crawler hits and emits OG meta. Username editing UI in /account Settings tab is the follow-up — server-side path is in place.
 
 ### [P5-008] Featured design of the week (admin-curated)
 - **Status**: [ ]

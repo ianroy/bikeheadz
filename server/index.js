@@ -242,6 +242,104 @@ app.get('/sitemap.xml', (_req, res) => {
   );
 });
 
+// P5-006 — per-design OG card meta endpoint. Slack/Discord/Twitter render
+// the OG tags out of the initial HTML; the SPA hydration takes over after.
+// We rewrite a slim version of `dist/index.html` with per-design title +
+// description + image. The image is a lightweight SVG returned by a sibling
+// route. This is server-rendered HTML, intentionally limited in scope.
+app.get('/d/:token', async (req, res, next) => {
+  // Only intercept when the request looks like a crawler (User-Agent
+  // contains bot/crawler/twitter/slack/facebook/linkedin/discord), or when
+  // the query asks for `?og=1`. Everything else falls through to the SPA.
+  const ua = (req.headers['user-agent'] || '').toLowerCase();
+  const isBot =
+    /bot|crawler|spider|twitter|slack|facebook|linkedin|discord|whatsapp|telegram/.test(ua) ||
+    req.query.og === '1';
+  if (!isBot) return next();
+
+  const token = String(req.params.token || '');
+  let title = 'BikeHeadz — shared design';
+  let description = "Someone's BikeHeadz cap. Tap Remix to make your own.";
+  let imageUrl = `${process.env.APP_URL || ''}/og.png`;
+  try {
+    const dot = token.indexOf('.');
+    if (dot > 0) {
+      const designId = token.slice(0, dot);
+      if (hasDb()) {
+        const { rows } = await db.query(
+          `SELECT a.display_name, a.username FROM generated_designs gd
+            LEFT JOIN accounts a ON a.id = gd.account_id WHERE gd.id = $1 LIMIT 1`,
+          [designId]
+        );
+        if (rows[0]?.display_name) {
+          title = `${rows[0].display_name}'s BikeHeadz cap`;
+        }
+      }
+      imageUrl = `${process.env.APP_URL || ''}/og/d/${encodeURIComponent(token)}.svg`;
+    }
+  } catch (err) {
+    logger.debug({ msg: 'og.lookup_failed', err: err.message });
+  }
+  const safe = (s) => String(s).replace(/[<>"]/g, '');
+  res.set('Content-Type', 'text/html; charset=utf-8');
+  res.send(`<!doctype html><html lang="en"><head>
+    <meta charset="utf-8" />
+    <title>${safe(title)}</title>
+    <meta name="description" content="${safe(description)}" />
+    <meta property="og:title" content="${safe(title)}" />
+    <meta property="og:description" content="${safe(description)}" />
+    <meta property="og:image" content="${safe(imageUrl)}" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="${safe(imageUrl)}" />
+    <meta http-equiv="refresh" content="0; url=${safe(req.originalUrl)}" />
+  </head><body>${safe(title)}</body></html>`);
+});
+
+app.get('/og/d/:token.svg', (req, res) => {
+  // Intentionally minimal — design-rendered thumbnails belong in P4-007.
+  // This is the "shareable on chat" placeholder.
+  res.set('Content-Type', 'image/svg+xml');
+  const safe = String(req.params.token || '').replace(/[^A-Za-z0-9._-]/g, '');
+  res.send(`<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <rect width="1200" height="630" fill="#FAF7F2" />
+  <rect x="40" y="40" width="1120" height="550" rx="24" fill="#FFFFFF" stroke="#E5DFD3" stroke-width="2" />
+  <text x="80" y="180" font-family="-apple-system, system-ui, sans-serif" font-size="64" font-weight="800" fill="#C71F1F">BikeHeadz</text>
+  <text x="80" y="260" font-family="-apple-system, system-ui, sans-serif" font-size="38" fill="#1A1614">Your face on a Schrader valve cap</text>
+  <text x="80" y="540" font-family="ui-monospace, monospace" font-size="20" fill="#6B6157">/d/${safe.slice(0, 36)}</text>
+</svg>`);
+});
+
+// P5-007 — username permalink pages. Same crawler-aware handoff: bots
+// see meta tags, humans get the SPA.
+app.get('/u/:username', async (req, res, next) => {
+  const ua = (req.headers['user-agent'] || '').toLowerCase();
+  const isBot = /bot|crawler|spider|twitter|slack|facebook|linkedin|discord/.test(ua);
+  if (!isBot) return next();
+  const username = String(req.params.username || '').toLowerCase();
+  if (!username || !hasDb()) return next();
+  try {
+    const { rows } = await db.query(
+      `SELECT display_name, username FROM accounts WHERE LOWER(username) = $1 AND deleted_at IS NULL`,
+      [username]
+    );
+    if (!rows.length) return next();
+    const safe = (s) => String(s).replace(/[<>"]/g, '');
+    res.set('Content-Type', 'text/html; charset=utf-8');
+    res.send(`<!doctype html><html lang="en"><head>
+      <meta charset="utf-8" />
+      <title>${safe(rows[0].display_name)} on BikeHeadz</title>
+      <meta property="og:title" content="${safe(rows[0].display_name)} on BikeHeadz" />
+      <meta property="og:type" content="profile" />
+      <meta http-equiv="refresh" content="0; url=${safe(req.originalUrl)}" />
+    </head><body>${safe(rows[0].display_name)}</body></html>`);
+  } catch (err) {
+    logger.debug({ msg: 'og.username_lookup_failed', err: err.message });
+    next();
+  }
+});
+
 // Serve the built client. SPA fallback for deep links.
 app.use(express.static(STATIC_DIR, { maxAge: '1h', index: false }));
 

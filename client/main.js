@@ -9,6 +9,7 @@ import { AccountPage } from './pages/account.js';
 import { PricingPage } from './pages/pricing.js';
 import { CheckoutReturnPage } from './pages/checkout-return.js';
 import { LoginPage } from './pages/login.js';
+import { AdminPage } from './pages/admin.js';
 import { GalleryPage, ShareDesignPage } from './pages/gallery.js';
 import {
   TermsPage,
@@ -57,6 +58,7 @@ const router = new Router({
     '/pricing': ({ query }) => PricingPage({ socket, cancelled: query.cancelled === '1' }),
     '/checkout/return': ({ query }) => CheckoutReturnPage({ socket, sessionId: query.session_id }),
     '/login': ({ query }) => LoginPage({ socket, query }),
+    '/admin': () => AdminPage({ socket }),
     '/showcase': () => GalleryPage({ socket }),
     '/gallery': () => GalleryPage({ socket }),
     '/terms': () => ({ el: TermsPage() }),
