@@ -140,6 +140,38 @@ export const paymentsCommands = {
     const product = session.metadata?.product || 'stl_download';
     const user = maybeUser({ socket });
 
+    // P2-019 — 3DS / SCA fallback. Stripe parks the Checkout Session
+    // open and the PaymentIntent in `requires_action` while the issuing
+    // bank prompts the customer for further authentication. We persist
+    // the row as `pending_action` (extension added in migration 005)
+    // and signal the client to re-poll, rather than throwing.
+    const piStatus = session.payment_intent?.status || null;
+    const requiresAction =
+      session.payment_status === 'requires_action' ||
+      (session.status === 'open' && piStatus === 'requires_action');
+    if (!paid && requiresAction) {
+      if (hasDb()) {
+        await db.query(
+          `UPDATE purchases
+              SET status = 'pending_action',
+                  stripe_payment_id = COALESCE(stripe_payment_id, $2)
+            WHERE stripe_session_id = $1`,
+          [sessionId, session.payment_intent?.id || null]
+        );
+      }
+      logger.info({ msg: 'payments.requires_action', sessionId, designId, piStatus });
+      return {
+        paid: false,
+        requiresAction: true,
+        designId,
+        sessionId,
+        // The hosted Stripe Checkout URL stays valid while the session
+        // remains `open`; the client re-opens it from the friendly CTA
+        // when our polling budget is exhausted.
+        url: session.url || null,
+      };
+    }
+
     if (paid && hasDb()) {
       await db.query(
         `UPDATE purchases

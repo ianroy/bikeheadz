@@ -20,6 +20,40 @@ export function CheckoutReturnPage({ socket, sessionId }) {
         el('h1.mt-5', { style: { fontWeight: 700, fontSize: '1.3rem' } }, 'Verifying your payment…'),
         el('p.mt-2', { style: { color: '#6B6157', fontSize: '0.9rem' } }, 'One moment — Stripe is confirming the charge.'),
       );
+    } else if (status.state === 'requires_action') {
+      // P2-019 — 3DS / SCA challenge in flight. Friendly copy + auto
+      // re-poll. The CTA only appears when the polling budget runs out.
+      card.append(
+        el('div', {
+          class: 'w-14 h-14 rounded-2xl mx-auto flex items-center justify-center',
+          style: { background: 'rgba(199,31,31,0.1)', border: '1px solid rgba(199,31,31,0.3)' },
+        }, el('span.spinner', { style: { width: '22px', height: '22px', borderColor: 'rgba(199,31,31,0.3)', borderTopColor: '#C71F1F' } })),
+        el('h1.mt-5', { style: { fontWeight: 700, fontSize: '1.3rem' } }, 'Confirming with your bank…'),
+        el('p.mt-2', { style: { color: '#6B6157', fontSize: '0.9rem' } },
+          'Your bank is asking for an extra check. We’ll keep an eye on it — this usually takes a few seconds.'),
+      );
+    } else if (status.state === 'requires_action_timeout') {
+      card.append(
+        el('div', {
+          class: 'w-14 h-14 rounded-2xl mx-auto flex items-center justify-center',
+          style: { background: 'rgba(194,65,12,0.12)', border: '1px solid rgba(194,65,12,0.35)' },
+        }, icon('x', { size: 24, color: '#C2410C' })),
+        el('h1.mt-5', { style: { fontWeight: 700, fontSize: '1.25rem' } }, 'We couldn’t confirm — try again?'),
+        el('p.mt-2', { style: { color: '#3D3A36', fontSize: '0.9rem' } },
+          'Your bank didn’t finish the security check. You haven’t been charged.'),
+        el('button', {
+          class: 'mt-6 inline-flex items-center gap-2 px-6 py-3 rounded-xl transition-all',
+          style: { background: 'linear-gradient(135deg, #C71F1F, #B91C1C)', color: '#FFFFFF', fontWeight: 800, fontSize: '0.95rem' },
+          onClick: () => { if (status.url) window.location.assign(status.url); },
+        }, 'Try again'),
+        el('div.mt-4',
+          el('a', {
+            href: '/pricing',
+            'data-link': '',
+            style: { color: '#6B6157', fontSize: '0.82rem' },
+          }, 'Back to pricing'),
+        ),
+      );
     } else if (status.state === 'paid') {
       card.append(
         el('div', {
@@ -98,6 +132,13 @@ export function CheckoutReturnPage({ socket, sessionId }) {
   }
 
   let retryHandle = null;
+  // P2-019 — 3DS polling budget. We re-poll every 4s for up to 60s
+  // before showing the friendly retry CTA. Tracked separately from the
+  // generic `pending` retry so a flaky 3DS flow doesn't loop forever.
+  const REQUIRES_ACTION_BUDGET_MS = 60_000;
+  const REQUIRES_ACTION_INTERVAL_MS = 4_000;
+  let requiresActionStartedAt = null;
+  let lastCheckoutUrl = null;
 
   async function verify() {
     if (!sessionId) {
@@ -109,6 +150,16 @@ export function CheckoutReturnPage({ socket, sessionId }) {
       if (res.paid) {
         render({ state: 'paid', ...res });
         sessionStorage.removeItem('bikeheadz.designId');
+      } else if (res.requiresAction) {
+        if (res.url) lastCheckoutUrl = res.url;
+        if (!requiresActionStartedAt) requiresActionStartedAt = Date.now();
+        const elapsed = Date.now() - requiresActionStartedAt;
+        if (elapsed >= REQUIRES_ACTION_BUDGET_MS) {
+          render({ state: 'requires_action_timeout', url: lastCheckoutUrl });
+        } else {
+          render({ state: 'requires_action' });
+          retryHandle = setTimeout(verify, REQUIRES_ACTION_INTERVAL_MS);
+        }
       } else {
         render({ state: 'pending' });
         retryHandle = setTimeout(verify, 2500);

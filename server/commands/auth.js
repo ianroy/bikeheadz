@@ -27,10 +27,57 @@ import {
   fingerprint,
 } from '../auth.js';
 import { sendEmail } from '../email.js';
-import { magicLinkLimiter } from '../rate-limit.js';
+import { magicLinkLimiter, makeRateLimiter } from '../rate-limit.js';
 import { recordAudit } from '../audit.js';
 import { CommandError, ErrorCode } from '../errors.js';
 import { logger } from '../logger.js';
+
+// P1-012 — adapt the existing makeRateLimiter helper to the {key, max,
+// windowMs} signature the spec asked for. Caches a limiter per
+// (max, windowMs) so we don't create N buckets per IP.
+const _consumeLimiters = new Map();
+function checkRateLimit({ key, max, windowMs }) {
+  const cacheKey = `${max}|${windowMs}`;
+  let limiter = _consumeLimiters.get(cacheKey);
+  if (!limiter) {
+    limiter = makeRateLimiter(`auth.consume:${cacheKey}`, [
+      { windowMs, max, keyer: (ctx) => ctx.key },
+    ]);
+    _consumeLimiters.set(cacheKey, limiter);
+  }
+  return limiter({ key });
+}
+
+// P1-012 — track which (ip, hour-bucket) we've already audited so we
+// only emit `auth.brute_force_suspected` once per hour per IP.
+const _bruteForceAudited = new Set();
+// Sliding window of failed attempts per IP. Map<ip, number[]>.
+const _consumeFailures = new Map();
+const BRUTE_THRESHOLD = 20;
+const BRUTE_WINDOW_MS = 60 * 60 * 1000;
+function trackConsumeFailure(ip) {
+  const now = Date.now();
+  const arr = _consumeFailures.get(ip) || [];
+  const cutoff = now - BRUTE_WINDOW_MS;
+  const fresh = arr.filter((t) => t >= cutoff);
+  fresh.push(now);
+  _consumeFailures.set(ip, fresh);
+  if (fresh.length >= BRUTE_THRESHOLD) {
+    const hourBucket = Math.floor(now / BRUTE_WINDOW_MS);
+    const hashedIp = fingerprint([ip]);
+    const auditKey = `${hashedIp}|${hourBucket}`;
+    if (!_bruteForceAudited.has(auditKey)) {
+      _bruteForceAudited.add(auditKey);
+      recordAudit({
+        actorId: null,
+        action: 'auth.brute_force_suspected',
+        targetType: 'ip',
+        targetId: hashedIp,
+        metadata: { count: fresh.length, windowMs: BRUTE_WINDOW_MS },
+      }).catch((err) => logger.warn({ msg: 'auth.brute_audit_failed', err: err.message }));
+    }
+  }
+}
 
 const RequestSchema = z.object({
   email: z.string().trim().toLowerCase().email(),
@@ -119,7 +166,30 @@ export const authCommands = {
     }
     const ip = ipOf(socket);
     const userAgent = uaOf(socket);
-    const { user, session } = await consumeMagicToken({ token: parsed.data.token, ip, userAgent });
+
+    // P1-012 — per-IP rate limit + brute-force audit. We rate-limit
+    // BEFORE touching the token store so an attacker can't grind
+    // through the namespace; failed attempts feed the brute-force
+    // counter that emits one audit event per (ip, hour).
+    try {
+      checkRateLimit({
+        key: 'auth_consume:' + ip,
+        max: 10,
+        windowMs: 600_000,
+      });
+    } catch (rlErr) {
+      const retryAfterMs = (rlErr.details?.retryAfter || 60) * 1000;
+      throw new CommandError(ErrorCode.RATE_LIMITED, 'too_many_attempts', { retryAfterMs });
+    }
+
+    let result;
+    try {
+      result = await consumeMagicToken({ token: parsed.data.token, ip, userAgent });
+    } catch (err) {
+      trackConsumeFailure(ip);
+      throw err;
+    }
+    const { user, session } = result;
     socket.data = socket.data || {};
     socket.data.user = user;
     socket.data.session = { id: extractSessionId(session) };

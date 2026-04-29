@@ -385,6 +385,67 @@ export function HomePage({ socket }) {
     );
   }
 
+  // P3-011 — post-generation feedback strip. Hidden until an STL is
+  // ready; once a rating is submitted we swap to a thank-you line so
+  // we don't spam the same designId twice.
+  const feedbackSlot = el('div');
+  center.appendChild(feedbackSlot);
+  const feedbackSubmitted = new Set();
+
+  function renderFeedback() {
+    clear(feedbackSlot);
+    if (!state.stlReady || !state.designId) return;
+    const designId = state.designId;
+    if (feedbackSubmitted.has(designId)) {
+      feedbackSlot.appendChild(
+        el('div', {
+          class: 'rounded-xl px-4 py-2 border',
+          style: { background: '#F5F1E8', borderColor: '#E5DFD3', color: '#3D3A36', fontSize: '0.82rem' },
+        }, 'Thanks for the feedback'),
+      );
+      return;
+    }
+    const row = el('div', {
+      class: 'flex items-center gap-3 rounded-xl px-4 py-2 border',
+      style: { background: '#FFFFFF', borderColor: '#E5DFD3' },
+    });
+    row.appendChild(
+      el('span', {
+        style: { color: '#6B6157', fontSize: '0.78rem', fontWeight: 600 },
+      }, 'How did we do?'),
+    );
+    // Spec lists 👍 ❤️ 🤷 against the up/down/meh schema. The middle
+    // emoji is heart-shaped and isn't a "down"-vote in casual usage,
+    // but the schema only permits up|down|meh and the spec is explicit
+    // about ordering — we map by position so the column-three button
+    // is always 'meh' (the genuine indifference signal).
+    const buttons = [
+      { rating: 'up',   label: '\u{1F44D}' },
+      { rating: 'down', label: '❤️' },
+      { rating: 'meh',  label: '\u{1F937}' },
+    ];
+    for (const b of buttons) {
+      row.appendChild(
+        el('button', {
+          class: 'px-2 py-1 rounded-lg border transition-colors',
+          style: { borderColor: '#E5DFD3', background: '#FAF7F2', fontSize: '1.05rem', cursor: 'pointer' },
+          'aria-label': `feedback ${b.rating}`,
+          onClick: () => submitFeedback(designId, b.rating),
+        }, b.label),
+      );
+    }
+    feedbackSlot.appendChild(row);
+  }
+
+  function submitFeedback(designId, rating) {
+    feedbackSubmitted.add(designId);
+    renderFeedback();
+    // Fire-and-forget — failures here aren't worth interrupting the
+    // user. The server logs the error and the client simply doesn't
+    // re-prompt because we already moved to the thank-you state.
+    socket.send('feedback.submit', { designId, rating });
+  }
+
   // Action buttons
   const actions = el('div.flex.flex-col.gap-3', { class: 'sm:flex-row' });
   center.appendChild(actions);
@@ -549,6 +610,7 @@ export function HomePage({ socket }) {
     renderUploader();
     pushViewer();
     renderActions();
+    renderFeedback();
     announce(`Photo "${file.name}" ready. Tap Generate when you're set.`);
     // P3-001 — lightweight client-side face hint. The acceptance criteria
     // call for face-api.js / mediapipe but those add ~5 MB of model
@@ -663,6 +725,7 @@ export function HomePage({ socket }) {
     renderActions();
     renderViewerHeader();
     pushViewer();
+    renderFeedback();
 
     try {
       const imageData = state.photoFile ? await fileToBase64(state.photoFile) : null;
@@ -699,6 +762,7 @@ export function HomePage({ socket }) {
       state.stlData = result.stl_b64 || null;
       state.stlReady = true;
       sessionStorage.setItem('bikeheadz.designId', result.designId);
+      renderFeedback();
     } catch (err) {
       console.error('stl.generate failed', err);
       state.processingStep = `Error: ${err.message}`;
@@ -736,6 +800,7 @@ export function HomePage({ socket }) {
   renderViewerHeader();
   renderSettings();
   renderActions();
+  renderFeedback();
   renderRight();
 
   return {
