@@ -17,17 +17,18 @@
 
 ```yaml
 state:
-  file_version: 6
+  file_version: 7
   last_touched: 2026-04-29
   last_agent: claude-opus-4.7
   handler_version: v0.1.34               # GPU worker tag deployed on RunPod
-  repo_sha: dd5a9a2                      # batched 7-hour autonomous push (rounds 1+2; see section 15)
+  repo_sha: de6922a                      # auth boot-fix (AUTH_SECRET fallback chain)
   active_phase: 4                        # phases 0/1/2/5/6 mostly green; 4 is now the next focus
   in_progress_tasks: []
   blocked_tasks: []
   next_suggested_task: P3-001            # face-detection preflight — bigger model, follow-up beyond stub
   pause_reason: null
   recent_milestones:
+    - 2026-04-29 — Roadmap regen pass 3 (claude-opus-4.7). 30 new candidates appended across all phases without disturbing existing content. P0-016..018 (boot-fallback test, per-stage timeouts, triangle-budget cap), P1-012..014 (consume rate-limit, account merge, email-change re-verification), P2-017..019 (multi-design cart, gift purchase, 3DS/SCA recovery), P3-016..019 (wall-thickness validator, golden capture, calibration CI, TRELLIS shadow A/B), P4-016..019 (DO Spaces blob migration, OpenTelemetry, replica drift detector, Stripe reconciliation cron), P5-009..011 (embeddable shop widget, public read-only API, user boards), P6-010..012 (locale photo guidelines, AAA contrast mode, Intl date/number), P7-007..009 (resumable mobile generations, iOS pinch ergonomics, slicer deep links), X-012..015 (cookie banner, status page, public changelog, press kit). Most candidates seeded by gaps explicitly named in 3D_Pipeline.md §9.5 (per-stage timeouts, triangle budget, golden capture, calibration CI, GPU/CPU split rumination) and ProductSpec.md §13 (replica drift, blob migration). next_suggested_task unchanged at P3-001.
     - 2026-04-29 — Autonomous 7-hour push (claude-opus-4.7). Phase 0 foundations almost wholesale (P0-001 vitest harness, P0-002 ESLint+Prettier, P0-004 GH Actions CI, P0-005 Sentry shim, P0-006 rate-limit, P0-007 helmet+CSP, P0-008 admin role, P0-009 audit_log + helper, P0-010 feature_flags + commands, P0-011 RunPod /health ping, P0-012 zod schemas across stl/payments/account/auth/admin/flags/photos/designs, P0-013 ErrorCode taxonomy, P0-014 husky+lint-staged, P0-015 DB restore runbook). Phase 1 (P1-001 magic-link auth, P1-002 socket session middleware via cookie, P1-003 user-scoped designs, P1-004 GDPR export+delete, P1-005 account dashboard wired, P1-006 photo library, P1-007 email prefs, P1-008 profile mgmt). Phase 2 (P2-001 Stripe webhook, P2-002 printed_stem+pack_of_4 re-enabled, P2-003 shipping_address_collection, P2-006 STRIPE_TAX_ENABLED, P2-007 payments.refund admin, P2-008 STL email, P2-015 Customer Portal). Phase 4 partial (P4-002 /metrics endpoint, admin command surfaces P4-005/006/010/014/015 stubs). Phase 5 (P5-001 listPublic, P5-002 createShareLink+openShareLink, P5-003 remix link). Phase 6 (P6-006 prefers-reduced-motion + dark-mode tokens, P6-007 aria-live announcements). Cross-cutting (X-001 ATTRIBUTIONS rewritten, X-004 /terms /privacy /acceptable-use scaffolds, X-007 LAUNCH_CHECKLIST, X-008 security.txt + /security, X-009 sample-photo demo, X-010 SEO meta + sitemap.xml + robots.txt, X-011 404/500 pages). Migration 004 introduces 14 new tables/extensions; .do/app.yaml + .env.example expanded. **Caveat**: env had no node/npm so vitest + eslint + build were not run in this session — code is correct-by-inspection; first user run should be `npm install && npm test && npm run lint && npm run build` to confirm. Long verbose notes appended below each task.
     - 2026-04-29 — Roadmap regen pass 2. Audit closed P0-003 (Dockerfile shipped, deviations documented) and P6-003 (manual AA contrast pass landed; CI/axe split out as P6-009). Added 28 new candidate tasks across all phases and cross-cutting (P0-012..015, P1-009..011, P2-014..016, P3-013..015, P4-013..015, P5-007..008, P6-006..009, P7-005..006, X-008..011). See section 15 changelog and docs/DESIGN_DECISIONS.md for verbose decision records.
     - 2026-04-29 — AA contrast + viewer IBL + Schrader rebrand. Brand red bumped #DC2626→#C71F1F, muted gray #8B8278→#6B6157, gold-text #A88735→#7C5E1F, removed Tailwind text-white classes that were rendering invisible on cream. RoomEnvironment IBL added to the 3D viewer (this was THE fix for "metallic looks dark"). Schrader replaces Presta everywhere — the prior copy was wrong.
@@ -614,6 +615,83 @@ a Dockerfile for the GPU worker, and first-pass rate limiting.
 - **Agent notes** (append-only, newest first):
   - 2026-04-29 (claude-opus-4.7): docs/DB_RESTORE.md — full one-page runbook covering doctl databases fork, both point-in-time and snapshot restore, staging-app pointing, smoke-verify checklist, RTO targets per cluster size, drill log table. Hard-coded that we restore to a fork (never to prod) and that staging gets the new connection string. Drill log starts empty — first drill needs to happen before launch (X-007).
 
+### [P0-016] Boot resilience: derive AUTH_SECRET fallback verified by tests
+- **Status**: [ ]
+- **Phase**: 0
+- **Depends on**: P0-001
+- **Unlocks**: launch confidence
+- **Effort**: S
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - Unit test asserts `server/auth.js` boots in `NODE_ENV=production`
+    when `AUTH_SECRET` is unset but `DATABASE_URL` is set, derives a
+    deterministic SHA-256 fallback, and logs the
+    `auth.secret_derived_from_db_url` warn line exactly once.
+  - Unit test asserts that a session cookie signed with the derived
+    fallback verifies on a second module reload, but stops verifying
+    once `AUTH_SECRET` is set explicitly (rotation behaviour).
+  - Acceptance criterion explicitly cited in `docs/LAUNCH_CHECKLIST.md`
+    so the operator confirms a real `AUTH_SECRET` is set before
+    flipping to live Stripe keys.
+- **Implementation notes**:
+  - The fallback chain itself shipped in commit `de6922a`. This task
+    is the regression net so a future refactor can't silently
+    re-introduce a hard throw at module load.
+  - Test approach: spawn a child Node process with the desired env and
+    assert exit code + stderr; module-level throws are otherwise hard
+    to test from the same process.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P0-017] Per-stage timeouts on the GPU pipeline
+- **Status**: [ ]
+- **Phase**: 0
+- **Depends on**: P0-013, P0-006
+- **Unlocks**: P3-002 hardening
+- **Effort**: M
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - Each pipeline stage in `handler.py` honours a wall-clock budget
+    (default 60 s, configurable via `STAGE_TIMEOUT_S` env). Exceeded →
+    raises `PipelineError(ErrorCode.STAGE_TIMEOUT)` and writes a
+    failure-corpus entry tagged `timeout`.
+  - Whole-job budget: 5 minutes post-cold-start (`JOB_TIMEOUT_S`).
+    Exceeded → returns `runpod_no_result` early so the Node tier can
+    free the request rather than polling for 12 minutes.
+  - Telemetry line carries `stage_*_ok=false`, `timeout_stage=<name>`
+    when triggered; `[telemetry]` parser tolerates these new fields.
+- **Implementation notes**:
+  - Use `concurrent.futures.ThreadPoolExecutor` + `Future.result(timeout=N)`
+    for the CPU stages; manifold3d/pymeshlab don't honour signals
+    cleanly so we can't `signal.alarm()` them.
+  - Documented in `3D_Pipeline.md §9.5` "Per-stage timeout: 60 s
+    wall-clock" — this task ships that specification.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P0-018] Triangle-budget cap on TRELLIS output (post Stage 1.5)
+- **Status**: [ ]
+- **Phase**: 0
+- **Depends on**: P0-013
+- **Unlocks**: abuse resistance, GPU minute conservation
+- **Effort**: S
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - After Stage 1.5, if `len(faces) > MAX_TRIS_AFTER_REPAIR` (default
+    500_000, env-tunable), pipeline raises
+    `PipelineError(ErrorCode.MESH_TOO_LARGE)` instead of letting
+    manifold3d burn minutes on adversarial input.
+  - Telemetry line carries `stage1_5_tris` and the rejection emits a
+    failure-corpus row with `category=oversize_input`.
+  - Client maps the error code to "This photo produced an unusually
+    detailed mesh — try a portrait with a plainer background."
+- **Implementation notes**:
+  - 3D_Pipeline.md §9.5 "Adversarial inputs have been observed past 1M"
+    is the motivating evidence.
+  - Cheap check: `head.faces.shape[0]`. No mesh traversal needed.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
 ---
 
 ## 7. Phase 1 — Identity & accounts
@@ -870,6 +948,81 @@ scoping on designs and purchases, a minimal account settings flow.
   - Don't email on every login or it becomes noise. Hashing the
     UA into a "device fingerprint" and only emailing on first
     sight is the right shape.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P1-012] Auth-consume rate-limit + abuse heuristics
+- **Status**: [ ]
+- **Phase**: 1
+- **Depends on**: P1-001, P0-006
+- **Unlocks**: brute-force protection
+- **Effort**: S
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - `auth.consumeMagicLink` rejects with `rate_limited` after 10
+    failed attempts per IP per 10 minutes; sliding window backed by
+    the same rate-limit primitive as P0-006.
+  - Repeated invalid-token attempts (>20 in 1 hour from one IP)
+    write an `audit_log` row with `action='auth.brute_force_suspected'`
+    so the admin live-ops view (P4-010) can surface them.
+  - Existing successful magic-link redemptions remain
+    rate-unlimited (don't penalise legitimate retries).
+- **Implementation notes**:
+  - Today P0-006 covers `auth.requestMagicLink` (per-email and per-IP);
+    the consume side is unprotected because tokens are 32 bytes random.
+    Brute force is impractical but not impossible at scale, and
+    auditing the surface is launch hygiene.
+  - Bucket key: `consume_token:<ipHash>` — don't key on token itself,
+    that's the thing being guessed.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P1-013] Account merge — same person with multiple emails
+- **Status**: [ ]
+- **Phase**: 1
+- **Depends on**: P1-003, P0-009
+- **Unlocks**: support workflow for "I logged in with my old email"
+- **Effort**: M
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - Admin command `accounts.merge({ source_id, target_id })` reattaches
+    every `generated_designs`, `purchases`, `user_photos`,
+    `design_feedback`, `experiment_exposures`, `email_events` row from
+    `source` → `target`, then soft-deletes `source` (sets `deleted_at`).
+  - `auth_tokens` and `sessions` for the source are revoked.
+  - `audit_log` row records both ids + actor; refuses to merge if
+    either side is admin (forces support to demote first).
+  - Self-serve "request merge" flow: user adds a secondary verified
+    email, then `accounts.requestMerge({ secondary })` opens an admin
+    ticket — no automatic merge from user input.
+- **Implementation notes**:
+  - Wrap in a transaction. Every FK-bearing table needs an explicit
+    update (don't rely on cascade — we soft-delete, not hard-delete).
+  - Check the FK list against migration 004 before shipping; the list
+    grew when we added daily_stats/experiments tables.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P1-014] Email-change flow with re-verification
+- **Status**: [ ]
+- **Phase**: 1
+- **Depends on**: P1-001, P1-007
+- **Unlocks**: account-takeover deterrent, deliverability
+- **Effort**: S
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - Settings tab "change email" sends a magic-link to the *new*
+    address; only when the user clicks does `accounts.email` update.
+  - The *old* address gets a "your email was changed" notification
+    with a "wasn't you?" link that triggers `account.delete`-soft and
+    revokes all sessions.
+  - Username (P5-007) and stored designs/purchases stay attached
+    across the email change.
+- **Implementation notes**:
+  - Reuse the magic-link infrastructure (P1-001) — token channel
+    `email_change` so `auth_tokens.channel` distinguishes from login.
+  - Don't allow change if the new address belongs to another active
+    account (force merge through P1-013 instead).
 - **Agent notes** (append-only, newest first):
   - _(empty)_
 
@@ -1195,6 +1348,86 @@ command.
   - Tracking number lives on `purchases.shipping_tracking`.
   - Carrier-specific tracking URL templates kept server-side so
     the client doesn't have to know UPS/USPS/FedEx URL shapes.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P2-017] Multi-design cart — buy several heads in one checkout
+- **Status**: [ ]
+- **Phase**: 2
+- **Depends on**: P1-003, P2-002
+- **Unlocks**: family-pack flows, gift bundles
+- **Effort**: M
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - New `cart` socket commands: `cart.add({designId, product})`,
+    `cart.remove({designId})`, `cart.list()`. Cart state lives in a
+    new `carts (account_id PK, items JSONB, updated_at)` table for
+    authed users; in-memory by socket for anonymous.
+  - `payments.createCheckoutSession` accepts `cartId` (or absent →
+    falls back to today's single-design path) and builds Stripe
+    `line_items` from the cart contents, one per design × product.
+  - Account dashboard `/account#cart` shows the cart and a
+    "Checkout all" CTA. Items expire when the underlying design
+    expires (24 h) and surface a "regenerate from photo" CTA via
+    P3-010.
+- **Implementation notes**:
+  - Stripe Checkout supports up to 100 line items per session — well
+    above any realistic use.
+  - Don't reinvent quantity logic: each line item is a (design,
+    product) pair with quantity=1; `pack_of_4` is its own product, not
+    a quantity multiplier of `printed_stem`.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P2-018] Gift purchase — buy an STL for someone else
+- **Status**: [ ]
+- **Phase**: 2
+- **Depends on**: P2-008, P2-017
+- **Unlocks**: holiday / cycling-club gifting
+- **Effort**: M
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - Checkout step has a "this is a gift" toggle. When set, the user
+    enters the recipient's email + an optional message; payment
+    completes against the buyer's card.
+  - Stripe metadata carries `gift_recipient_email` + `gift_message`
+    so audit/refund flows can find them.
+  - Recipient receives a one-tap claim email: clicking sends them
+    through magic-link auth (P1-001), then attaches the design +
+    purchase row to the recipient's account (transfer of `account_id`
+    on the design + `purchases.gifted_to`).
+  - Recipient's `/account` shows the design with a "gifted by
+    <buyer-name>" badge.
+- **Implementation notes**:
+  - Don't expose buyer billing details to recipient. Buyer sees a
+    receipt; recipient sees only the gift message + STL.
+  - Recipient never had to provide a card → no Stripe customer
+    object on their side; the design is just transferred.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P2-019] 3DS / SCA fallback handling on Checkout
+- **Status**: [ ]
+- **Phase**: 2
+- **Depends on**: P2-001
+- **Unlocks**: EU launch, regulatory compliance
+- **Effort**: S
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - When Stripe Checkout returns `payment_status='requires_action'`
+    via the webhook (P2-001) or verifySession, the `purchases.status`
+    column persists `pending_action` (new CHECK value, migration to
+    update).
+  - User-facing recovery: if the user hits `/checkout/return` while
+    `requires_action` is in flight, show a "we're confirming your
+    payment with your bank" interstitial that polls
+    `payments.verifySession` every 4 s up to 60 s.
+  - On final settlement, fire the same email + delivery flows as a
+    normal `paid` transition.
+- **Implementation notes**:
+  - Stripe Checkout handles 3DS in its own hosted UI; our job is to
+    represent the intermediate state cleanly rather than show a 500.
+  - Test path: Stripe test card `4000 0000 0000 3220` triggers 3DS.
 - **Agent notes** (append-only, newest first):
   - _(empty)_
 
@@ -1554,6 +1787,111 @@ multi-seed selection, print-ready checks.
 - **Agent notes** (append-only, newest first):
   - _(empty)_
 
+### [P3-016] Stage-5 wall-thickness validator (raycast-based)
+- **Status**: [ ]
+- **Phase**: 3
+- **Depends on**: P3-005
+- **Unlocks**: print-failure prevention without manual review
+- **Effort**: M
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - `pipeline/validation.py` gains a `min_wall_thickness(mesh, target_mm=1.2)`
+    function that ray-casts inward-normal samples from a uniform
+    surface sampling and reports the histogram of nearest-internal-
+    surface distances.
+  - Stage 5 runs the validator and emits a `[stage5] WARN` line +
+    `{type:"warning", code:"thin_walls", min_mm, sample_count}` frame
+    when the 1st-percentile thickness is < 1.2 mm (locked target in
+    `3D_Pipeline.md §0`).
+  - Failure-corpus replay (P3-006) catches regressions on the
+    committed test inputs.
+- **Implementation notes**:
+  - Today's check is a stub per P3-005's deferred bullet. The signed
+    distance / raycast approach is what trimesh's `ProximityQuery`
+    supports out of the box.
+  - Sample density: 1000 surface points is a reasonable balance —
+    finer adds latency (this runs on every job), coarser misses
+    pockets.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P3-017] Capture post-pipeline goldens once v1 stabilises
+- **Status**: [ ]
+- **Phase**: 3
+- **Depends on**: P3-006
+- **Unlocks**: regression-proof pipeline iteration
+- **Effort**: S
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - `tools/capture_goldens.py` runs the v1 pipeline against each
+    committed `server/assets/test_corpus/<id>/photo.jpg` and writes
+    the result to `<id>/golden.stl` plus a `<id>/golden_meta.json`
+    (handler_version, pipeline_constants_sha, timestamp).
+  - First run produces 5 goldens covering the corpus; CI smoke test
+    (P3-006) starts asserting Hausdorff distance ≤ 0.5 mm against
+    them.
+  - Procedure documented in `3D_Pipeline.md` so a future rebrand of
+    constants triggers a deliberate golden refresh + reviewer
+    sign-off, not a silent drift.
+- **Implementation notes**:
+  - Per 3D_Pipeline.md §-0.5.4, the `reference/*_head.stl` files are
+    raw inputs — they are NOT post-pipeline goldens. This task captures
+    the actual goldens that the spike said were missing.
+  - Run on the same image tag as production so the goldens reflect
+    what real users see.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P3-018] Calibration regeneration in CI
+- **Status**: [ ]
+- **Phase**: 3
+- **Depends on**: P0-004, P3-017
+- **Unlocks**: protected pipeline tuning
+- **Effort**: S
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - GitHub Actions workflow runs `tools/calibrate_pipeline.py` on every
+    PR that touches `server/assets/reference/`, `valve_cap.stl`, or
+    `negative_core.stl`.
+  - Compares the regenerated `pipeline_constants.json` against the
+    committed copy; > 1% drift in any constant fails the job.
+  - Reviewer must update the JSON in the same PR (and write the
+    drift rationale in the PR body) for the build to go green.
+- **Implementation notes**:
+  - Mandate from 3D_Pipeline.md §9.5 "Calibration regeneration" —
+    this is the change-control loop the doc demands but nobody has
+    built yet.
+  - Tolerance bands per constant should live in the calibration
+    script, not as ad-hoc PR comments.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P3-019] Bump TRELLIS model version with shadow A/B
+- **Status**: [ ]
+- **Phase**: 3
+- **Depends on**: P0-010, P3-006, P4-009
+- **Unlocks**: future-proofing against TRELLIS upstream releases
+- **Effort**: M
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - `TRELLIS_MODEL` env can take a comma-separated pair (`current,candidate`);
+    handler.py runs the `current` model end-to-end as today and the
+    `candidate` model in parallel for `SHADOW_PERCENT` (default 5)
+    of requests, writing the candidate output STL + telemetry to
+    `/runpod-volume/shadow/<jobId>.stl` without serving it.
+  - Admin "Shadow A/B" tab on /admin (extends P4-009) visualises:
+    candidate triangle count, watertight rate, p95 latency delta,
+    Hausdorff distance to current.
+  - Promote-to-current is a single env flip + worker redeploy.
+- **Implementation notes**:
+  - Cost: shadow doubles GPU spend on the sampled fraction. 5%
+    keeps marginal cost negligible; ratchet up to 20–50% for the
+    days surrounding a promote decision.
+  - Don't ever ship the shadow STL to the client — that's the
+    invariant that keeps shadow-mode safe.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
 ---
 
 ## 10. Phase 4 — Observability & scale
@@ -1878,6 +2216,105 @@ logging.
 - **Agent notes** (append-only, newest first):
   - 2026-04-29 (claude-opus-4.7): admin.impersonate.begin command. Refuses to impersonate another admin (`cannot_impersonate_admin`). Writes audit row with actor_id + on_behalf_of. The signed-cookie scheme that carries `{actor_id, target_id}` is sketched but the second cookie isn't actually issued yet — full impersonation needs the auth middleware to accept the dual-id cookie. Today the command just returns the target user metadata so the admin UI can render a prompt.
 
+### [P4-016] DO Spaces migration for STL + photo blobs
+- **Status**: [ ]
+- **Phase**: 4
+- **Depends on**: P4-004, P0-010
+- **Unlocks**: BYTEA scale ceiling removal, faster restores
+- **Effort**: M
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - `design-store.save` and `photo-store.save` write blobs to a DO
+    Spaces bucket when `BLOB_STORE=spaces` (default `pg`); URL is
+    persisted in a new `generated_designs.blob_url` /
+    `user_photos.blob_url` column.
+  - Read path resolves from blob_url if set, falls back to BYTEA.
+  - One-shot migration script `tools/migrate_blobs.py` walks the
+    existing rows, uploads BYTEA → Spaces, sets `blob_url`, then
+    nulls out BYTEA. Dry-run flag mandatory.
+  - Feature-flagged (P0-010 `flags.set blob_store_spaces`) so the
+    cutover can be flipped per-account before global rollout.
+- **Implementation notes**:
+  - DO Spaces is S3-compatible (`@aws-sdk/client-s3`). Use signed
+    URLs with 24 h TTL for the post-payment STL download.
+  - Don't drop the BYTEA columns yet — keep them for two weeks of
+    parallel run, then a follow-up migration drops them.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P4-017] OpenTelemetry traces (server + GPU worker)
+- **Status**: [ ]
+- **Phase**: 4
+- **Depends on**: P4-001
+- **Unlocks**: cross-tier debugging without log-archeology
+- **Effort**: M
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - Node server initialises `@opentelemetry/sdk-node` with auto-
+    instrumentation for `http`, `pg`, `socket.io` (manual span around
+    `dispatchCommand`).
+  - Trace context propagates through the RunPod job input
+    (`metadata.traceparent`); handler.py imports
+    `opentelemetry-api` + `opentelemetry-sdk` and emits child spans
+    per stage.
+  - Both tiers ship to an OTLP-compatible collector via
+    `OTEL_EXPORTER_OTLP_ENDPOINT`. Honeycomb / Grafana Cloud Tempo
+    work out of the box.
+- **Implementation notes**:
+  - Sentry's tracing piggybacks on the same trace IDs (P0-005), so
+    one trace correlates a Sentry issue + an OTel span graph.
+  - The span around the GPU worker can record per-stage timings
+    derived from the existing `[telemetry]` JSON, no new code in
+    pipeline/stages.py needed.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P4-018] Replica drift detector (handler_version skew alarm)
+- **Status**: [ ]
+- **Phase**: 4
+- **Depends on**: P0-011, P4-005
+- **Unlocks**: faster diagnose of "some users see new output, others see old"
+- **Effort**: S
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - `runpod-client.js` records the `handler_version` from each job's
+    boot frame into a tiny in-memory ring buffer (last 50 jobs).
+  - `/admin` "Live ops" tab (P4-010) surfaces the unique set of
+    handler_versions seen in the last hour.
+  - If > 1 handler_version is observed for ≥ 5 minutes, fires a
+    `replica_drift` alert via P4-012 routing.
+- **Implementation notes**:
+  - This catches the "you released v0.1.36 but RunPod still has
+    workers running v0.1.34 because the new release wasn't picked
+    up" failure mode, which is otherwise invisible until users
+    complain.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P4-019] Stripe reconciliation cron
+- **Status**: [ ]
+- **Phase**: 4
+- **Depends on**: P2-001, P4-013
+- **Unlocks**: catches webhook-loss + race conditions
+- **Effort**: S
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - Daily cron compares the last 24 h of `purchases` rows against
+    Stripe via `stripe.checkout.sessions.list({ limit: 100, ... })`.
+  - Mismatches (paid in Stripe but pending in our DB, or absent in
+    Stripe but paid here) write `audit_log` rows with
+    `action='reconcile.mismatch'` and email the on-call admin.
+  - Idempotent: rerunning the same window doesn't duplicate alerts
+    (dedup by Stripe `session_id` + `mismatch_kind`).
+- **Implementation notes**:
+  - Webhook coverage from P2-001 should already keep us in sync but
+    "should" is not a guarantee. This is the safety net.
+  - DO App Platform jobs support cron-style scheduling; pre-deploy
+    is for migrations, but a separate `worker` component with
+    `kind: cron` is the right pattern.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
 ---
 
 ## 11. Phase 5 — Creator ecosystem
@@ -2018,6 +2455,80 @@ logging.
 - **Implementation notes**:
   - The first featured design is a marketing decision — pick one
     that prints cleanly + has a charismatic-looking head.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P5-009] Embeddable cycling-shop widget
+- **Status**: [ ]
+- **Phase**: 5
+- **Depends on**: P5-002, P0-007
+- **Unlocks**: B2B distribution channel
+- **Effort**: M
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - `/widget.js` is a single ≤8 KB script that, when included on a
+    third-party page, renders an iframe pointing at `/embed?shop=<id>`
+    + sets up cross-origin postMessage handshake for sizing.
+  - `/embed` is a stripped-down generator that only allows the photo
+    upload + STL preview + "Buy at bikeheadz.com" handoff (no
+    auth, no account dashboard).
+  - Shop owner gets a per-shop `client_id` + allowlisted
+    `Origin` whitelist via `requireAdmin` admin command
+    `widget.createPartner({ origins })`. Server enforces CSP
+    `frame-ancestors` per-shop on `/embed`.
+- **Implementation notes**:
+  - Critical: tighten CSP so a hostile site can't iframe `/embed`
+    and screen-scrape user photos. The allowlist is the gate.
+  - Revenue split is out of scope for v1 — partners drive traffic
+    only; commercial deals come later.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P5-010] Public read-only design API (signed tokens)
+- **Status**: [ ]
+- **Phase**: 5
+- **Depends on**: P5-001, P5-002
+- **Unlocks**: third-party integrations, data portability
+- **Effort**: M
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - New socket commands `api.designs.get({ token })` /
+    `api.designs.list({ token, cursor })` that accept a signed API
+    token tied to one user and return only `is_public=true` designs
+    they own (or any designs scoped to that token).
+  - Tokens issued through /account → API tokens; revocable; default
+    rate-limit 60 req/minute per token.
+  - Documented at `/help/api` with cURL examples + the JSON shape.
+- **Implementation notes**:
+  - Even though the project guideline forbids REST, this stays on
+    the socket transport — the token authenticates a socket
+    connection, not an HTTP route.
+  - Don't expose anonymous-design endpoints; the moment we open the
+    public surface we need rate limiting + abuse detection.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P5-011] User-curated design collections (boards)
+- **Status**: [ ]
+- **Phase**: 5
+- **Depends on**: P1-005, P5-001
+- **Unlocks**: Pinterest-style discovery
+- **Effort**: M
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - New tables: `boards (id PK, account_id, slug, title, is_public, …)`
+    and `board_items (board_id FK, design_id FK, position, …)`.
+  - User can create up to 25 boards on /account → Boards. Each board
+    holds an ordered list of designs (theirs or remixed from
+    showcase).
+  - Public boards live at `/u/<username>/<slug>` and aggregate the
+    design thumbnails + a "Remix this set" multi-cart CTA (cart
+    pre-populated via P2-017).
+- **Implementation notes**:
+  - Position uses sparse integers (100, 200, 300, …) so reordering
+    only writes one row.
+  - Reuse the username-conflict wordlist from P5-007 for slug
+    validation.
 - **Agent notes** (append-only, newest first):
   - _(empty)_
 
@@ -2245,6 +2756,76 @@ logging.
 - **Agent notes** (append-only, newest first):
   - _(empty)_
 
+### [P6-010] Locale-aware photo guidelines + sample portraits
+- **Status**: [ ]
+- **Phase**: 6
+- **Depends on**: P6-002, P3-001
+- **Unlocks**: better first-photo capture across cultures
+- **Effort**: S
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - `/help/photo-guidelines` and the home-page upload tooltip pull
+    locale-specific copy: lighting / framing tips, examples of
+    head-coverings handled correctly (hijab, turban, helmet, hat),
+    cultural notes on "show your full face."
+  - Sample portraits in the X-009 demo mode rotate through 4–6
+    locale-curated faces (with photo-release on file) so the demo
+    mirrors the user demographic instead of "generic studio
+    portrait of a Western male."
+  - Failure-corpus stats (P3-006) tracked per-locale so we notice if
+    a specific group has a higher rejection rate.
+- **Implementation notes**:
+  - Reuses the i18n string table from P6-002; just adds keys.
+  - Photo releases must be physical files committed under
+    `client/public/sample-portraits/RELEASES/` so attribution is
+    auditable.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P6-011] High-contrast mode beyond AA (WCAG AAA opt-in)
+- **Status**: [ ]
+- **Phase**: 6
+- **Depends on**: P6-003
+- **Unlocks**: accessible to users with low-vision setups
+- **Effort**: S
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - Settings tab adds "High-contrast mode" toggle. When on, the body
+    gets `data-contrast="aaa"` and a CSS layer in `theme.css`
+    overrides tokens to hit 7:1 (normal) / 4.5:1 (large).
+  - Honors `forced-colors: active` (Windows high-contrast) without
+    the manual toggle — palette switches to system tokens.
+  - Visual regression test (Playwright + axe) confirms zero
+    AAA violations on /, /pricing, /how-it-works, /account.
+- **Implementation notes**:
+  - The brand-red token (`#C71F1F`) only just clears AA on cream;
+    AAA needs `#A4111A` or darker. Same for the gold/amber pair.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P6-012] Locale-aware date/number formatting via Intl
+- **Status**: [ ]
+- **Phase**: 6
+- **Depends on**: P6-002
+- **Unlocks**: clean i18n display correctness
+- **Effort**: S
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - All client-rendered dates (`/account`, /admin, share-page meta)
+    go through a `fmtDate(d, locale)` helper backed by
+    `Intl.DateTimeFormat`. No more hard-coded `toLocaleDateString`
+    fallbacks.
+  - Numbers (triangle counts, prices not bound to Stripe currency)
+    use `Intl.NumberFormat` keyed on the active locale.
+  - Existing `to_char(..., 'Mon DD, YYYY')` strings in `designs.list`
+    are dropped server-side; the client formats from the ISO
+    timestamp.
+- **Implementation notes**:
+  - This is a quiet long-term win — every place we hardcoded a US
+    date format leaks once non-en locales ship.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
 ---
 
 ## 13. Phase 7 — Mobile / PWA / native
@@ -2339,6 +2920,79 @@ logging.
 - **Implementation notes**:
   - First-visit prompts are user-hostile. Wait for a real success
     moment before asking.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P7-007] Background fetch / resumable generations on flaky mobile
+- **Status**: [ ]
+- **Phase**: 7
+- **Depends on**: P7-001
+- **Unlocks**: mobile completion rate on flaky networks
+- **Effort**: M
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - When `navigator.connection?.saveData` is true or the connection
+    drops mid-generation, the service worker keeps the socket alive
+    (or re-establishes it) and resumes streaming on reconnect using
+    a server-issued `jobId`.
+  - `stl.generate.resume({ jobId })` socket command lets the client
+    re-attach to an in-flight RunPod job — server replays the
+    progress frame buffer + delivers the final result.
+  - User-visible: a "Reconnecting…" toast instead of a fresh restart
+    when the iPhone hits a tunnel.
+- **Implementation notes**:
+  - Server-side, the runpod-client already polls the job; the only
+    new piece is a per-jobId in-memory cursor that survives a
+    socket disconnect for ≤ 2 minutes.
+  - Out of scope: resuming after the browser fully closes — that's
+    a much bigger lift requiring durable client state.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P7-008] iOS pinch-to-rotate viewer ergonomics
+- **Status**: [ ]
+- **Phase**: 7
+- **Depends on**: (none)
+- **Unlocks**: cleaner first impression on phones
+- **Effort**: S
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - On touch devices, the Three.js OrbitControls accepts one-finger
+    rotate, two-finger pinch zoom, two-finger pan. Defaults are
+    inverted on iOS today (one-finger pans).
+  - Double-tap re-centers the camera + resets to the auto-rotate
+    speed.
+  - Tested on iPhone 12+ Safari and a recent Android Chrome build;
+    auto-rotate stays disabled while a touch is active.
+- **Implementation notes**:
+  - `OrbitControls.touches = { ONE: TOUCH.ROTATE, TWO: TOUCH.DOLLY_PAN }`
+    — single-line config change, but it currently defaults to PAN +
+    DOLLY_ROTATE which feels backwards on a phone.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P7-009] Print-from-phone via OrcaSlicer / Bambu Handy deep links
+- **Status**: [ ]
+- **Phase**: 7
+- **Depends on**: P5-002
+- **Unlocks**: phone-to-printer hand-off without a desktop step
+- **Effort**: S
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - Post-purchase, mobile users see "Open in Bambu Handy" /
+    "Open in OrcaSlicer" deep-link buttons next to the regular
+    download button.
+  - The button's `href` is the slicer-specific URL scheme passing the
+    signed STL share-link (P5-002): e.g.
+    `bambustudio://import?url=<encoded>`,
+    `orcaslicer://import?url=<encoded>`.
+  - Falls back to a regular Blob download when the scheme isn't
+    registered (most desktop browsers).
+- **Implementation notes**:
+  - Slicer URL scheme support is patchy — verify each before
+    shipping; cite the slicer version in copy.
+  - Don't rely on this as the only download path — desktop users
+    still expect File-Save.
 - **Agent notes** (append-only, newest first):
   - _(empty)_
 
@@ -2486,12 +3140,97 @@ research. Agents may pick from here only when explicitly directed.
 - **Agent notes** (append-only, newest first):
   - 2026-04-29 (claude-opus-4.7): 404: client router falls through to NotFoundPage when no exact-match route hits. 500: express error handler responds with the SPA shell + X-Incident-Id header so the SPA can route to ServerErrorPage with the incident id surfaced. Both pages match the workshop palette. Incident id is captured on Sentry too.
 
+### [X-012] Cookie banner + consent management
+- **Status**: [ ]
+- **Effort**: S
+- **Acceptance criteria**:
+  - First-visit banner with "Accept all" / "Essential only" /
+    "Manage preferences" buttons; honours the user's choice in a
+    localStorage key + a server-rendered preference cookie so SSR
+    pages can hide tracking pixels for opted-out users.
+  - Categories: essential (always on), analytics, marketing.
+    Sentry / OTel / email-engagement webhooks gate on
+    `consent.analytics === true`.
+  - Banner copy is i18n-keyed (P6-002) and AAA-contrast (P6-011).
+- **Implementation notes**:
+  - Required for EU launch (GDPR + ePrivacy). The flow needs to be
+    explicit-opt-in, not implicit-by-continuing.
+  - Don't ship a third-party CMP (OneTrust, etc.) — the bundle
+    bloat isn't worth it for our small surface.
+- **Agent notes**: _(empty)_
+
+### [X-013] Public status page
+- **Status**: [ ]
+- **Effort**: S
+- **Acceptance criteria**:
+  - `/status` page renders: Node app health (P0-011 result),
+    RunPod endpoint health, Postgres health, Stripe webhook
+    last-success timestamp.
+  - Powered by a 60-s-cached aggregator that calls each subsystem's
+    health probe in parallel.
+  - Linked from the footer + the 500 page.
+- **Implementation notes**:
+  - Don't expose internal request-rate or per-user data — public
+    status pages leak surprising stuff if you're sloppy with what
+    counts as "system health."
+  - Pair with X-014 incident timeline so the public page can show
+    "we know about <issue>, ETA <time>."
+- **Agent notes**: _(empty)_
+
+### [X-014] Public changelog + incident timeline
+- **Status**: [ ]
+- **Effort**: S
+- **Acceptance criteria**:
+  - `/changelog` renders a markdown file from `docs/CHANGELOG.md`,
+    grouped by week.
+  - `/incidents` renders a separate markdown file from
+    `docs/INCIDENTS.md` with date, impact, root cause, fix.
+  - Both link from the footer; both are static-rendered so search
+    engines can crawl them.
+- **Implementation notes**:
+  - Builds operator discipline: writing the incident note forces
+    the post-mortem.
+  - Don't auto-generate from git log; curated copy is what users
+    care about.
+- **Agent notes**: _(empty)_
+
+### [X-015] Press kit / brand assets page
+- **Status**: [ ]
+- **Effort**: S
+- **Acceptance criteria**:
+  - `/press` page hosts: full-resolution logo (SVG + PNG), monogram,
+    workshop palette swatches, three product photos, one printed-
+    cap close-up, a one-paragraph "about" blurb.
+  - Each asset is a direct download link; ZIP bundle on the page.
+  - Footer link "Press / Brand."
+- **Implementation notes**:
+  - Pre-empts the "could you send me the logo for our newsletter?"
+    DMs that always swarm at launch.
+  - All assets must be ours — no Unsplash or third-party imagery
+    on this page.
+- **Agent notes**: _(empty)_
+
 ---
 
 ## 15. Change log
 
 Agents append one line per session. Most recent at top.
 
+- 2026-04-29 — claude-opus-4.7 — **Roadmap regen pass 3.** 30 new candidate
+  tasks appended without touching existing content. Per-phase counts:
+  P0 +3 (P0-016..018), P1 +3 (P1-012..014), P2 +3 (P2-017..019),
+  P3 +4 (P3-016..019), P4 +4 (P4-016..019), P5 +3 (P5-009..011),
+  P6 +3 (P6-010..012), P7 +3 (P7-007..009), X +4 (X-012..015).
+  Sources: gaps named in 3D_Pipeline.md §9.5 (per-stage timeouts,
+  triangle budget cap, golden capture, calibration regeneration CI,
+  GPU/CPU split rumination, shadow A/B for TRELLIS upgrades) and
+  ProductSpec.md §13 (replica drift detection, DO Spaces blob
+  migration). Deliberately did NOT add: a "split GPU + CPU endpoints"
+  cost-optimisation task (premature — wait until idle GPU cost is
+  measurable, then revisit per 3D_Pipeline §9.5); a "Stripe Identity
+  fraud verification" task (over-rotates for a $2 product); a "Native
+  iOS/Android shell" task (P7-001 PWA covers 90% of the value, native
+  is a launch+1 conversation). next_suggested_task unchanged at P3-001.
 - 2026-04-29 — claude-opus-4.7 — **Autonomous 7-hour push.** Closed 43 tasks
   in a single session across phases 0/1/2/4/5/6 + cross-cutting:
   P0-001/002/004/005/006/007/008/009/010/011/012/013/014/015,
