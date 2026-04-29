@@ -19,7 +19,7 @@ export function LoginPage({ socket, query }) {
     'div',
     {
       style: {
-        background: '#FFFDF8',
+        background: '#FFFFFF',
         border: '1px solid #D7CFB6',
         borderRadius: '14px',
         padding: '32px 28px',
@@ -51,7 +51,7 @@ export function LoginPage({ socket, query }) {
       width: '100%',
       padding: '12px 14px',
       fontSize: '16px',
-      border: '1px solid #C9C0B0',
+      border: '1px solid #D7CFB6',
       borderRadius: '10px',
       marginBottom: '12px',
       background: '#F5F2E5',
@@ -104,7 +104,7 @@ export function LoginPage({ socket, query }) {
                   display: 'inline-block',
                   padding: '8px 12px',
                   background: '#F5F2E5',
-                  border: '1px dashed #C9C0B0',
+                  border: '1px dashed #D7CFB6',
                   color: '#D89E2F',
                   borderRadius: '8px',
                   fontSize: '13px',

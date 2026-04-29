@@ -238,7 +238,7 @@ export function HomePage({ socket }) {
       style: { borderColor: '#D7CFB6', fontSize: '0.75rem' },
     },
       legendSwatch('#7B2EFF', '3D Scanned Head'),
-      legendSwatch('#A88735', 'Schrader Valve Stem'),
+      legendSwatch('#7C5E1F', 'Schrader Valve Stem'),
       legendSwatch('#9CA3AF', 'Chrome Body'),
     ),
   );
@@ -415,7 +415,7 @@ export function HomePage({ socket }) {
       feedbackSlot.appendChild(
         el('div', {
           class: 'rounded-xl px-4 py-2 border',
-          style: { background: '#E5E0CC', borderColor: '#D7CFB6', color: '#3D3A36', fontSize: '0.82rem' },
+          style: { background: '#E5E0CC', borderColor: '#D7CFB6', color: '#3D2F4A', fontSize: '0.82rem' },
         }, 'Thanks for the feedback'),
       );
       return;
@@ -587,7 +587,7 @@ export function HomePage({ socket }) {
         el('div.flex.items-center.gap-2.mb-2',
           icon('settings', { size: 14, color: '#D89E2F' }),
           el('span.uppercase', {
-            style: { color: '#3D3A36', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.05em' },
+            style: { color: '#3D2F4A', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.05em' },
           }, '3D Printing Tips'),
         ),
         el('p', {
@@ -599,11 +599,11 @@ export function HomePage({ socket }) {
         }, 'Add a 5 mm brim with 0 mm brim-to-object gap.'),
         el('p', {
           class: 'mt-1',
-          style: { color: '#3D3A36', fontSize: '0.74rem', lineHeight: 1.5 },
+          style: { color: '#3D2F4A', fontSize: '0.74rem', lineHeight: 1.5 },
         }, 'The cap is tall and narrow — without the brim it can shear off the bed mid-print. Set this in Bambu Studio / OrcaSlicer / PrusaSlicer under "Skirt and brim → Brim type: Outer + skirt, Brim width: 5 mm, Brim-object gap: 0".'),
         el('p', {
           class: 'mt-2',
-          style: { color: '#3D3A36', fontSize: '0.74rem', lineHeight: 1.5 },
+          style: { color: '#3D2F4A', fontSize: '0.74rem', lineHeight: 1.5 },
         }, 'Print cap-down on the bed — no supports needed.'),
       ),
     );
@@ -857,7 +857,7 @@ function slider({ label, value, min, max, step, display, onInput }) {
   });
   return el('div.flex.flex-col.gap-2',
     el('div.flex.justify-between.items-center',
-      el('label', { style: { color: '#3D3A36', fontSize: '0.8rem' } }, label),
+      el('label', { style: { color: '#3D2F4A', fontSize: '0.8rem' } }, label),
       valueEl,
     ),
     input,
@@ -879,7 +879,7 @@ function colorRow({ value, onInput }) {
     style: { color: '#3D2F4A', fontSize: '0.78rem' },
   }, value);
   return el('div.flex.flex-col.gap-2',
-    el('label', { style: { color: '#3D3A36', fontSize: '0.8rem' } }, 'Head Color'),
+    el('label', { style: { color: '#3D2F4A', fontSize: '0.8rem' } }, 'Head Color'),
     el('div.flex.items-center.gap-3', input, swatchLabel),
   );
 }
@@ -900,7 +900,7 @@ function materialRow({ value, onChange }) {
     }, m);
   });
   return el('div.flex.flex-col.gap-2', { class: 'sm:col-span-2' },
-    el('label', { style: { color: '#3D3A36', fontSize: '0.8rem' } }, 'Material Finish'),
+    el('label', { style: { color: '#3D2F4A', fontSize: '0.8rem' } }, 'Material Finish'),
     el('div.flex.gap-2', ...buttons),
   );
 }

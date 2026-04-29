@@ -48,7 +48,7 @@ export function GalleryPage({ socket }) {
         'data-link': true,
         style: {
           display: 'block',
-          background: '#FFFDF8',
+          background: '#FFFFFF',
           border: '1px solid #D7CFB6',
           borderRadius: '12px',
           padding: '12px',
@@ -129,7 +129,7 @@ export function ShareDesignPage({ socket, designId }) {
                 style: {
                   padding: '10px 16px',
                   background: '#F5F2E5',
-                  border: '1px solid #C9C0B0',
+                  border: '1px solid #D7CFB6',
                   color: '#0E0A12',
                   borderRadius: '10px',
                   textDecoration: 'none',

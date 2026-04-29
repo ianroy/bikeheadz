@@ -84,8 +84,10 @@
    * it ties to the rest of the palette. Chrome STL still reads cleanly. */
   --viewer-bg: #2A1F3D;
 
-  /* Gold legacy alias — kept for AAA mode + step-4 indicator dot. */
-  --gold: #D89E2F;
+  /* Gold legacy — used only for warning text/icons. Dark enough to
+   * pass AA on cream (6.45:1) — bumped from #D89E2F which only got
+   * 2.11:1 and was failing the audit. */
+  --gold: #7C5E1F;
 
   /* Shape tokens */
   --font-weight-medium: 500;
@@ -260,13 +262,22 @@
   line-height: 0.95;
 }
 
-/* CTA button — primary brand fill with optional Memphis shadow. */
+/* CTA button — primary brand fill.
+ *
+ * Background + text colors are pinned to literals (not var()) so the
+ * CTA is identical in light + dark + AAA modes. Without this, the
+ * dark-mode --brand lightens to #A267FF and white text on it falls
+ * to 3.55:1 — fails AA 4.5 for normal text. White on #7B2EFF gets
+ * 5.71:1 ✓ in any theme.
+ *
+ * The border still uses var(--ink) so it inverts in dark mode (cream
+ * border on dark page, ink border on cream page).  */
 .vhz-cta {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
   padding: 0.875rem 1.5rem;
-  background: var(--brand);
+  background: #7B2EFF;
   color: #FFFFFF;
   font-style: italic;
   font-weight: 900;
@@ -277,29 +288,37 @@
   transition: transform 0.08s ease;
   cursor: pointer;
 }
-.vhz-cta:hover  { transform: translate(-2px, -2px); }
+.vhz-cta:hover  { transform: translate(-2px, -2px); background: #5A1FCE; }
 .vhz-cta:active { transform: translate(2px, 2px); }
 .vhz-cta-secondary {
   background: var(--paper);
   color: var(--ink);
 }
+.vhz-cta-secondary:hover { background: var(--paper-soft); }
 
-/* Tab pill / chip — used for nav / tag clouds. */
+/* Tab pill / chip — used for nav / tag clouds.
+ *
+ * Text + background colors are hard-coded literals (not var()) so the
+ * chip looks identical in light + dark modes. Without this the dark-
+ * mode --ink flip to cream makes ink-on-fluoro fall to 1.18:1 (FAIL
+ * AA) — the audit caught it. The chip is a vivid brand surface, not
+ * a body-text surface, so freezing the colors is the right call. */
 .vhz-chip {
   display: inline-flex;
   align-items: center;
   padding: 0.25rem 0.75rem;
-  background: var(--accent2);
-  color: var(--ink);
+  background: #2EFF8C;        /* fluoro green */
+  color: #0E0A12;             /* carbon ink — 14.75:1 ✓ */
   font-weight: 800;
   font-style: italic;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  border: 2px solid var(--ink);
+  border: 2px solid #0E0A12;
   border-radius: 999px;
 }
-.vhz-chip-magenta { background: var(--accent3); color: #FFFFFF; }
-.vhz-chip-purple  { background: var(--brand);  color: #FFFFFF; }
+/* Magenta chip uses ink text (5.82:1 ✓) rather than white (3.37:1 ✗ AA). */
+.vhz-chip-magenta { background: #FF2EAB; color: #0E0A12; border-color: #0E0A12; }
+.vhz-chip-purple  { background: #7B2EFF; color: #FFFFFF; border-color: #0E0A12; }
 
 /* Slide-down panel used for collapsible settings. */
 .collapse-panel {
@@ -382,6 +401,20 @@
     --paper-soft: #1B1228;
     --paper-edge: #3A2D54;
     --memphis-color: var(--accent2);
+
+    /* Brand on dark needs to LIGHTEN, not darken, to clear AA. The
+     * default brand (#7B2EFF) only gets 3.39:1 against the dark
+     * violet ground (FAIL normal text). Aliasing brand → brand-light
+     * gets us 5.45:1 against #110A1E (PASS).
+     *
+     * Hover-state in light mode darkens (brand-dim 5A1FCE → 7.42:1).
+     * In dark mode that same darken would go BELOW the base — wrong
+     * direction. Hover lightens further to #C99EFF → 9.04:1 ✓.  */
+    --brand:     #A267FF;
+    --brand-dim: #C99EFF;
+    /* Gold for warnings keeps AA on dark (8.15:1). Original AA-
+     * compliant value works in dark mode without change. */
+    --gold:      #D89E2F;
   }
   .vhz-wordmark { text-shadow: 4px 4px 0 var(--accent3); }
   .vhz-checker { background-color: var(--brand); }

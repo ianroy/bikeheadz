@@ -54,13 +54,13 @@ export function PricingPage({ socket, designId: initialDesignId = null, cancelle
     if (cancelled) {
       banner.appendChild(el('div', {
         class: 'mb-6 rounded-xl px-4 py-3 border',
-        style: { background: 'rgba(194,65,12,0.08)', borderColor: 'rgba(194,65,12,0.25)', color: '#7C2D12', fontSize: '0.85rem' },
+        style: { background: 'rgba(124,94,31,0.08)', borderColor: 'rgba(124,94,31,0.30)', color: '#7C5E1F', fontSize: '0.85rem' },
       }, 'Checkout was cancelled. Your design is still here — try again whenever you\u2019re ready.'));
     }
     if (state.error) {
       banner.appendChild(el('div', {
         class: 'mb-6 rounded-xl px-4 py-3 border',
-        style: { background: 'rgba(185,28,28,0.08)', borderColor: 'rgba(185,28,28,0.25)', color: '#7F1D1D', fontSize: '0.85rem' },
+        style: { background: 'rgba(206,31,139,0.08)', borderColor: 'rgba(206,31,139,0.30)', color: '#CE1F8B', fontSize: '0.85rem' },
       }, state.error));
     }
     if (!state.enabled) {
@@ -74,7 +74,7 @@ export function PricingPage({ socket, designId: initialDesignId = null, cancelle
         class: 'mb-6 rounded-xl px-4 py-3 border flex items-center justify-between gap-3 flex-wrap',
         style: { background: '#FFFFFF', borderColor: '#D7CFB6' },
       },
-        el('span', { style: { color: '#3D3A36', fontSize: '0.85rem' } },
+        el('span', { style: { color: '#3D2F4A', fontSize: '0.85rem' } },
           'You need to generate a design before you can download it.',
         ),
         el('a', {
@@ -132,7 +132,7 @@ export function PricingPage({ socket, designId: initialDesignId = null, cancelle
               class: 'inline-block rounded-full',
               style: { width: '6px', height: '6px', background: COPY.color, marginTop: '8px' },
             }),
-            el('span', { style: { color: '#3D3A36', fontSize: '0.82rem', lineHeight: 1.5 } }, b),
+            el('span', { style: { color: '#3D2F4A', fontSize: '0.82rem', lineHeight: 1.5 } }, b),
           )
         ),
       ),

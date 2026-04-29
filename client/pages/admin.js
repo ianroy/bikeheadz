@@ -212,7 +212,7 @@ export function AdminPage({ socket }) {
                 style: {
                   background: 'transparent',
                   color: '#3D2F4A',
-                  border: '1px solid #C9C0B0',
+                  border: '1px solid #D7CFB6',
                   borderRadius: '6px',
                   padding: '4px 8px',
                   fontSize: '0.75rem',
@@ -469,9 +469,9 @@ export function AdminPage({ socket }) {
           {
             style: {
               padding: '24px',
-              border: '1px solid #C9C0B0',
+              border: '1px solid #D7CFB6',
               borderRadius: '12px',
-              background: '#FFFDF8',
+              background: '#FFFFFF',
               color: '#3D2F4A',
             },
           },
@@ -529,7 +529,7 @@ export function AdminPage({ socket }) {
   function inputStyle() {
     return {
       padding: '6px 10px',
-      border: '1px solid #C9C0B0',
+      border: '1px solid #D7CFB6',
       borderRadius: '6px',
       background: '#F5F2E5',
       color: '#0E0A12',

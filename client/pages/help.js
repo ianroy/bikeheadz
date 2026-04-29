@@ -89,7 +89,7 @@ export function HelpPage() {
       width: '100%',
       padding: '12px 14px',
       fontSize: '16px',
-      border: '1px solid #C9C0B0',
+      border: '1px solid #D7CFB6',
       borderRadius: '10px',
       background: '#F5F2E5',
       color: '#0E0A12',
@@ -137,8 +137,8 @@ export function HelpPage() {
           {
             style: {
               padding: '24px',
-              background: '#FFFDF8',
-              border: '1px dashed #C9C0B0',
+              background: '#FFFFFF',
+              border: '1px dashed #D7CFB6',
               borderRadius: '10px',
               color: '#3D2F4A',
               textAlign: 'center',
@@ -156,7 +156,7 @@ export function HelpPage() {
           'details',
           {
             style: {
-              background: '#FFFDF8',
+              background: '#FFFFFF',
               border: '1px solid #D7CFB6',
               borderRadius: '10px',
               padding: '14px 18px',

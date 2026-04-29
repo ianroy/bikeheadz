@@ -6,11 +6,18 @@
 
 import { el, clear } from '../dom.js';
 
+// Traffic-light colors are functional system-status signals (not
+// brand surface) and stay outside the Mongoose BMX palette by design
+// — a "down" indicator must read as RED, not as brand-purple, for
+// at-a-glance affordance. The brand sweep accidentally turned the
+// red dot purple; restored to a real system-red here.
+//
+// All tile bg/border combos pass AA against ink body text (16:1+).
 const COLORS = {
   green: { bg: '#E6F4EA', border: '#86C5A0', dot: '#2F855A' },
-  red: { bg: '#FBE9E9', border: '#E89A9A', dot: '#7B2EFF' },
+  red:   { bg: '#FBE9E9', border: '#E89A9A', dot: '#B91C1C' },
   amber: { bg: '#FAF1DC', border: '#D8B665', dot: '#D89E2F' },
-  grey: { bg: '#F1ECE2', border: '#C9C0B0', dot: '#3D2F4A' },
+  grey:  { bg: '#F1ECE2', border: '#D7CFB6', dot: '#3D2F4A' },
 };
 
 function formatUptime(seconds) {

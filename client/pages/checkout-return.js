@@ -37,9 +37,9 @@ export function CheckoutReturnPage({ socket, sessionId }) {
         el('div', {
           class: 'w-14 h-14 rounded-2xl mx-auto flex items-center justify-center',
           style: { background: 'rgba(194,65,12,0.12)', border: '1px solid rgba(194,65,12,0.35)' },
-        }, icon('x', { size: 24, color: '#C2410C' })),
+        }, icon('x', { size: 24, color: '#7C5E1F' })),
         el('h1.mt-5', { style: { fontWeight: 700, fontSize: '1.25rem' } }, 'We couldn’t confirm — try again?'),
-        el('p.mt-2', { style: { color: '#3D3A36', fontSize: '0.9rem' } },
+        el('p.mt-2', { style: { color: '#3D2F4A', fontSize: '0.9rem' } },
           'Your bank didn’t finish the security check. You haven’t been charged.'),
         el('button', {
           class: 'mt-6 inline-flex items-center gap-2 px-6 py-3 rounded-xl transition-all',
@@ -61,7 +61,7 @@ export function CheckoutReturnPage({ socket, sessionId }) {
           style: { background: 'rgba(123,46,255,0.12)', border: '1px solid rgba(123,46,255,0.35)' },
         }, icon('download', { size: 24, color: '#7B2EFF' })),
         el('h1.mt-5', { style: { fontWeight: 800, fontSize: '1.4rem' } }, 'Payment received!'),
-        el('p.mt-2', { style: { color: '#3D3A36', fontSize: '0.95rem' } }, `Your ${formatMoney(status.amount, status.currency)} purchase is complete.`),
+        el('p.mt-2', { style: { color: '#3D2F4A', fontSize: '0.95rem' } }, `Your ${formatMoney(status.amount, status.currency)} purchase is complete.`),
         status.customerEmail
           ? el('p.mt-1', { style: { color: '#3D2F4A', fontSize: '0.8rem' } }, `Receipt: ${status.customerEmail}`)
           : null,
@@ -91,9 +91,9 @@ export function CheckoutReturnPage({ socket, sessionId }) {
         el('div', {
           class: 'w-14 h-14 rounded-2xl mx-auto flex items-center justify-center',
           style: { background: 'rgba(194,65,12,0.12)', border: '1px solid rgba(194,65,12,0.35)' },
-        }, icon('x', { size: 24, color: '#C2410C' })),
+        }, icon('x', { size: 24, color: '#7C5E1F' })),
         el('h1.mt-5', { style: { fontWeight: 700, fontSize: '1.25rem' } }, 'Something went wrong'),
-        el('p.mt-2', { style: { color: '#3D3A36', fontSize: '0.9rem' } }, status.error || 'We could not verify the payment. You have not been charged if this was in error.'),
+        el('p.mt-2', { style: { color: '#3D2F4A', fontSize: '0.9rem' } }, status.error || 'We could not verify the payment. You have not been charged if this was in error.'),
         el('a', {
           href: '/pricing',
           'data-link': '',

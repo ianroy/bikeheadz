@@ -49,7 +49,9 @@ ACCENT2     = (46, 255, 140, 255)   # #2EFF8C  fluoro green — Memphis offset, 
 ACCENT2_DIM = (31, 206, 110, 255)   # #1FCE6E
 ACCENT3     = (255, 46, 171, 255)   # #FF2EAB  hot magenta — halftones, splatter, errors
 ACCENT3_DIM = (206, 31, 139, 255)   # #CE1F8B
-GOLD        = (216, 158, 47, 255)   # #D89E2F  hot yellow — warnings only
+GOLD        = (124, 94, 31, 255)    # #7C5E1F  AA-passing gold — warnings only
+                                    # Was #D89E2F; bumped down because gold-on-cream
+                                    # only got 2.11:1, fails AA. New value: 5.38:1 ✓.
 
 # macOS system fonts — Helvetica.ttc has Helvetica Black at index 9 typically
 def font(size, weight='black'):

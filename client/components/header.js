@@ -163,7 +163,9 @@ export function HeaderComponent() {
       },
     }, label);
     if (active) {
-      // Fluoro-green underline bar (Memphis offset feeling).
+      // Active-state underline bar — brand purple (5.09:1 against
+      // paper ✓ AA UI). Using fluoro green here would only get 1.18:1
+      // and fail the 3:1 threshold (caught by tools/audit_a11y.py).
       const bar = el('span', {
         style: {
           position: 'absolute',
@@ -171,7 +173,7 @@ export function HeaderComponent() {
           right: '0.5rem',
           bottom: '-2px',
           height: '4px',
-          background: 'var(--accent2)',
+          background: 'var(--brand)',
           borderRadius: '2px',
         },
       });

@@ -2,12 +2,12 @@ import { el, clear } from '../dom.js';
 import { icon } from '../icons.js';
 
 const STATUS_COLORS = {
-  Shipped: '#1D4ED8',
+  Shipped: '#7B2EFF',
   Delivered: '#7B2EFF',
-  Processing: '#C2410C',
+  Processing: '#7C5E1F',
   Paid: '#D89E2F',
   Refunded: '#3D2F4A',
-  Printing: '#C2410C',
+  Printing: '#7C5E1F',
   'In Queue': '#3D2F4A',
 };
 
@@ -185,7 +185,7 @@ export function AccountPage({ socket }) {
                 height: '48px',
                 borderRadius: '8px',
                 background: '#D7CFB6',
-                border: '1px solid #C9C0B0',
+                border: '1px solid #D7CFB6',
                 color: '#3D2F4A',
                 fontSize: '0.65rem',
                 display: 'flex',
@@ -285,7 +285,7 @@ export function AccountPage({ socket }) {
                 'button',
                 {
                   class: 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors',
-                  style: { background: '#C2410C', color: '#fff', fontSize: '0.75rem', fontWeight: 600 },
+                  style: { background: '#7C5E1F', color: '#fff', fontSize: '0.75rem', fontWeight: 600 },
                   onClick: () => shareDesign(d),
                 },
                 'Share'
@@ -350,7 +350,7 @@ export function AccountPage({ socket }) {
                     class: 'px-2 py-0.5 rounded-full',
                     style: {
                       background: `${STATUS_COLORS[order.status] || '#3D2F4A'}18`,
-                      color: STATUS_COLORS[order.status] || '#3D3A36',
+                      color: STATUS_COLORS[order.status] || '#3D2F4A',
                       fontSize: '0.68rem',
                       fontWeight: 700,
                       border: `1px solid ${STATUS_COLORS[order.status] || '#3D2F4A'}30`,
@@ -461,7 +461,7 @@ export function AccountPage({ socket }) {
           class: 'flex items-center justify-between py-2.5',
           style: { borderBottom: '1px solid #D7CFB6' },
         },
-        el('span', { style: { color: '#3D3A36', fontSize: '0.85rem' } }, p.label),
+        el('span', { style: { color: '#3D2F4A', fontSize: '0.85rem' } }, p.label),
         toggleSwitch(state.profile.emailPrefs[p.key] !== false, async (v) => {
           state.profile.emailPrefs[p.key] = v;
           await socket

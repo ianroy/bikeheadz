@@ -9,7 +9,7 @@ import { el } from '../dom.js';
 const PALETTE = [
   { name: 'Workshop ink', hex: '#0E0A12', token: '--ink', light: false },
   { name: 'Workshop paper', hex: '#F5F2E5', token: '--paper', light: true },
-  { name: 'Paper soft', hex: '#FFFDF8', token: '--paper-soft', light: true },
+  { name: 'Paper soft', hex: '#FFFFFF', token: '--paper-soft', light: true },
   { name: 'Brand red', hex: '#7B2EFF', token: 'red-600', light: false },
   { name: 'Workshop gold', hex: '#D89E2F', token: 'gold-700', light: false },
   { name: 'Muted clay', hex: '#3D2F4A', token: 'muted-500', light: false },
@@ -130,7 +130,7 @@ function productCard(caption) {
     'figure',
     {
       style: {
-        background: '#FFFDF8',
+        background: '#FFFFFF',
         border: '1px solid #D7CFB6',
         borderRadius: '12px',
         padding: '14px',
@@ -281,7 +281,7 @@ export function PressPage() {
         'p',
         {
           style: {
-            background: '#FFFDF8',
+            background: '#FFFFFF',
             border: '1px solid #D7CFB6',
             borderRadius: '12px',
             padding: '20px 22px',
@@ -312,7 +312,7 @@ export function PressPage() {
             fontSize: '15px',
             background: '#D7CFB6',
             color: '#3D2F4A',
-            border: '1px solid #C9C0B0',
+            border: '1px solid #D7CFB6',
             borderRadius: '10px',
             cursor: 'not-allowed',
             fontWeight: '600',

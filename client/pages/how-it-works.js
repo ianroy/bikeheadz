@@ -14,14 +14,14 @@ const STEPS = [
     title: '2. AI Processes Your Head',
     desc: 'Our system analyzes your facial geometry, extracts the head mesh, and scales it to perfectly fit a Schrader valve stem connector. The neck is sized to twist-fit onto standard valve cores.',
     tip: 'Processing takes about 3–5 seconds',
-    color: '#1D4ED8',
+    color: '#7B2EFF',
   },
   {
     icon: 'download',
     title: '3. Download STL File',
     desc: "A production-ready STL file is generated combining your head scan with the valve stem body. It's fully manifold and ready for FDM or resin 3D printing.",
     tip: 'Compatible with all major slicers: Cura, PrusaSlicer, Bambu',
-    color: '#C2410C',
+    color: '#7C5E1F',
   },
   {
     icon: 'package',

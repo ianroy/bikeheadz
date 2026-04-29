@@ -94,7 +94,7 @@ function mdToHtml(md) {
         i++;
       }
       out.push(
-        `<blockquote style="border-left:3px solid #C9C0B0;padding:8px 14px;margin:12px 0;color:#3D2F4A;background:#F5F2E5;border-radius:0 8px 8px 0;">${inline(items.join(' '))}</blockquote>`
+        `<blockquote style="border-left:3px solid #D7CFB6;padding:8px 14px;margin:12px 0;color:#3D2F4A;background:#F5F2E5;border-radius:0 8px 8px 0;">${inline(items.join(' '))}</blockquote>`
       );
       continue;
     }
