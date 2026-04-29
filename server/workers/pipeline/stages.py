@@ -30,6 +30,8 @@ documented next to its degrade path so a future reader sees both the
 
 from __future__ import annotations
 
+import json
+import os
 import sys
 from typing import Optional, Tuple
 
@@ -38,7 +40,19 @@ import trimesh
 
 from .constants import Constants
 from .errors import ErrorCode, PipelineError
-from .validation import assert_printable
+from .validation import assert_printable, min_wall_thickness
+
+
+# P0-018: hard cap on TRELLIS post-Stage-1.5 triangle count. TRELLIS
+# routinely emits 700k+-tri meshes; without a cap, downstream stages
+# burn memory + CPU on a mesh we can't print anyway. 500k is generous
+# (3–4× our typical post-repair tri count) but ruled out runaway cases.
+# Env-tunable for ops experimentation without a code deploy.
+def _max_tris_after_repair() -> int:
+    try:
+        return int(os.environ.get("MAX_TRIS_AFTER_REPAIR", "500000"))
+    except ValueError:
+        return 500_000
 
 # ---- Optional deps ---------------------------------------------------------
 # We attempt imports at module load. Each guard logs to stderr so the
@@ -275,6 +289,28 @@ def stage1_5_repair(head: trimesh.Trimesh, C: Constants) -> trimesh.Trimesh:
             f"(faces={len(head.faces)}, euler={int(head.euler_number)}, "
             f"pymeshlab_used={_ml is not None}); shipping to stage 2. "
             f"Stages 3/4 will fall back to non-CSG paths.\n"
+        )
+
+    # P0-018: hard tri-budget cap. Emit telemetry FIRST (so an aggregator
+    # sees `stage1_5_tris=<count>` before the error frame), then reject
+    # if we're over the budget. Anything bigger than this means TRELLIS
+    # produced something we can't realistically print — fail fast rather
+    # than burn another 60 s on Stage 2's boolean.
+    cap = _max_tris_after_repair()
+    n_tris = int(len(head.faces))
+    sys.stderr.write(
+        json.dumps({
+            "kind": "pipeline.stage_telemetry",
+            "stage": "stage1.5",
+            "stage1_5_tris": n_tris,
+            "tri_cap": cap,
+        }) + "\n"
+    )
+    if n_tris > cap:
+        raise PipelineError(
+            code=ErrorCode.MESH_TOO_LARGE,
+            stage="stage1.5",
+            detail=f"tris={n_tris} cap={cap}",
         )
     return head
 
@@ -713,6 +749,35 @@ def stage5_postprocess(
             f"[stage5] WARNING: final mesh failed watertight assertion "
             f"({exc.detail}); shipping anyway because slicers handle this. "
             f"Phase 4 owns the proper fix.\n"
+        )
+
+    # P3-016 — wall-thickness raycast validator. Runs AFTER decimation /
+    # validation so the metric reflects what actually ships. Emit a
+    # `{type:"warning",stage:"stage5",code:"thin_walls",...}` JSON frame
+    # to stdout when p1 is below the printable target — the Node tier
+    # rebroadcasts it as a `stl.generate.warnings` frame (P3-007). NEVER
+    # raises: thin walls are an inspect-before-print situation, not a
+    # reject-the-job one.
+    try:
+        target_mm = float(getattr(C, "MIN_WALL_THICKNESS_MM", 1.2))
+        report = min_wall_thickness(final, target_mm=target_mm, sample_count=1000)
+        p1 = report.get("p1")
+        if p1 is not None and np.isfinite(p1) and p1 < target_mm:
+            sys.stdout.write(
+                json.dumps({
+                    "type": "warning",
+                    "stage": "stage5",
+                    "code": ErrorCode.THIN_WALLS.value,
+                    "min_mm": float(p1),
+                    "sample_count": int(report.get("samples", 0)),
+                    "target_mm": float(target_mm),
+                }) + "\n"
+            )
+            sys.stdout.flush()
+    except Exception as _wt_exc:  # noqa: BLE001
+        # Never block the export on a validator failure — log and move on.
+        sys.stderr.write(
+            f"[stage5] wall-thickness validator skipped: {_wt_exc!r}\n"
         )
     return final
 

@@ -68,6 +68,13 @@ class ErrorCode(str, Enum):
     TRIANGLE_BUDGET_EXCEEDED = "triangle_budget_exceeded"
     STAGE_TIMEOUT = "stage_timeout"
     TOTAL_TIMEOUT = "total_timeout"
+    # P0-018: hard cap on TRELLIS post-repair triangle count. Exceeded → reject
+    # before the rest of the pipeline burns CPU/memory on a runaway mesh.
+    MESH_TOO_LARGE = "mesh_too_large"
+    # P3-016: thin-wall warning code (used in warning frames, not raised).
+    # Surfaced by the post-Stage-5 raycast validator so the Node tier can
+    # re-emit a `stl.generate.warnings` frame per P3-007.
+    THIN_WALLS = "thin_walls"
 
     # Unknown / generic — should be rare; investigate every occurrence.
     INTERNAL_ERROR = "internal_error"
@@ -125,6 +132,13 @@ USER_MESSAGES: dict[ErrorCode, str] = {
     ),
     ErrorCode.TOTAL_TIMEOUT: (
         "Generation took too long. Please retry."
+    ),
+    ErrorCode.MESH_TOO_LARGE: (
+        "The generated mesh is too complex to print. Try a clearer photo."
+    ),
+    ErrorCode.THIN_WALLS: (
+        "Some walls in the generated model may be too thin to print "
+        "reliably. Inspect before printing."
     ),
     ErrorCode.INTERNAL_ERROR: (
         "Something went wrong on our end. Please try again."
