@@ -11,6 +11,10 @@ import { CheckoutReturnPage } from './pages/checkout-return.js';
 import { LoginPage } from './pages/login.js';
 import { AdminPage } from './pages/admin.js';
 import { GalleryPage, ShareDesignPage } from './pages/gallery.js';
+import { HelpPage } from './pages/help.js';
+import { StatusPage } from './pages/status.js';
+import { ChangelogPage, IncidentsPage } from './pages/changelog.js';
+import { PressPage } from './pages/press.js';
 import {
   TermsPage,
   PrivacyPage,
@@ -19,6 +23,9 @@ import {
   NotFoundPage,
   ServerErrorPage,
 } from './pages/legal.js';
+import { setupInstallPrompt } from './components/install-prompt.js';
+import { LocaleSwitcher } from './components/locale-switcher.js';
+import { ContrastToggle } from './components/contrast-toggle.js';
 
 const root = document.getElementById('root');
 Object.assign(root.style, {
@@ -61,6 +68,11 @@ const router = new Router({
     '/admin': () => AdminPage({ socket }),
     '/showcase': () => GalleryPage({ socket }),
     '/gallery': () => GalleryPage({ socket }),
+    '/help': () => HelpPage({ socket }),
+    '/status': () => StatusPage({ socket }),
+    '/changelog': () => ChangelogPage({ socket }),
+    '/incidents': () => IncidentsPage({ socket }),
+    '/press': () => PressPage({ socket }),
     '/terms': () => ({ el: TermsPage() }),
     '/privacy': () => ({ el: PrivacyPage() }),
     '/acceptable-use': () => ({ el: AcceptableUsePage() }),
@@ -96,3 +108,31 @@ router.start();
 
 window.__router = router;
 window.__socket = socket;
+
+// P7-001 — register the service worker (file shipped from client/public/).
+// Quiet-fail in dev environments where SW isn't registered (Safari without
+// HTTPS, etc.) — we want the app to keep working even if PWA features don't.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.js').catch(() => {});
+  });
+}
+
+// P7-006 — listen for `beforeinstallprompt` and stash it so home.js can
+// trigger the banner after the user's second successful generation.
+setupInstallPrompt({ socket });
+
+// P6-002 / P6-011 — mount locale switcher + AAA-contrast toggle as a floating
+// bottom-right chip cluster. Header-right would be more discoverable but
+// crowds the nav; revisit when the toolbar gets a redesign pass.
+const settingsChip = el(
+  'div',
+  {
+    class: 'fixed bottom-3 right-3 z-50 flex items-center gap-2',
+    role: 'group',
+    'aria-label': 'Site settings',
+  },
+  ContrastToggle().el,
+  LocaleSwitcher().el
+);
+document.body.appendChild(settingsChip);

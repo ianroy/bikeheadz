@@ -41,6 +41,11 @@ export const ErrorCode = Object.freeze({
   RUNPOD_UNREACHABLE: 'runpod_unreachable',
   WORKER_FAILED: 'worker_failed',
 
+  // Pipeline (mirrored from server/workers/pipeline/errors.py — keep in sync)
+  STAGE_TIMEOUT: 'stage_timeout',
+  MESH_TOO_LARGE: 'mesh_too_large',
+  THIN_WALLS: 'thin_walls', // emitted as a warning frame, not raised
+
   // Catch-all
   INTERNAL_ERROR: 'internal_error',
   UNKNOWN_COMMAND: 'unknown_command',
@@ -54,6 +59,7 @@ const RETRYABLE = new Set([
   ErrorCode.RUNPOD_NO_RESULT,
   ErrorCode.WORKER_FAILED,
   ErrorCode.INTERNAL_ERROR,
+  ErrorCode.STAGE_TIMEOUT, // GPU may be cold or congested — retry usually helps
 ]);
 
 export function isRetryable(code) {

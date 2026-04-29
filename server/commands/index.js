@@ -11,6 +11,8 @@ import { adminCommands } from './admin.js';
 import { flagsCommands } from './flags.js';
 import { photosCommands } from './photos.js';
 import { promosCommands } from './promos.js';
+import { feedbackCommands } from './feedback.js';
+import { systemCommands } from './system.js';
 
 // Two-way command pattern over a single "command" socket event.
 //
@@ -32,6 +34,8 @@ export function initCommandRegistry() {
     ...flagsCommands,
     ...photosCommands,
     ...promosCommands,
+    ...feedbackCommands,
+    ...systemCommands,
   });
 }
 

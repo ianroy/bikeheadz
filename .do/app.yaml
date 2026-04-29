@@ -153,6 +153,30 @@ services:
         scope: RUN_TIME
         type: SECRET
         value: ""
+      # ── Pipeline budgets (P0-017 / P0-018) ────────────────────────
+      # Honoured by handler.py / server/workers/pipeline/__init__.py.
+      - key: STAGE_TIMEOUT_S
+        scope: RUN_TIME
+        value: "60"
+      - key: JOB_TIMEOUT_S
+        scope: RUN_TIME
+        value: "300"
+      - key: MAX_TRIS_AFTER_REPAIR
+        scope: RUN_TIME
+        value: "500000"
+      # ── Synthetic canary (P4-013) ─────────────────────────────────
+      - key: CANARY_TIMEOUT_MS
+        scope: RUN_TIME
+        value: "300000"
+      - key: CANARY_LATENCY_BUDGET_MS
+        scope: RUN_TIME
+        value: "90000"
+      - key: CANARY_MIN_BYTES
+        scope: RUN_TIME
+        value: "200000"
+      - key: CANARY_MAX_BYTES
+        scope: RUN_TIME
+        value: "10000000"
 
   # One-off migration job. Runs before every deployment goes live.
   - name: migrate

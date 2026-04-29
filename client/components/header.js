@@ -72,6 +72,7 @@ export function HeaderComponent() {
     const links = [
       ['/how-it-works', 'How It Works'],
       ['/pricing', 'Pricing'],
+      ['/help', 'Help'],
       ['/account', 'Account'],
     ];
 

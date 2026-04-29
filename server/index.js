@@ -229,7 +229,20 @@ app.get('/robots.txt', (_req, res) => {
 app.get('/sitemap.xml', (_req, res) => {
   const base = (process.env.APP_URL || 'https://bikeheadz.app').replace(/\/$/, '');
   const lastmod = new Date().toISOString().slice(0, 10);
-  const urls = ['/', '/pricing', '/how-it-works', '/help', '/showcase', '/security', '/terms', '/privacy'];
+  const urls = [
+    '/',
+    '/pricing',
+    '/how-it-works',
+    '/help',
+    '/showcase',
+    '/security',
+    '/terms',
+    '/privacy',
+    '/changelog',
+    '/incidents',
+    '/press',
+    '/status',
+  ];
   res.set('Content-Type', 'application/xml');
   res.send(
     `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n` +

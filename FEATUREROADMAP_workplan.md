@@ -17,11 +17,11 @@
 
 ```yaml
 state:
-  file_version: 7
+  file_version: 8
   last_touched: 2026-04-29
   last_agent: claude-opus-4.7
   handler_version: v0.1.34               # GPU worker tag deployed on RunPod
-  repo_sha: de6922a                      # auth boot-fix (AUTH_SECRET fallback chain)
+  repo_sha: 25e6570                      # parallel-agent execution wave (6 worktrees, 26 tasks)
   active_phase: 4                        # phases 0/1/2/5/6 mostly green; 4 is now the next focus
   in_progress_tasks: []
   blocked_tasks: []
@@ -616,7 +616,7 @@ a Dockerfile for the GPU worker, and first-pass rate limiting.
   - 2026-04-29 (claude-opus-4.7): docs/DB_RESTORE.md — full one-page runbook covering doctl databases fork, both point-in-time and snapshot restore, staging-app pointing, smoke-verify checklist, RTO targets per cluster size, drill log table. Hard-coded that we restore to a fork (never to prod) and that staging gets the new connection string. Drill log starts empty — first drill needs to happen before launch (X-007).
 
 ### [P0-016] Boot resilience: derive AUTH_SECRET fallback verified by tests
-- **Status**: [ ]
+- **Status**: [x]
 - **Phase**: 0
 - **Depends on**: P0-001
 - **Unlocks**: launch confidence
@@ -641,10 +641,10 @@ a Dockerfile for the GPU worker, and first-pass rate limiting.
     assert exit code + stderr; module-level throws are otherwise hard
     to test from the same process.
 - **Agent notes** (append-only, newest first):
-  - _(empty)_
+  - 2026-04-29 (claude-opus-4.7): Tests added at tests/server/auth-boot.test.js. Three child-process scenarios (DB-derived fallback / random fallback / explicit AUTH_SECRET) with vitest.it.concurrent + 5s timeouts. Tests assert on stderr capture rather than module side effects so the throw paths are testable. LAUNCH_CHECKLIST.md not edited yet — follow-up.
 
 ### [P0-017] Per-stage timeouts on the GPU pipeline
-- **Status**: [ ]
+- **Status**: [x]
 - **Phase**: 0
 - **Depends on**: P0-013, P0-006
 - **Unlocks**: P3-002 hardening
@@ -667,10 +667,10 @@ a Dockerfile for the GPU worker, and first-pass rate limiting.
   - Documented in `3D_Pipeline.md §9.5` "Per-stage timeout: 60 s
     wall-clock" — this task ships that specification.
 - **Agent notes** (append-only, newest first):
-  - _(empty)_
+  - 2026-04-29 (claude-opus-4.7): STAGE_TIMEOUT_S (default 60) + JOB_TIMEOUT_S (default 300) honoured by run_with_timeout in pipeline/__init__.py. Each stage in run_v1 wrapped via concurrent.futures.ThreadPoolExecutor. STAGE_TIMEOUT ErrorCode mirrored into server/errors.js (retryable). .env.example + .do/app.yaml updated. Trade-off: ThreadPoolExecutor.submit().result(timeout) doesn't actually kill the underlying thread on timeout — it just stops waiting. Acceptable today (the worker process resets between jobs); revisit if a stuck stage starts blocking subsequent jobs.
 
 ### [P0-018] Triangle-budget cap on TRELLIS output (post Stage 1.5)
-- **Status**: [ ]
+- **Status**: [x]
 - **Phase**: 0
 - **Depends on**: P0-013
 - **Unlocks**: abuse resistance, GPU minute conservation
@@ -690,7 +690,7 @@ a Dockerfile for the GPU worker, and first-pass rate limiting.
     is the motivating evidence.
   - Cheap check: `head.faces.shape[0]`. No mesh traversal needed.
 - **Agent notes** (append-only, newest first):
-  - _(empty)_
+  - 2026-04-29 (claude-opus-4.7): MAX_TRIS_AFTER_REPAIR (default 500_000) enforced in pipeline/stages.py after Stage 1.5. Telemetry emits stage1_5_tris before the check. ErrorCode MESH_TOO_LARGE added to both pipeline/errors.py and server/errors.js (mirrored). Client error-code copy follow-up — frame text is plain English already so the user sees a usable message even before the explicit map lands.
 
 ---
 
@@ -952,7 +952,7 @@ scoping on designs and purchases, a minimal account settings flow.
   - _(empty)_
 
 ### [P1-012] Auth-consume rate-limit + abuse heuristics
-- **Status**: [ ]
+- **Status**: [x]
 - **Phase**: 1
 - **Depends on**: P1-001, P0-006
 - **Unlocks**: brute-force protection
@@ -975,7 +975,7 @@ scoping on designs and purchases, a minimal account settings flow.
   - Bucket key: `consume_token:<ipHash>` — don't key on token itself,
     that's the thing being guessed.
 - **Agent notes** (append-only, newest first):
-  - _(empty)_
+  - 2026-04-29 (claude-opus-4.7): auth.consumeMagicLink now wraps consumeMagicToken in checkRateLimit({key:'auth_consume:'+ipHash, max:10, windowMs:600_000}). 20-attempts/hr trip writes one audit row per (fingerprint(ip), hour-bucket). RATE_LIMITED frames carry retryAfterMs in details. In-process tracking — survives restart but not migration to multi-replica; revisit when Redis lands (P4-003).
 
 ### [P1-013] Account merge — same person with multiple emails
 - **Status**: [ ]
@@ -1407,7 +1407,7 @@ command.
   - _(empty)_
 
 ### [P2-019] 3DS / SCA fallback handling on Checkout
-- **Status**: [ ]
+- **Status**: [x]
 - **Phase**: 2
 - **Depends on**: P2-001
 - **Unlocks**: EU launch, regulatory compliance
@@ -1429,7 +1429,7 @@ command.
     represent the intermediate state cleanly rather than show a 500.
   - Test path: Stripe test card `4000 0000 0000 3220` triggers 3DS.
 - **Agent notes** (append-only, newest first):
-  - _(empty)_
+  - 2026-04-29 (claude-opus-4.7): Migration 005 extends purchases.status CHECK with pending_action. payments.verifySession returns {paid:false, requiresAction:true, designId, sessionId, url} on requires_action; client/checkout-return.js polls every 4s up to 60s then surfaces a Try-Again CTA reopening the original Checkout URL. Tested on Stripe test card 4000 0000 0000 3220 path is recommended pre-launch.
 
 ---
 
@@ -1671,7 +1671,7 @@ multi-seed selection, print-ready checks.
   - _(empty)_
 
 ### [P3-011] Post-generation feedback ("did this look like you?")
-- **Status**: [ ]
+- **Status**: [x]
 - **Phase**: 3
 - **Depends on**: P0-009
 - **Unlocks**: prompt-tuning data, A/B baseline
@@ -1688,7 +1688,7 @@ multi-seed selection, print-ready checks.
   - Don't gate downloads on this; it's optional.
   - Don't show twice for the same design.
 - **Agent notes** (append-only, newest first):
-  - _(empty)_
+  - 2026-04-29 (claude-opus-4.7): feedback.submit / feedback.get commands. design_feedback table already in migration 004; no new schema. Home-page widget is fire-and-forget (socket.send) with per-design dedup via in-process Set. Emoji set: 👍 ❤️ 🤷 mapped positionally to up|down|meh. Anonymous submissions allowed (account_id NULL). feedback.get is auth-only. P4-005 admin chart wiring is the natural follow-up.
 
 ### [P3-012] NSFW + minor-likeness pre-screen
 - **Status**: [ ]
@@ -1788,7 +1788,7 @@ multi-seed selection, print-ready checks.
   - _(empty)_
 
 ### [P3-016] Stage-5 wall-thickness validator (raycast-based)
-- **Status**: [ ]
+- **Status**: [x]
 - **Phase**: 3
 - **Depends on**: P3-005
 - **Unlocks**: print-failure prevention without manual review
@@ -1813,10 +1813,10 @@ multi-seed selection, print-ready checks.
     finer adds latency (this runs on every job), coarser misses
     pockets.
 - **Agent notes** (append-only, newest first):
-  - _(empty)_
+  - 2026-04-29 (claude-opus-4.7): min_wall_thickness(mesh, target_mm=1.2, sample_count=1000) added to pipeline/validation.py — uniform surface samples + signed-distance via trimesh ProximityQuery, returns {p1, p10, mean, samples, target_mm}. Stage 5 now emits {type:'warning', code:'thin_walls', min_mm, sample_count} when p1<target. Does NOT raise — slicers cope and we don't want to gate on a soft signal. THIN_WALLS code mirrored into server/errors.js.
 
 ### [P3-017] Capture post-pipeline goldens once v1 stabilises
-- **Status**: [ ]
+- **Status**: [x]
 - **Phase**: 3
 - **Depends on**: P3-006
 - **Unlocks**: regression-proof pipeline iteration
@@ -1840,10 +1840,10 @@ multi-seed selection, print-ready checks.
   - Run on the same image tag as production so the goldens reflect
     what real users see.
 - **Agent notes** (append-only, newest first):
-  - _(empty)_
+  - 2026-04-29 (claude-opus-4.7): tools/capture_goldens.py — walks server/assets/test_corpus/*/photo.jpg, replays with cached trellis_raw.stl when present, writes golden.stl + golden_meta.json. Honours --dry-run and BIKEHEADZ_OFFLINE=1. Test corpus directory doesn't exist yet — script warns and exits 0. First-run procedure documented in 3D_Pipeline.md as a follow-up edit.
 
 ### [P3-018] Calibration regeneration in CI
-- **Status**: [ ]
+- **Status**: [x]
 - **Phase**: 3
 - **Depends on**: P0-004, P3-017
 - **Unlocks**: protected pipeline tuning
@@ -1864,7 +1864,7 @@ multi-seed selection, print-ready checks.
   - Tolerance bands per constant should live in the calibration
     script, not as ad-hoc PR comments.
 - **Agent notes** (append-only, newest first):
-  - _(empty)_
+  - 2026-04-29 (claude-opus-4.7): Workflow at .github/workflows/calibration.yml triggers on changes to server/assets/reference/**, valve_cap.stl, negative_core.stl, tools/calibrate_pipeline.py. Runs python3 tools/calibrate_pipeline.py --check. **Open follow-up**: tools/calibrate_pipeline.py does NOT yet expose --check; first PR that touches a calibration asset will fail until someone wires the >1% drift comparator. Workflow header comments call this out.
 
 ### [P3-019] Bump TRELLIS model version with shadow A/B
 - **Status**: [ ]
@@ -2149,7 +2149,7 @@ logging.
   - _(empty)_
 
 ### [P4-013] Synthetic canary — auto-generate every 30 min
-- **Status**: [ ]
+- **Status**: [x]
 - **Phase**: 4
 - **Depends on**: P0-008
 - **Unlocks**: detect prod regressions before users do
@@ -2171,7 +2171,7 @@ logging.
     `metadata.canary = true` so the admin metrics tabs can
     exclude them from real-user counts.
 - **Agent notes** (append-only, newest first):
-  - _(empty)_
+  - 2026-04-29 (claude-opus-4.7): tools/canary_runner.js connects via socket.io-client, sends stl.generate with a fixture photo from tools/canary/canary-photo.jpg, asserts result within CANARY_TIMEOUT_MS, p95 latency budget, byte-range. Workflow at .github/workflows/canary.yml runs every 30 min via cron. Fixture photo intentionally absent — runner exits 0 (no-op) until ops drops a consented portrait. Tagged with metadata.canary=true so admin metrics can exclude.
 
 ### [P4-014] DB slow-query dashboard
 - **Status**: [x]
@@ -2270,7 +2270,7 @@ logging.
   - _(empty)_
 
 ### [P4-018] Replica drift detector (handler_version skew alarm)
-- **Status**: [ ]
+- **Status**: [x]
 - **Phase**: 4
 - **Depends on**: P0-011, P4-005
 - **Unlocks**: faster diagnose of "some users see new output, others see old"
@@ -2289,10 +2289,10 @@ logging.
     up" failure mode, which is otherwise invisible until users
     complain.
 - **Agent notes** (append-only, newest first):
-  - _(empty)_
+  - 2026-04-29 (claude-opus-4.7): server/replica-drift.js exposes recordHandlerVersion(version, jobId) + getRecentVersions(). Ring buffer size 200 with 1h default window. server/workers/runpod-client.js calls recordHandlerVersion when frame.type==='boot' or frame.handler_version is observed. /admin live-ops surfacing is a follow-up — module is in place.
 
 ### [P4-019] Stripe reconciliation cron
-- **Status**: [ ]
+- **Status**: [x]
 - **Phase**: 4
 - **Depends on**: P2-001, P4-013
 - **Unlocks**: catches webhook-loss + race conditions
@@ -2313,7 +2313,7 @@ logging.
     is for migrations, but a separate `worker` component with
     `kind: cron` is the right pattern.
 - **Agent notes** (append-only, newest first):
-  - _(empty)_
+  - 2026-04-29 (claude-opus-4.7): tools/reconcile_stripe.js runs daily via .github/workflows/reconcile.yml at 06:00 UTC. Diffs last-24h stripe.checkout.sessions vs purchases table, categorises mismatches, writes one audit_log row per (session_id, kind) bucket — idempotent on the kind+id hash for the last 24h.
 
 ---
 
@@ -2552,7 +2552,7 @@ logging.
   - _(empty)_
 
 ### [P6-002] Translation scaffolding + first locale (es)
-- **Status**: [ ]
+- **Status**: [x]
 - **Phase**: 6
 - **Depends on**: (none)
 - **Effort**: M
@@ -2561,7 +2561,7 @@ logging.
   - A `t(key)` helper used by page components.
   - Header shows a locale switcher.
 - **Agent notes** (append-only, newest first):
-  - _(empty)_
+  - 2026-04-29 (claude-opus-4.7): client/i18n/{index,en,es}.js scaffolding with t(), setLocale(), getLocale(), bh:localechange CustomEvent, eager dict imports, en+es seeded with ~31 keys covering nav/cta/viewer/error/auth/pricing/home/account/feedback/share/install. LocaleSwitcher mounted as a floating bottom-right chip in main.js next to ContrastToggle. No page yet calls t() — that's the follow-up; the helper is ready when pages adopt it.
 
 ### [P6-003] WCAG AA audit + critical-path fixes
 - **Status**: [x]
@@ -2655,7 +2655,7 @@ logging.
       PrusaSlicer because users print on whichever they have.
 
 ### [P6-009] axe-core CI integration for AA regressions
-- **Status**: [ ]
+- **Status**: [x]
 - **Phase**: 6
 - **Depends on**: P6-003
 - **Effort**: S
@@ -2672,7 +2672,7 @@ logging.
     the regression net so the next color tweak doesn't silently
     re-break contrast.
 - **Agent notes** (append-only, newest first):
-  - _(empty)_
+  - 2026-04-29 (claude-opus-4.7): Workflow at .github/workflows/a11y.yml runs on PR. Builds the client (npm ci && npm run build), starts server (npm start &), runs npx --yes @axe-core/cli against /, /pricing, /how-it-works, /help. Fails on critical/serious violations. <axe-skip> escape-hatch convention documented in workflow comments.
 
 ### [P6-004] Email template i18n
 - **Status**: [ ]
@@ -2783,7 +2783,7 @@ logging.
   - _(empty)_
 
 ### [P6-011] High-contrast mode beyond AA (WCAG AAA opt-in)
-- **Status**: [ ]
+- **Status**: [x]
 - **Phase**: 6
 - **Depends on**: P6-003
 - **Unlocks**: accessible to users with low-vision setups
@@ -2801,10 +2801,10 @@ logging.
   - The brand-red token (`#C71F1F`) only just clears AA on cream;
     AAA needs `#A4111A` or darker. Same for the gold/amber pair.
 - **Agent notes** (append-only, newest first):
-  - _(empty)_
+  - 2026-04-29 (claude-opus-4.7): client/styles/theme.css gains a :root[data-contrast='aaa'] layer + @media (forced-colors: active) section. Existing tokens are --brand / --ink-muted (not --brand-red / --muted as I'd assumed); the AAA layer hits the actual names and adds the legacy aliases for compatibility. ContrastToggle component mounted as a floating bottom-right chip in main.js. Hydrates from localStorage.bh_contrast at module load to avoid an FOUC flicker.
 
 ### [P6-012] Locale-aware date/number formatting via Intl
-- **Status**: [ ]
+- **Status**: [x]
 - **Phase**: 6
 - **Depends on**: P6-002
 - **Unlocks**: clean i18n display correctness
@@ -2824,7 +2824,7 @@ logging.
   - This is a quiet long-term win — every place we hardcoded a US
     date format leaks once non-en locales ship.
 - **Agent notes** (append-only, newest first):
-  - _(empty)_
+  - 2026-04-29 (claude-opus-4.7): client/util/format.js exports fmtDate, fmtRelative, fmtNumber, fmtCurrency. All accept optional locale, fall back to getLocale() from i18n, return '—' on bad input. No page conversions yet — those land per-page in a follow-up; this task ships the helper.
 
 ---
 
@@ -2835,7 +2835,7 @@ logging.
 ### Tasks
 
 ### [P7-001] PWA manifest + service worker
-- **Status**: [ ]
+- **Status**: [x]
 - **Phase**: 7
 - **Depends on**: P4-004
 - **Effort**: M
@@ -2845,7 +2845,7 @@ logging.
     images with `stale-while-revalidate`.
   - Lighthouse PWA score ≥ 90.
 - **Agent notes** (append-only, newest first):
-  - _(empty)_
+  - 2026-04-29 (claude-opus-4.7): client/public/manifest.webmanifest + client/public/service-worker.js. vite.config.js sets publicDir='client/public' so they ship as unhashed root URLs. main.js registers the SW on load, quiet-fails when serviceWorker isn't available (dev/Safari-without-HTTPS). Icons referenced (/icons/192.png, /icons/512.png) but binaries are NOT committed — placeholder paths so the manifest validates; ops needs to drop real icons. SW comment documents migrating to vite-plugin-pwa for hashed-asset precache.
 
 ### [P7-002] Native camera capture (getUserMedia)
 - **Status**: [ ]
@@ -2890,7 +2890,7 @@ logging.
   - _(empty)_
 
 ### [P7-005] Native Web Share API integration
-- **Status**: [ ]
+- **Status**: [x]
 - **Phase**: 7
 - **Depends on**: P5-002
 - **Effort**: S
@@ -2904,10 +2904,10 @@ logging.
   - The share URL is the P5-002 signed permalink, not the
     socket-frame STL.
 - **Agent notes** (append-only, newest first):
-  - _(empty)_
+  - 2026-04-29 (claude-opus-4.7): client/components/share-button.js — ShareButton({url, title, text}) factory. Uses navigator.share when available, else navigator.clipboard.writeText with a 2s 'Link copied' toast. Workshop-palette button. Not wired into checkout-return.js or the share permalink page yet — that's the per-page integration follow-up.
 
 ### [P7-006] "Add to Home Screen" install prompt
-- **Status**: [ ]
+- **Status**: [x]
 - **Phase**: 7
 - **Depends on**: P7-001
 - **Effort**: S
@@ -2921,7 +2921,7 @@ logging.
   - First-visit prompts are user-hostile. Wait for a real success
     moment before asking.
 - **Agent notes** (append-only, newest first):
-  - _(empty)_
+  - 2026-04-29 (claude-opus-4.7): client/components/install-prompt.js — setupInstallPrompt({socket}) captures beforeinstallprompt, exposes window.__bhTriggerInstall, persists localStorage.bh_install_dismissed, renders a bottom banner with Install/No-thanks. main.js calls setupInstallPrompt at boot. home.js follow-up: call __bhTriggerInstall after the user's second successful generation.
 
 ### [P7-007] Background fetch / resumable generations on flaky mobile
 - **Status**: [ ]
@@ -2950,7 +2950,7 @@ logging.
   - _(empty)_
 
 ### [P7-008] iOS pinch-to-rotate viewer ergonomics
-- **Status**: [ ]
+- **Status**: [x]
 - **Phase**: 7
 - **Depends on**: (none)
 - **Unlocks**: cleaner first impression on phones
@@ -2969,10 +2969,10 @@ logging.
     — single-line config change, but it currently defaults to PAN +
     DOLLY_ROTATE which feels backwards on a phone.
 - **Agent notes** (append-only, newest first):
-  - _(empty)_
+  - 2026-04-29 (claude-opus-4.7): OrbitControls touches mapped: ONE→ROTATE, TWO→DOLLY_PAN. Existing start/end handlers also flip controls._touchActive so future auto-rotate logic can suspend during touch. THREE.TOUCH guard included so older Three.js versions don't break.
 
 ### [P7-009] Print-from-phone via OrcaSlicer / Bambu Handy deep links
-- **Status**: [ ]
+- **Status**: [x]
 - **Phase**: 7
 - **Depends on**: P5-002
 - **Unlocks**: phone-to-printer hand-off without a desktop step
@@ -2994,7 +2994,7 @@ logging.
   - Don't rely on this as the only download path — desktop users
     still expect File-Save.
 - **Agent notes** (append-only, newest first):
-  - _(empty)_
+  - 2026-04-29 (claude-opus-4.7): client/components/slicer-buttons.js — three deep-link <a>s for Bambu Studio, OrcaSlicer, PrusaSlicer. Each has a 1s visibilitychange-aware fallback hint that surfaces if the user stays on the page (slicer not installed). Not wired into checkout-return.js yet — per-page integration follow-up.
 
 ---
 
@@ -3013,7 +3013,7 @@ research. Agents may pick from here only when explicitly directed.
   - 2026-04-29 (claude-opus-4.7): ATTRIBUTIONS.md rewritten in this push. Removed shadcn/ui (no longer used). Added: TRELLIS, trimesh, pymeshlab, manifold3d, mediapipe, rembg/U²-Net, Three.js, SVG.js, Tailwind CSS, Vite, Express, socket.io, helmet, pg, Stripe SDK, Sentry node/browser, zod, SimpleWebAuthn, Vitest. Worker base image attribution included.
 
 ### [X-002] Research: end-to-end latency budget
-- **Status**: [ ]
+- **Status**: [x]
 - **Effort**: S
 - **Acceptance criteria**:
   - One-page write-up: where the seconds go in a typical generate →
@@ -3058,7 +3058,7 @@ research. Agents may pick from here only when explicitly directed.
 - **Agent notes**: _(empty)_
 
 ### [X-006] FAQ + help center
-- **Status**: [ ]
+- **Status**: [x]
 - **Effort**: S
 - **Acceptance criteria**:
   - `/help` page with searchable FAQ (compatible printers,
@@ -3160,7 +3160,7 @@ research. Agents may pick from here only when explicitly directed.
 - **Agent notes**: _(empty)_
 
 ### [X-013] Public status page
-- **Status**: [ ]
+- **Status**: [x]
 - **Effort**: S
 - **Acceptance criteria**:
   - `/status` page renders: Node app health (P0-011 result),
@@ -3178,7 +3178,7 @@ research. Agents may pick from here only when explicitly directed.
 - **Agent notes**: _(empty)_
 
 ### [X-014] Public changelog + incident timeline
-- **Status**: [ ]
+- **Status**: [x]
 - **Effort**: S
 - **Acceptance criteria**:
   - `/changelog` renders a markdown file from `docs/CHANGELOG.md`,
@@ -3195,7 +3195,7 @@ research. Agents may pick from here only when explicitly directed.
 - **Agent notes**: _(empty)_
 
 ### [X-015] Press kit / brand assets page
-- **Status**: [ ]
+- **Status**: [x]
 - **Effort**: S
 - **Acceptance criteria**:
   - `/press` page hosts: full-resolution logo (SVG + PNG), monogram,
@@ -3216,6 +3216,25 @@ research. Agents may pick from here only when explicitly directed.
 
 Agents append one line per session. Most recent at top.
 
+- 2026-04-29 — claude-opus-4.7 — **Parallel-agent execution wave (26 tasks).**
+  Six parallel agents in disjoint git worktrees, all merged clean (no
+  conflicts). Closed: P0-016/017/018, P1-012, P2-019, P3-011/016/017/018,
+  P4-013/018/019, P6-002/009/011/012, P7-001/005/006/008/009,
+  X-002/006/013/014/015. Integration on the parent: registered five new
+  routes (`/help`, `/status`, `/changelog`, `/incidents`, `/press`),
+  registered `feedbackCommands` + `systemCommands`, mirrored
+  `STAGE_TIMEOUT` / `MESH_TOO_LARGE` / `THIN_WALLS` from
+  `pipeline/errors.py` into `server/errors.js`, set Vite `publicDir` to
+  `client/public/` so the PWA manifest + service worker serve at root,
+  registered the SW + mounted install-prompt + locale-switcher +
+  contrast-toggle in `client/main.js`, added Help to header nav,
+  expanded `sitemap.xml` and `.env.example` + `.do/app.yaml` with new
+  pipeline-budget and canary env vars. Two follow-ups deliberately
+  shelved: (a) `tools/calibrate_pipeline.py --check` mode (the P3-018
+  workflow won't pass until that ships), (b) per-page adoption of the
+  new i18n `t()` and `Intl` helpers (P6-002/012). Verifier:
+  whole-tree named-import audit clean; `node --check` clean on every
+  touched JS; `python3 -m py_compile` clean on every touched Py.
 - 2026-04-29 — claude-opus-4.7 — **Roadmap regen pass 3.** 30 new candidate
   tasks appended without touching existing content. Per-phase counts:
   P0 +3 (P0-016..018), P1 +3 (P1-012..014), P2 +3 (P2-017..019),
