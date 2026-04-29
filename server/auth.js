@@ -6,10 +6,21 @@
 //   - sessions are server-side rows; the cookie carries `<sessionId>.<hmac>`
 //     where the hmac is HMAC-SHA256(sessionId, AUTH_SECRET) base64url.
 //
-// AUTH_SECRET is required in production. In dev (NODE_ENV !== 'production')
-// we fall back to a deterministic per-process secret so the dev loop doesn't
-// require setup, but warn loudly. Cookies are HttpOnly, SameSite=Lax, and
-// Secure in production.
+// AUTH_SECRET should be set in production. If it isn't (e.g. first deploy
+// before secrets are wired up), we still need to boot — otherwise health
+// checks fail and the operator can't even reach the platform UI to fix it.
+//
+// Resolution order:
+//   1. AUTH_SECRET env (preferred, ≥32 random bytes)
+//   2. dev fallback constant (NODE_ENV !== 'production')
+//   3. SHA-256 of DATABASE_URL (production fallback): stable across restarts
+//      and replicas, private, guaranteed by the platform. Cookies survive
+//      redeploys; once AUTH_SECRET is set explicitly, all old cookies become
+//      invalid in one rotation.
+//   4. per-process random bytes as last resort. Server boots; sessions reset
+//      on every restart. Logs scream about this so it gets noticed.
+//
+// Cookies are HttpOnly, SameSite=Lax, and Secure in production.
 
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { db, hasDb } from './db.js';
@@ -19,16 +30,31 @@ import { CommandError, ErrorCode } from './errors.js';
 const COOKIE_NAME = process.env.AUTH_COOKIE_NAME || 'bh_session';
 const COOKIE_MAX_AGE_S = Number(process.env.AUTH_COOKIE_MAX_AGE_S) || 60 * 60 * 24 * 30; // 30d
 const TOKEN_TTL_MS = Number(process.env.AUTH_TOKEN_TTL_MS) || 15 * 60 * 1000;
-const AUTH_SECRET =
-  process.env.AUTH_SECRET ||
-  (process.env.NODE_ENV !== 'production'
-    ? 'bikeheadz-dev-only-do-not-use-in-prod'
-    : (() => {
-        throw new Error('AUTH_SECRET must be set in production');
-      })());
 
-if (!process.env.AUTH_SECRET && process.env.NODE_ENV !== 'production') {
-  logger.warn({ msg: 'auth.using_dev_secret', hint: 'set AUTH_SECRET to a 32+ byte random string' });
+const AUTH_SECRET = resolveAuthSecret();
+
+function resolveAuthSecret() {
+  if (process.env.AUTH_SECRET) return process.env.AUTH_SECRET;
+  if (process.env.NODE_ENV !== 'production') {
+    logger.warn({
+      msg: 'auth.using_dev_secret',
+      hint: 'set AUTH_SECRET to a 32+ byte random string',
+    });
+    return 'bikeheadz-dev-only-do-not-use-in-prod';
+  }
+  const seed = process.env.DATABASE_URL || process.env.PUBLIC_URL || '';
+  if (seed) {
+    logger.warn({
+      msg: 'auth.secret_derived_from_db_url',
+      hint: 'AUTH_SECRET not set; derived a stable fallback from DATABASE_URL. Set AUTH_SECRET to a 32+ byte random string in DO secrets ASAP — once set, in-flight sessions will be invalidated once and then stable.',
+    });
+    return createHash('sha256').update('bh-fallback|' + seed).digest('base64');
+  }
+  logger.error({
+    msg: 'auth.secret_random_fallback',
+    hint: 'AUTH_SECRET not set and no DATABASE_URL/PUBLIC_URL to derive from; using a per-process random secret. Sessions will reset on every restart. Set AUTH_SECRET immediately.',
+  });
+  return randomBytes(32).toString('base64');
 }
 
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '')
