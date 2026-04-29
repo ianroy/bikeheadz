@@ -139,13 +139,25 @@ export function createValveStemViewer({ container, initial = {} }) {
   controls.autoRotate = !state.processing;
   controls.autoRotateSpeed = 0.7;
 
+  // P7-008 — touch UX: one-finger rotate, two-finger dolly+pan (iOS default
+  // is one-finger pan which is backwards for a 3D model).
+  if (THREE?.TOUCH) {
+    controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
+  }
+
   let userInteracting = false;
+  controls._touchActive = false;
   controls.addEventListener('start', () => {
     userInteracting = true;
+    // Track touch interaction explicitly so auto-rotate stays suspended
+    // even if a finger lift's `end` event is followed by another touch
+    // before our autoRotate flag can flip back.
+    controls._touchActive = true;
     controls.autoRotate = false;
   });
   controls.addEventListener('end', () => {
     userInteracting = false;
+    controls._touchActive = false;
     controls.autoRotate = !state.processing;
   });
 
