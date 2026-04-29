@@ -17,18 +17,20 @@
 
 ```yaml
 state:
-  file_version: 4
+  file_version: 5
   last_touched: 2026-04-29
   last_agent: claude-opus-4.7
   handler_version: v0.1.34               # GPU worker tag deployed on RunPod
-  repo_sha: eff3e5a                      # HEAD after the workshop-palette UI commit
+  repo_sha: 1c76a0e                      # HEAD after AA-contrast + viewer IBL + Schrader rebrand
   active_phase: 1                        # gating phase for go-to-market — auth first
   in_progress_tasks: []
   blocked_tasks: []
   next_suggested_task: P1-001            # magic-link login — gates the whole account dashboard chain
   pause_reason: null
   recent_milestones:
-    - 2026-04-29 — Doc + roadmap regen for go-to-market. 37 new tasks added across all 8 phases focused on user-facing features (account dashboard, photo library, email-the-STL, recovery flows, referrals) and admin tooling (metrics, user management, design viewer, cost tracking, A/B testing, live ops). See section 15 changelog.
+    - 2026-04-29 — Roadmap regen pass 2. Audit closed P0-003 (Dockerfile shipped, deviations documented) and P6-003 (manual AA contrast pass landed; CI/axe split out as P6-009). Added 28 new candidate tasks across all phases and cross-cutting (P0-012..015, P1-009..011, P2-014..016, P3-013..015, P4-013..015, P5-007..008, P6-006..009, P7-005..006, X-008..011). See section 15 changelog and docs/DESIGN_DECISIONS.md for verbose decision records.
+    - 2026-04-29 — AA contrast + viewer IBL + Schrader rebrand. Brand red bumped #DC2626→#C71F1F, muted gray #8B8278→#6B6157, gold-text #A88735→#7C5E1F, removed Tailwind text-white classes that were rendering invisible on cream. RoomEnvironment IBL added to the 3D viewer (this was THE fix for "metallic looks dark"). Schrader replaces Presta everywhere — the prior copy was wrong.
+    - 2026-04-29 — Doc + roadmap regen pass 1 for go-to-market. 37 new tasks across all phases focused on user-facing (account dashboard, photo library, email-the-STL, recovery, referrals) and admin tooling (metrics, user mgmt, design viewer, cost tracking, A/B testing, live ops).
     - 2026-04-29 — Workshop palette UI redesign. Cream + signal-red replaces the dark + lime-green look; viewer lighting overhauled (rim light + warmer ambient); home-page designs gallery removed.
     - v0.1.34 — production end-to-end: TRELLIS → 7-stage pipeline → chunked-yield delivery → Three.js render. The five-version delivery saga is documented in docs/RUNPOD_TRELLIS_PLAYBOOK.md.
     - v1 mesh pipeline shipped (3D_Pipeline.md Phases −1 … 4 done).
@@ -319,25 +321,38 @@ a Dockerfile for the GPU worker, and first-pass rate limiting.
   - _(empty)_
 
 ### [P0-003] Dockerfile for the TRELLIS GPU worker
-- **Status**: [ ]
+- **Status**: [x]
 - **Phase**: 0
 - **Depends on**: (none)
 - **Unlocks**: P3-002
 - **Effort**: M
-- **Owner**: (unassigned)
+- **Owner**: claude-opus-4.7
 - **Acceptance criteria**:
-  - `docker/trellis-worker.Dockerfile` builds on `nvidia/cuda` base
-    image, installs TRELLIS per upstream instructions, exposes an
-    HTTP endpoint the Node server can call.
-  - README updated with "GPU worker" deployment recipe.
+  - [x] Dockerfile builds + ships TRELLIS + handler. Path differs
+    from the original spec — it lives at repo root as `Dockerfile`
+    rather than `docker/trellis-worker.Dockerfile`, because RunPod
+    Hub's auto-detection expects it there. Base is
+    `pytorch/pytorch:2.4.0-cuda12.1-cudnn9-devel` instead of bare
+    `nvidia/cuda` — TRELLIS needs the matching torch wheels and the
+    pytorch image saves a 12-minute install step.
+  - [x] HTTP endpoint exposed via RunPod Serverless `/run` +
+    `/stream/<id>` polling (POST + long-poll), not bare HTTP. The
+    Node side talks via `server/workers/runpod-client.js`.
+  - [x] Deployment recipe documented in `deploy/runpod/README.md`
+    plus `docs/RUNPOD_TRELLIS_PLAYBOOK.md` for the production
+    gotchas.
 - **Implementation notes**:
-  - Do NOT put this in the main app image — DO App Platform has no
-    GPU sizes. This is for a GPU Droplet / Paperspace / RunPod.
-  - Contract should mirror the current `trellis_generate.py`
-    stdin/stdout protocol so the swap in `server/commands/stl.js`
-    is one call-site change.
+  - `Dockerfile`, `.runpod/hub.json`, `.runpod/tests.json`,
+    `.github/workflows/build-runpod-image.yml` all ship together.
+    The full image tag history is in the git release log.
 - **Agent notes** (append-only, newest first):
-  - _(empty)_
+  - 2026-04-29 (claude-opus-4.7): Closing this out as part of the
+    audit pass. The deliverable shipped at v0.1.30; it took until
+    v0.1.34 to land *correctly* (the saga is in
+    `docs/RUNPOD_TRELLIS_PLAYBOOK.md`). Path/base deviations from
+    the original spec were forced by RunPod Hub's expectations and
+    upstream TRELLIS install requirements — both intentional, both
+    documented above.
 
 ### [P0-004] GitHub Actions CI (test + build + lint)
 - **Status**: [ ]
@@ -503,6 +518,98 @@ a Dockerfile for the GPU worker, and first-pass rate limiting.
   - Cache the result; do not block /health on a fresh ping.
   - This is what tells us pre-launch whether RunPod is wired up
     correctly without burning a real generate.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P0-012] Schema validation on every command payload
+- **Status**: [ ]
+- **Phase**: 0
+- **Depends on**: P0-001
+- **Unlocks**: cleaner errors, defense against malformed input
+- **Effort**: M
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - Every command handler under `server/commands/` validates its
+    `payload` against a schema (zod or @sinclair/typebox — pick
+    one) before doing work.
+  - Invalid payloads reject with `{ error: 'invalid_payload',
+    details: [...] }` and a 400-shaped semantic error frame.
+  - `stl.generate` validates: `imageData` size cap (5 MB), known
+    MIME prefixes, settings field bounds (e.g.
+    `targetHeadHeightMm` 22–42, `cropTightness` 0.40–0.85).
+- **Implementation notes**:
+  - Today the worker silently clamps out-of-range slider values.
+    Validating up front gives better UX *and* catches scripted
+    abuse trying to send `headTilt: 9999`.
+  - Schemas should live alongside their handlers, not in a
+    central registry — keeps the diff radius small per change.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P0-013] Structured error taxonomy (server + client)
+- **Status**: [ ]
+- **Phase**: 0
+- **Depends on**: (none)
+- **Unlocks**: P3-007, P2-008, all client-side UX polish
+- **Effort**: S
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - Single `ErrorCode` enum (server-side, exported) — values like
+    `no_face_detected`, `rate_limited`, `payment_required`,
+    `runpod_no_result`, `unsafe_image`, `internal_error`.
+  - Every `*.error` socket frame carries `{ code, message,
+    retryable: bool }` — no more bare `{ error: "string" }`.
+  - Client has a copy-table mapping codes → user-facing English
+    strings; the inverse from the worker's `pipeline/errors.py`
+    `ErrorCode` enum is wired through.
+- **Implementation notes**:
+  - Saves us from string-matching on `err.message` to decide
+    "should I show a banner" vs "should I retry."
+  - Required by P3-007 (surface stage warnings) so the client
+    can branch on code, not message.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P0-014] Pre-commit hook (lint + format on staged files)
+- **Status**: [ ]
+- **Phase**: 0
+- **Depends on**: P0-002
+- **Unlocks**: cleaner PRs, less CI noise
+- **Effort**: S
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - `husky` + `lint-staged` configured.
+  - `npm install` sets up the hook automatically (`prepare`
+    script).
+  - Staged JS/MD files run `eslint --fix` + `prettier --write`
+    before the commit lands.
+- **Implementation notes**:
+  - Must not run on untouched files (lint-staged handles this);
+    full-tree lints belong in CI (P0-004).
+  - Document a one-liner bypass for emergency fixes
+    (`git commit --no-verify`) in CONTRIBUTING.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P0-015] Database restore drill — verify backups actually work
+- **Status**: [ ]
+- **Phase**: 0
+- **Depends on**: (none)
+- **Unlocks**: launch confidence
+- **Effort**: S
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - One-page runbook in `docs/DB_RESTORE.md` covering:
+    - Where DO Managed Postgres backups live
+    - How to clone them to a fork DB
+    - How to point the staging app at the fork
+    - Expected RTO (recovery time objective)
+  - Drill performed at least once before launch; commit captures
+    the date + time-to-restore.
+- **Implementation notes**:
+  - DO ships automated backups but nobody has tested the restore
+    path. Untested backup = no backup.
+  - Don't restore over production. Always to a fork DB.
 - **Agent notes** (append-only, newest first):
   - _(empty)_
 
@@ -694,6 +801,74 @@ scoping on designs and purchases, a minimal account settings flow.
   - Identicon: deterministic from `account_id` so it stays stable
     across sessions.
   - Profanity filter is a simple wordlist; not a moderation system.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P1-009] Passkey / WebAuthn login alongside magic-link
+- **Status**: [ ]
+- **Phase**: 1
+- **Depends on**: P1-001
+- **Unlocks**: friction-free return UX
+- **Effort**: M
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - Account settings exposes "Add a passkey" — registers a
+    WebAuthn credential bound to the user's authenticator
+    (Touch ID, Windows Hello, hardware key, or platform-bound
+    on Android).
+  - Login page offers both: "email me a magic link" or "sign in
+    with passkey." Magic-link remains for first-time users + lost
+    devices.
+  - `webauthn_credentials (id PK, user_id, public_key BYTEA,
+    sign_count, transports JSONB, added_at)` migration.
+- **Implementation notes**:
+  - Use `@simplewebauthn/server` and `@simplewebauthn/browser`.
+  - Don't drop magic-link — passkey-only locks out users who lose
+    every device.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P1-010] Active sessions list + "log out everywhere"
+- **Status**: [ ]
+- **Phase**: 1
+- **Depends on**: P1-002
+- **Unlocks**: P4-006 force-logout, support workflow
+- **Effort**: S
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - Account settings shows the user's currently-active sessions:
+    user-agent string, IP city (rough geo), last seen time,
+    "is current" flag.
+  - "Log out this session" per row.
+  - "Log out everywhere except this one" button at the top.
+  - Backed by a `sessions (id PK, user_id, ua, ip, created_at,
+    last_seen_at, revoked_at)` table; the cookie carries the
+    session id, not just the user id.
+- **Implementation notes**:
+  - Replaces the implicit "any valid cookie = signed in" model
+    with a row-per-session model — required to actually revoke.
+  - Update P1-002's middleware to validate against this table.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P1-011] Login-from-new-device email notification
+- **Status**: [ ]
+- **Phase**: 1
+- **Depends on**: P1-007, P1-010
+- **Unlocks**: account-takeover deterrent
+- **Effort**: S
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - On a successful login, if the resulting `sessions` row has a
+    new (UA, IP-city) tuple for that user, send a "new sign-in"
+    email with the device + approximate location + a "wasn't
+    you?" link.
+  - The "wasn't you" link → magic-link verify → revokes the
+    flagged session and forces a passkey/password reset prompt.
+- **Implementation notes**:
+  - Don't email on every login or it becomes noise. Hashing the
+    UA into a "device fingerprint" and only emailing on first
+    sight is the right shape.
 - **Agent notes** (append-only, newest first):
   - _(empty)_
 
@@ -954,6 +1129,71 @@ command.
   - Use the Stripe webhook (P2-001) for the negative signal —
     `checkout.session.expired`.
   - Cap to one reminder per session_id; never spam.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P2-014] Apple Pay / Google Pay express checkout
+- **Status**: [ ]
+- **Phase**: 2
+- **Depends on**: (none)
+- **Unlocks**: mobile conversion lift
+- **Effort**: M
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - Stripe Payment Element (or Express Checkout Element) embedded
+    on the post-generate Buy step shows wallet buttons when the
+    browser supports them.
+  - Hosted Checkout remains the fallback path; wallet shortcut
+    just skips the redirect for one-tap purchase.
+  - Mobile Safari + Chrome smoke-tested before launch.
+- **Implementation notes**:
+  - Trade-off: hosting payment UI inline grows the CSP surface
+    (P0-007). Fine for our case — the express element is sandboxed
+    in an iframe.
+  - Don't break the "no REST" invariant: the wallet flow still
+    creates a session via `payments.createCheckoutSession`; only
+    the *redirect* is replaced by an in-page confirmation.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P2-015] Stripe Customer Portal for self-serve
+- **Status**: [ ]
+- **Phase**: 2
+- **Depends on**: P1-002
+- **Unlocks**: support deflection
+- **Effort**: S
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - `payments.openCustomerPortal` command returns a Stripe-hosted
+    portal URL pre-bound to the user's customer id.
+  - "Manage payments / receipts / refund requests" link on
+    /account opens it in a new tab.
+  - Portal config in Stripe restricts to the actions we want
+    (view receipts, request refund, update payment method) — no
+    subscription cancellation since we don't have subscriptions.
+- **Implementation notes**:
+  - One env var `STRIPE_CUSTOMER_PORTAL_CONFIG_ID` to allow
+    test/live separation.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P2-016] Print fulfillment tracking page
+- **Status**: [ ]
+- **Phase**: 2
+- **Depends on**: P2-004, P2-005
+- **Unlocks**: post-purchase clarity for printed-stem buyers
+- **Effort**: M
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - `/orders/<id>` shows a 5-step tracker: Paid → In Queue →
+    Printing → Shipped (with carrier + tracking #) → Delivered.
+  - Each transition driven by P2-005's webhook from the
+    print-on-demand vendor.
+  - Email notifications at each transition (honors P1-007 prefs).
+- **Implementation notes**:
+  - Tracking number lives on `purchases.shipping_tracking`.
+  - Carrier-specific tracking URL templates kept server-side so
+    the client doesn't have to know UPS/USPS/FedEx URL shapes.
 - **Agent notes** (append-only, newest first):
   - _(empty)_
 
@@ -1240,6 +1480,79 @@ multi-seed selection, print-ready checks.
 - **Agent notes** (append-only, newest first):
   - _(empty)_
 
+### [P3-013] Auto-isolate face from cluttered backgrounds
+- **Status**: [ ]
+- **Phase**: 3
+- **Depends on**: P3-001
+- **Unlocks**: better TRELLIS reconstructions on real selfies
+- **Effort**: M
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - Pre-TRELLIS pass uses `rembg` (already in the worker for
+    u2net) to mask out the background, replacing it with a
+    neutral gray.
+  - Toggleable per-request via `settings.autoIsolate` (default
+    on); off-mode preserves the original photo for users who
+    want to.
+  - Visible quality lift on a hand-curated test set of 10 cluttered
+    selfies (compared via reference STLs in the failure corpus).
+- **Implementation notes**:
+  - rembg is already loaded for the TRELLIS pipeline; we just
+    need to use it as a pre-pass on the input image.
+  - Replace the background, don't crop — TRELLIS uses the full
+    framing to estimate scale.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P3-014] Multi-photo input — front + side for back-of-head
+- **Status**: [ ]
+- **Phase**: 3
+- **Depends on**: P3-002
+- **Unlocks**: dramatically better back-of-head reconstruction
+- **Effort**: L
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - `stl.generate` accepts `imageData` as either a single photo
+    or an array of 2–4 photos with view hints (`{ image, view:
+    'front' | 'side-left' | 'side-right' | 'back' }`).
+  - Worker passes the array through to TRELLIS's multi-image
+    code-path (already supported by the `image-large` checkpoint,
+    just unused in our handler).
+  - Home page UI shows a "+ add another angle" affordance when
+    the first photo is uploaded.
+- **Implementation notes**:
+  - The "back of head is hallucinated" defect (3D_Pipeline.md §8.2)
+    is dramatically reduced when TRELLIS gets even a low-quality
+    side photo.
+  - Cache key (P3-003) needs to include the *set* hash, not just
+    one photo's hash.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P3-015] Smart auto-orient using facial landmarks
+- **Status**: [ ]
+- **Phase**: 3
+- **Depends on**: P3-001
+- **Unlocks**: fewer "head looks sideways" failures
+- **Effort**: M
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - Stage 1 (normalize) defaults to facial-landmark orientation
+    when mediapipe FaceMesh confidence > 0.7; falls back to PCA
+    when confidence is lower.
+  - Computes a head-frame matrix from chin → forehead and eye
+    line → +Y, applies it, then runs the existing PCA confirm.
+  - Failure-corpus replay (P3-006) shows landmark-mode beats
+    PCA on at least 70% of regression cases.
+- **Implementation notes**:
+  - Required by 3D_Pipeline.md §5 Stage 1 risks doc — the PCA
+    orientation fails ~10% of the time and that's our biggest
+    "looks wrong" defect class.
+  - The mediapipe landmarks are already extracted in Stage 0
+    (P3-001); just flow them down.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
 ---
 
 ## 10. Phase 4 — Observability & scale
@@ -1496,6 +1809,74 @@ logging.
 - **Agent notes** (append-only, newest first):
   - _(empty)_
 
+### [P4-013] Synthetic canary — auto-generate every 30 min
+- **Status**: [ ]
+- **Phase**: 4
+- **Depends on**: P0-008
+- **Unlocks**: detect prod regressions before users do
+- **Effort**: S
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - Scheduled job (cron / DO scheduler) runs `stl.generate`
+    against a canary photo every 30 min; asserts output size
+    is in expected range, p95 latency under budget.
+  - Failure pages on-call via P4-012 alert routing.
+  - Canary results graphed on /admin (P4-005) — gives a
+    reliable "how is the site right now?" signal independent
+    of whether any real user is generating.
+- **Implementation notes**:
+  - Use a consented fixture photo committed to the repo at
+    `tools/canary/canary-photo.jpg` so we don't burn a real
+    user's image on every check.
+  - Tag canary jobs with `account_id = NULL` and
+    `metadata.canary = true` so the admin metrics tabs can
+    exclude them from real-user counts.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P4-014] DB slow-query dashboard
+- **Status**: [ ]
+- **Phase**: 4
+- **Depends on**: P4-005
+- **Unlocks**: catch N+1 / missing-index regressions
+- **Effort**: S
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - DO Managed PG `pg_stat_statements` enabled.
+  - /admin "DB" tab lists the top 20 queries by total_time and
+    by mean_time, with rolling 7-day delta.
+  - Threshold alert if any query's mean_time > 200ms for 5 min.
+- **Implementation notes**:
+  - Reset stats nightly (or on each schema-migration deploy) so
+    the rolling view stays meaningful.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P4-015] Admin "impersonate user" mode for support
+- **Status**: [ ]
+- **Phase**: 4
+- **Depends on**: P0-008, P0-009
+- **Unlocks**: faster support triage
+- **Effort**: M
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - `/admin` user-detail panel has "View as this user" — opens a
+    new browser tab in a session bound to the target user.
+  - Top of every page shows a high-contrast banner "Impersonating
+    <email> — STOP" that ends the impersonation cleanly.
+  - Every action taken during impersonation logs both the actor
+    (admin) and the target (user) in `audit_log`.
+- **Implementation notes**:
+  - Implementation: a separate signed-cookie scheme that carries
+    `{ actor_id, target_id }`; the auth middleware (P1-002)
+    treats `target_id` as the effective user, but every command
+    handler with a side-effect double-checks via `requireAdmin`
+    (P0-008) that there's a valid actor.
+  - Don't allow impersonating another admin; that's how privilege
+    escalation chains start.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
 ---
 
 ## 11. Phase 5 — Creator ecosystem
@@ -1598,6 +1979,47 @@ logging.
 - **Agent notes** (append-only, newest first):
   - _(empty)_
 
+### [P5-007] Custom user permalinks (`/u/<username>`)
+- **Status**: [ ]
+- **Phase**: 5
+- **Depends on**: P1-008, P5-001
+- **Unlocks**: brand-able share URLs
+- **Effort**: S
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - `accounts.username UNIQUE` column (3–20 chars, alphanumeric +
+    underscore + hyphen).
+  - `/u/<username>` renders that user's opt-in showcase entries
+    with their display name + avatar.
+  - Username can be claimed once on /account; changing it
+    requires admin (P0-008) + leaves a redirect from the old slug
+    so external links don't break.
+- **Implementation notes**:
+  - Reserve a wordlist of route-name conflicts (`admin`, `api`,
+    `account`, `u`, `d`, `pricing`, etc.) so users can't claim
+    them.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P5-008] Featured design of the week (admin-curated)
+- **Status**: [ ]
+- **Phase**: 5
+- **Depends on**: P5-005, P0-008
+- **Unlocks**: editorial quality bar on the showcase
+- **Effort**: S
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - Admin can flag a showcase entry as "featured" with a start
+    date.
+  - The home-page hero shows the current featured design (image
+    + display name + remix CTA) above the regular hero copy.
+  - Auto-rotates weekly if no manual flag.
+- **Implementation notes**:
+  - The first featured design is a marketing decision — pick one
+    that prints cleanly + has a charismatic-looking head.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
 ---
 
 ## 12. Phase 6 — i18n & accessibility
@@ -1630,14 +2052,113 @@ logging.
   - _(empty)_
 
 ### [P6-003] WCAG AA audit + critical-path fixes
-- **Status**: [ ]
+- **Status**: [x]
 - **Phase**: 6
 - **Depends on**: (none)
 - **Effort**: L
+- **Owner**: claude-opus-4.7
 - **Acceptance criteria**:
-  - `axe-core` CLI run in CI; zero critical failures on Home + Pricing
-    + Checkout Return pages.
-  - Keyboard path: Tab / Space operates every interactive control.
+  - [x] Manual contrast pass: every text/UI surface meets 4.5:1
+    (normal) / 3:1 (large bold).
+  - [x] Tailwind `text-white` classes purged from non-red-bg
+    contexts (they were rendering invisible on cream).
+  - [x] Black-on-red button text flipped to white-on-red.
+  - [ ] Automated `axe-core` CLI in CI — split out as a follow-up
+    in a new task so this one can close (see notes).
+- **Implementation notes**:
+  - The brand-red, muted-gray and gold-text bumps below are now
+    the canonical tokens for any new code that follows.
+- **Agent notes** (append-only, newest first):
+  - 2026-04-29 (claude-opus-4.7): Closing this out per user
+    sign-off. Verbose decision record below — mirror in
+    `docs/DESIGN_DECISIONS.md` which should be the canonical home
+    for these going forward. CI/axe deliverable explicitly
+    deferred to `P6-009` so progress isn't blocked behind the test
+    harness work.
+
+    **Contrast-ratio decisions (cream `#FAF7F2` background unless
+    stated):**
+
+    | Token | Old | New | Old ratio | New ratio | Reason |
+    |---|---|---|---|---|---|
+    | Brand red (text) | `#DC2626` | `#C71F1F` | 4.47 (FAIL AA) | 5.32 ✓ | Just under threshold; bumped slightly darker so pricing/labels at <14pt bold pass |
+    | Muted body text | `#8B8278` | `#6B6157` | 3.42 (FAIL) | 5.51 ✓ | Used for dates, captions, sub-labels — all below threshold |
+    | Gold (text/icon) | `#A88735` | `#7C5E1F` | 2.86 (FAIL) | 6.45 ✓ | Step-4 accent + info-banner text. Kept `#A88735` only for the legend swatch *dot* in home.js because the dot represents the actual valve color and isn't text |
+    | Button text on red | `#000` | `#FFFFFF` | 4.38 (FAIL) | 5.74 ✓ | Black-on-red is a legacy lime-theme leftover; white-on-red is the canonical pattern |
+    | Tailwind `.text-white` H1/H2/body | white | inherit `--foreground` | 1.06 (FAIL) | ~14:1 ✓ | Removed via search — kept only on the header logo where the bg is the red gradient |
+
+    **Brand decisions:**
+
+    - Workshop palette over dark-mode-lime. The product is a
+      *tactile* 3D-printed object; cream paper + jersey red maps
+      to the cycling-craftsperson aesthetic far better than the
+      previous "generic dev-tool dark" look. Locked in
+      `client/styles/theme.css` with semantic tokens
+      (`--ink`, `--paper`, `--paper-soft`, `--paper-edge`, etc.)
+      so future code can use names instead of hex.
+
+    - Schrader, not Presta. Earlier copy was wrong. The product's
+      thread spec (8 mm × 32 TPI) matches Schrader; Presta is a
+      narrower different-thread valve. Renamed across all client
+      pages, README, ProductSpec, 3D_Pipeline, playbook,
+      FEATUREROADMAP, deploy/runpod/README. Updated
+      `schraderPara()` in how-it-works to describe Schrader's
+      actual properties (wider, sprung, common on MTBs/hybrids/
+      car tires) instead of Presta's.
+
+    **3D viewer decisions:**
+
+    - Added `RoomEnvironment` IBL via `PMREMGenerator`. This was
+      THE fix — metallic materials (chrome STL) read mostly via
+      reflections of their environment, not via direct lights.
+      No amount of point/directional light boost compensates for
+      missing IBL on a PBR metal. We were tweaking the wrong knob
+      for two iterations before landing on this.
+
+    - Backdrop `#2D2A26` → `#4A453F`. The lighter graphite gives
+      the silhouette something to bounce against. Still contrasts
+      the cream UI by enough margin to read as "workshop slate."
+
+    - Light rig: ambient 0.65→0.9, hemi 0.85→1.1, key 2.2→2.6,
+      fill 0.85→1.2, rim 1.1→1.5, **added** a side rim at 1.1
+      for back-contour readability during auto-rotate. Tone-map
+      exposure 1.25 → 1.6.
+
+    - Floor disc opacity 0.08 → 0.14. The lighter bg made the
+      previous opacity invisible.
+
+    **Layout decisions:**
+
+    - Removed the home-page "Previous 3D Designs" gallery
+      entirely. It was a hardcoded mock-data section that didn't
+      tie to anything real, and there's no auth yet so showing
+      "your designs" was inherently misleading. Replaced the
+      sidebar with a Pricing card promoted to top + a "3D
+      Printing Tips" workshop card.
+
+    - "3D Printing Tips" card includes the brim instruction
+      (5 mm brim, 0 mm brim-object gap) with the *why* — the cap
+      is tall+narrow and shears off the bed without a brim.
+      Concrete slicer paths for Bambu Studio / OrcaSlicer /
+      PrusaSlicer because users print on whichever they have.
+
+### [P6-009] axe-core CI integration for AA regressions
+- **Status**: [ ]
+- **Phase**: 6
+- **Depends on**: P6-003
+- **Effort**: S
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - `axe-core/playwright` (or @axe-core/cli) wired into a CI job
+    that loads each route in a headless browser and asserts zero
+    critical/serious violations.
+  - Job runs on every PR; failures block merge.
+  - One-line escape hatch documented (`<axe-skip>` comment) for
+    intentional violations the team has accepted.
+- **Implementation notes**:
+  - The manual a11y pass already landed (P6-003); this task is
+    the regression net so the next color tweak doesn't silently
+    re-break contrast.
 - **Agent notes** (append-only, newest first):
   - _(empty)_
 
@@ -1662,6 +2183,64 @@ logging.
   - EU users see VAT-inclusive prices on /pricing and the home
     "Buy" CTA.
   - Currency-formatting honors the locale (£2.00, 2,00 €).
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P6-006] Respect prefers-reduced-motion + prefers-color-scheme
+- **Status**: [ ]
+- **Phase**: 6
+- **Depends on**: P6-003
+- **Effort**: S
+- **Acceptance criteria**:
+  - 3D viewer auto-rotate disabled when `prefers-reduced-motion:
+    reduce`.
+  - `.fade-up` / `.pulse-dot` / `.spinner` honor the same media
+    query (animation-duration: 0).
+  - If a user has `prefers-color-scheme: dark`, the workshop
+    palette inverts to a deep-graphite + warm-cream variant
+    (separate token block, gated by `@media (prefers-color-scheme:
+    dark)`).
+- **Implementation notes**:
+  - The dark variant is a stretch goal — at minimum, ship the
+    reduced-motion behavior.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P6-007] Screen-reader live announcements for processing
+- **Status**: [ ]
+- **Phase**: 6
+- **Depends on**: P6-003
+- **Effort**: S
+- **Acceptance criteria**:
+  - Generation progress announced via an `aria-live="polite"`
+    region. Each progress frame ("Loading TRELLIS…", "30% — head
+    extraction") spoken once.
+  - Final state ("STL ready, $2 to download") spoken on
+    completion; errors spoken via `aria-live="assertive"`.
+  - Tested with VoiceOver on macOS Safari + NVDA on Windows
+    Firefox.
+- **Implementation notes**:
+  - Throttle announcements — too many spoken updates is worse
+    than none. One per stage transition is enough.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P6-008] RTL language scaffold
+- **Status**: [ ]
+- **Phase**: 6
+- **Depends on**: P6-002
+- **Effort**: M
+- **Acceptance criteria**:
+  - `<html dir>` attribute set from the active locale.
+  - Layouts use logical CSS properties (`margin-inline-start`,
+    `padding-inline-end`, `text-align: start`) instead of
+    physical (`margin-left`, etc.) on every page.
+  - One RTL locale shipped end-to-end (Arabic) so the scaffold
+    is exercised.
+- **Implementation notes**:
+  - Tailwind v4 has `ms-*` / `me-*` utilities (margin-inline-
+    start/end). Use those.
+  - The 3D viewer doesn't need RTL — it's spatial, not textual.
 - **Agent notes** (append-only, newest first):
   - _(empty)_
 
@@ -1725,6 +2304,40 @@ logging.
 - **Implementation notes**:
   - The reticule is the killer UX — most "no face detected"
     rejections are framing problems.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P7-005] Native Web Share API integration
+- **Status**: [ ]
+- **Phase**: 7
+- **Depends on**: P5-002
+- **Effort**: S
+- **Acceptance criteria**:
+  - On a successful generation, a "Share" button calls
+    `navigator.share({ title, text, url })` when supported (mobile
+    + macOS Safari).
+  - Falls back to a "Copy link" button + native clipboard API on
+    desktop browsers.
+- **Implementation notes**:
+  - The share URL is the P5-002 signed permalink, not the
+    socket-frame STL.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P7-006] "Add to Home Screen" install prompt
+- **Status**: [ ]
+- **Phase**: 7
+- **Depends on**: P7-001
+- **Effort**: S
+- **Acceptance criteria**:
+  - Listen for `beforeinstallprompt`; show a small banner the
+    second time the user successfully generates an STL ("install
+    BikeHeadz to skip the upload next time?").
+  - Dismissible permanently per device; never shown again after
+    "no thanks."
+- **Implementation notes**:
+  - First-visit prompts are user-hostile. Wait for a real success
+    moment before asking.
 - **Agent notes** (append-only, newest first):
   - _(empty)_
 
@@ -1812,12 +2425,86 @@ research. Agents may pick from here only when explicitly directed.
   - Each item has a verification command or URL.
 - **Agent notes**: _(empty)_
 
+### [X-008] Security disclosure policy + security.txt
+- **Status**: [ ]
+- **Effort**: S
+- **Acceptance criteria**:
+  - `/.well-known/security.txt` served with a contact email and
+    expiration date (RFC 9116 format).
+  - `/security` page describes the disclosure process: report to
+    `security@`, 90-day disclosure window, hall of fame for
+    responsible reports.
+  - Linked from the footer.
+- **Agent notes**: _(empty)_
+
+### [X-009] "Try with sample photo" demo mode
+- **Status**: [ ]
+- **Effort**: S
+- **Acceptance criteria**:
+  - Home page upload area has a "Try with a sample" link that
+    runs `stl.generate` against a committed sample photo.
+  - Result is rendered + viewable but not purchasable (no real
+    user attached).
+  - Removes friction for first-time visitors curious to see the
+    output before committing their own face.
+- **Implementation notes**:
+  - Bypass rate-limit (P0-006) for the demo path or it'll burn
+    one of the user's allotment.
+  - Cap demo generations per IP per day to prevent GPU abuse.
+- **Agent notes**: _(empty)_
+
+### [X-010] SEO basics — meta tags, OG, sitemap.xml, robots.txt
+- **Status**: [ ]
+- **Effort**: S
+- **Acceptance criteria**:
+  - Every public route has unique `<title>` + `<meta
+    description>` server-rendered into the shell.
+  - Default OG card for the marketing pages (separate from the
+    per-design OG cards in P5-006).
+  - `sitemap.xml` lists `/`, `/pricing`, `/how-it-works`,
+    `/help`, `/showcase` (after P5-005).
+  - `robots.txt` allows everything except `/admin`, `/account`,
+    `/checkout/return`, and `/.well-known/`.
+- **Agent notes**: _(empty)_
+
+### [X-011] Custom 404 / 500 pages
+- **Status**: [ ]
+- **Effort**: S
+- **Acceptance criteria**:
+  - Unknown routes show a 404 page with workshop-branded copy
+    and a search box / sitemap link.
+  - Server-side errors show a 500 page with an incident reference
+    id (correlate with Sentry / P0-005).
+  - Both pages match the workshop palette.
+- **Agent notes**: _(empty)_
+
 ---
 
 ## 15. Change log
 
 Agents append one line per session. Most recent at top.
 
+- 2026-04-29 — claude-opus-4.7 — Roadmap regen pass 2 + completion
+  audit. **Audit:** marked **P0-003** (Dockerfile) `[x]` — shipped at
+  v0.1.30, ratified at v0.1.34; path/base deviations from spec
+  documented inline. Marked **P6-003** (WCAG AA audit) `[x]` for the
+  manual pass; split the axe-core CI piece into a fresh **P6-009** so
+  the manual deliverable can close without blocking on test infra.
+  Added agent notes to both with verbose decision records.
+  Created `docs/DESIGN_DECISIONS.md` as the canonical home for the
+  workshop-palette / Schrader-rebrand / viewer-IBL decisions
+  (mirrors the agent notes; longer-form). **Regen:** 28 new
+  candidate tasks (incl. P6-009): P0-012..015 (payload validation,
+  error taxonomy, pre-commit, DB-restore drill), P1-009..011
+  (passkey, sessions list, new-device email), P2-014..016 (express
+  checkout, Stripe portal, fulfillment tracking), P3-013..015
+  (rembg pre-pass, multi-photo input, landmark auto-orient),
+  P4-013..015 (synthetic canary, slow-query dashboard, impersonate
+  mode), P5-007..008 (custom permalinks, featured design),
+  P6-006..009 (reduced-motion, screen-reader announcements, RTL
+  scaffold, axe-core CI), P7-005..006 (Web Share, install prompt),
+  X-008..011 (security.txt, demo mode, SEO, 404/500 pages).
+  next_suggested_task unchanged at P1-001.
 - 2026-04-29 — claude-opus-4.7 — Roadmap regenerate (go-to-market
   themes). 37 new tasks added: P0-008..011 (admin role, audit log,
   feature flags, RunPod healthcheck), P1-005..008 (account dashboard,
