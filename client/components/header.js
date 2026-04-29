@@ -123,11 +123,39 @@ export function HeaderComponent() {
       mobilePanel.appendChild(navLink(to, label, () => setMenu(false)));
     }
 
+    // Primary "Make yours" CTA — points at the generator. The money
+    // button on every page; lives in the nav so it's always one click
+    // away regardless of where the visitor is on the site.
+    const makeYours = el(
+      'a',
+      {
+        href: '/stemdome-generator',
+        'data-link': '',
+        class: 'ml-3 sdz-cta',
+        style: { fontSize: '0.78rem', padding: '0.55rem 1.1rem' },
+      },
+      'MAKE YOURS  →'
+    );
+    desktopNav.appendChild(makeYours);
+    // Mirror in the mobile drawer.
+    const mobileMakeYours = el(
+      'a',
+      {
+        href: '/stemdome-generator',
+        'data-link': '',
+        class: 'sdz-cta mt-2',
+        style: { fontSize: '0.85rem', alignSelf: 'flex-start' },
+        onClick: () => setMenu(false),
+      },
+      'MAKE YOURS  →'
+    );
+    mobilePanel.appendChild(mobileMakeYours);
+
     // Profile chip — circular, fluoro-green Memphis offset behind.
     const profile = el('a', {
       href: '/account',
       'data-link': '',
-      class: 'ml-3 sdz-memphis',
+      class: 'ml-2 sdz-memphis',
       style: {
         position: 'relative',
         display: 'inline-flex',

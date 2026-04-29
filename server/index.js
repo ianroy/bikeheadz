@@ -231,6 +231,7 @@ app.get('/sitemap.xml', (_req, res) => {
   const lastmod = new Date().toISOString().slice(0, 10);
   const urls = [
     '/',
+    '/stemdome-generator',
     '/pricing',
     '/how-it-works',
     '/help',

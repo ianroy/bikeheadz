@@ -4,6 +4,7 @@ import { Router } from './router.js';
 import { SocketClient } from './socket.js';
 import { HeaderComponent } from './components/header.js';
 import { HomePage } from './pages/home.js';
+import { GeneratorPage } from './pages/generator.js';
 import { HowItWorksPage } from './pages/how-it-works.js';
 import { AccountPage } from './pages/account.js';
 import { PricingPage } from './pages/pricing.js';
@@ -60,7 +61,15 @@ const router = new Router({
   mount: main,
   onRoute: (path) => header.setActive(path),
   routes: {
-    '/': ({ query }) => HomePage({ socket, remix: query.remix }),
+    // Marketing landing page — about, product spec, video demo, pricing
+    // tease. The actual generator (photo upload → STL viewer → checkout)
+    // lives at /stemdome-generator now.
+    '/': () => HomePage({ socket }),
+    '/stemdome-generator': ({ query }) => GeneratorPage({ socket, remix: query.remix }),
+    // Legacy alias — earlier deploys had the generator at /. Redirect any
+    // bookmarks/inbound links so they don't 404.
+    '/generator': ({ query }) => GeneratorPage({ socket, remix: query.remix }),
+    '/generate': ({ query }) => GeneratorPage({ socket, remix: query.remix }),
     '/how-it-works': () => HowItWorksPage({ socket }),
     '/account': () => AccountPage({ socket }),
     '/pricing': ({ query }) => PricingPage({ socket, cancelled: query.cancelled === '1' }),

@@ -385,6 +385,13 @@ If a rename does happen, the rebrand pipeline is:
 
 | Date         | Change                                                          |
 |--------------|------------------------------------------------------------------|
+| 2026-04-29   | **Information architecture split.** `/` is now the marketing    |
+|              | landing page (hero · how-it-works · video demo · about · print  |
+|              | spec · pricing tease · showcase tease · footer). The actual     |
+|              | generator (photo upload → STL viewer → checkout) moved to       |
+|              | `/stemdome-generator` (with `/generator` and `/generate` as     |
+|              | legacy aliases). Header nav gained a permanent "MAKE YOURS →"   |
+|              | primary CTA pointing at the generator.                          |
 | 2026-04-29   | **Brand renamed ValveHeadZ → StemDomeZ.** valveheadz.com was    |
 |              | already taken by an existing site doing similar work. Owner     |
 |              | suggested **StemDomeZ** ("stem" = bike component, "dome" = 90s |
