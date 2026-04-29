@@ -36,7 +36,12 @@ RunPod one is).
 
 from __future__ import annotations
 
-from typing import Callable, Optional
+import concurrent.futures
+import json
+import os
+import sys
+import time
+from typing import Any, Callable, Optional
 
 import trimesh
 
@@ -51,12 +56,112 @@ from .stages import (
     stage5_postprocess,
 )
 
+
+# P0-017 — per-stage and total wall-clock budgets. Defaults are
+# conservative bounds calibrated against the §10 Phase 1 reference runs:
+# normalize ≈ <1 s, repair ≈ 2–8 s, crop ≈ 1–3 s, booleans 5–20 s each.
+# 60 s per stage is roughly 3× the worst observed; 300 s total is post-
+# cold-start (TRELLIS itself runs separately in handler.py).
+_DEFAULT_STAGE_TIMEOUT_S = 60
+_DEFAULT_JOB_TIMEOUT_S = 300
+
+
+def _stage_timeout_s() -> int:
+    try:
+        return int(os.environ.get("STAGE_TIMEOUT_S", str(_DEFAULT_STAGE_TIMEOUT_S)))
+    except ValueError:
+        return _DEFAULT_STAGE_TIMEOUT_S
+
+
+def _job_timeout_s() -> int:
+    try:
+        return int(os.environ.get("JOB_TIMEOUT_S", str(_DEFAULT_JOB_TIMEOUT_S)))
+    except ValueError:
+        return _DEFAULT_JOB_TIMEOUT_S
+
+
+def run_with_timeout(
+    stage_name: str,
+    fn: Callable[..., Any],
+    *args: Any,
+    timeout_s: Optional[int] = None,
+    job_remaining_s: Optional[float] = None,
+    **kwargs: Any,
+) -> Any:
+    """Run ``fn(*args, **kwargs)`` with a wall-clock budget.
+
+    Why ``ThreadPoolExecutor.submit().result(timeout=…)`` and not
+    ``signal.alarm`` or ``multiprocessing``: the pipeline runs inside
+    a long-lived RunPod worker that may already use signal handlers,
+    and the stages share large mesh objects (forking would copy them).
+    A ThreadPoolExecutor lets us bound each stage's wall-clock without
+    interfering with whatever else the worker is doing — at the cost
+    that a runaway numpy / C-extension call won't actually stop on
+    timeout (it'll just leave the executor thread running). That's
+    acceptable: RunPod kills the worker on a job-level timeout anyway,
+    and we want the timeout signal to propagate as a structured error
+    even if the worker process keeps the thread alive a few seconds
+    longer.
+
+    Parameters
+    ----------
+    stage_name
+        Used in the telemetry log line emitted on timeout.
+    fn
+        The stage function (already-bound — pass args/kwargs through).
+    timeout_s
+        Per-stage budget in seconds. Defaults to ``STAGE_TIMEOUT_S``
+        (env, falls back to 60 s).
+    job_remaining_s
+        Optional; if set, the actual budget is ``min(timeout_s,
+        job_remaining_s)``. The driver passes this so the LAST stage
+        can't blow past the total job budget even if its per-stage
+        budget would allow it.
+
+    Raises
+    ------
+    PipelineError
+        ``ErrorCode.STAGE_TIMEOUT`` with ``timeout_stage=<stage_name>``
+        in ``detail``.
+    """
+    budget = timeout_s if timeout_s is not None else _stage_timeout_s()
+    if job_remaining_s is not None:
+        budget = max(1, int(min(budget, job_remaining_s)))
+    started = time.perf_counter()
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+        fut = ex.submit(fn, *args, **kwargs)
+        try:
+            return fut.result(timeout=budget)
+        except concurrent.futures.TimeoutError as exc:
+            elapsed = time.perf_counter() - started
+            sys.stderr.write(
+                json.dumps({
+                    "kind": "pipeline.stage_timeout",
+                    "timeout_stage": stage_name,
+                    "elapsed_s": round(elapsed, 2),
+                    "budget_s": int(budget),
+                }) + "\n"
+            )
+            sys.stderr.flush()
+            # The thread may still be running — RunPod will recycle the
+            # worker if it hangs. We surface the structured error now so
+            # the Node side can branch on it without waiting.
+            raise PipelineError(
+                code=ErrorCode.STAGE_TIMEOUT,
+                stage=stage_name,
+                detail=(
+                    f"timeout_stage={stage_name} elapsed_s={elapsed:.2f} "
+                    f"budget_s={int(budget)}"
+                ),
+            ) from exc
+
 __all__ = [
     "run_v1",
     "ErrorCode",
     "PipelineError",
     "USER_MESSAGES",
     "CODE_SCHEMA_VERSION",
+    "run_with_timeout",
 ]
 
 
@@ -156,24 +261,57 @@ def run_v1(
         if progress is not None:
             progress(stage_label, pct)
 
-    head = stage1_normalize(head, head_scale, head_tilt_deg, C)
+    # P0-017 — bound each stage and the total run by wall-clock budgets.
+    # Per-stage budget is `STAGE_TIMEOUT_S` (default 60); total is
+    # `JOB_TIMEOUT_S` (default 300) measured from the start of run_v1
+    # (post-cold-start; TRELLIS itself runs separately upstream).
+    stage_budget = _stage_timeout_s()
+    job_budget = _job_timeout_s()
+    job_started = time.perf_counter()
+
+    def _remaining() -> float:
+        return max(1.0, job_budget - (time.perf_counter() - job_started))
+
+    head = run_with_timeout(
+        "stage1_normalize", stage1_normalize,
+        head, head_scale, head_tilt_deg, C,
+        timeout_s=stage_budget, job_remaining_s=_remaining(),
+    )
     _emit(*_PROGRESS_STAGE1)
 
-    head = stage1_5_repair(head, C)
+    head = run_with_timeout(
+        "stage1_5_repair", stage1_5_repair,
+        head, C,
+        timeout_s=stage_budget, job_remaining_s=_remaining(),
+    )
     _emit(*_PROGRESS_STAGE1_5)
 
-    cropped, _info = stage2_crop(
+    cropped, _info = run_with_timeout(
+        "stage2_crop", stage2_crop,
         head, C, shoulder_taper_fraction=shoulder_taper_fraction,
+        timeout_s=stage_budget, job_remaining_s=_remaining(),
     )
     _emit(*_PROGRESS_STAGE2)
 
-    socketed = stage3_subtract_negative_core(cropped, negative_core, C)
+    socketed = run_with_timeout(
+        "stage3_subtract_negative_core", stage3_subtract_negative_core,
+        cropped, negative_core, C,
+        timeout_s=stage_budget, job_remaining_s=_remaining(),
+    )
     _emit(*_PROGRESS_STAGE3)
 
-    final = stage4_union_valve_cap(socketed, valve_cap, C)
+    final = run_with_timeout(
+        "stage4_union_valve_cap", stage4_union_valve_cap,
+        socketed, valve_cap, C,
+        timeout_s=stage_budget, job_remaining_s=_remaining(),
+    )
     _emit(*_PROGRESS_STAGE4)
 
-    final = stage5_postprocess(final, C)
+    final = run_with_timeout(
+        "stage5_postprocess", stage5_postprocess,
+        final, C,
+        timeout_s=stage_budget, job_remaining_s=_remaining(),
+    )
     _emit(*_PROGRESS_STAGE5)
 
     _emit(*_PROGRESS_DONE)
