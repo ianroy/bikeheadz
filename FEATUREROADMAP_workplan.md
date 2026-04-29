@@ -21,7 +21,7 @@ state:
   last_touched: 2026-04-29
   last_agent: claude-opus-4.7
   handler_version: v0.1.34               # GPU worker tag deployed on RunPod
-  repo_sha: pending                      # batched 7-hour autonomous push — see section 15 entry
+  repo_sha: 395970d                      # batched 7-hour autonomous push — see section 15 entry
   active_phase: 4                        # phases 0/1/2/5/6 mostly green; 4 is now the next focus
   in_progress_tasks: []
   blocked_tasks: []
