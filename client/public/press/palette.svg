@@ -4,7 +4,7 @@
   page or print it on a card next to the printer for a quick visual
   check. Hex values match client/styles/theme.css.
 -->
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700" width="1200" height="700" role="img" aria-label="ValveHeadZ workshop palette">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700" width="1200" height="700" role="img" aria-label="StemDomeZ workshop palette">
   <rect width="1200" height="700" fill="#F5F2E5"/>
 
   <g font-family="-apple-system, system-ui, 'Inter', sans-serif" fill="#0E0A12">

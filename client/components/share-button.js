@@ -10,8 +10,8 @@ import { el } from '../dom.js';
 
 export function ShareButton({ url, title, text } = {}) {
   const shareUrl = url || (typeof location !== 'undefined' ? location.href : '');
-  const shareTitle = title || 'ValveHeadZ';
-  const shareText = text || 'Check out my custom valve cap from ValveHeadZ.';
+  const shareTitle = title || 'StemDomeZ';
+  const shareText = text || 'Check out my custom valve cap from StemDomeZ.';
 
   let toast = null;
   let toastTimer = 0;

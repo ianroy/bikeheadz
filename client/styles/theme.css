@@ -1,13 +1,13 @@
 @custom-variant dark (&:is(.dark *));
 
-/* ValveHeadZ — "Mongoose BMX" palette.
+/* StemDomeZ — "Mongoose BMX" palette.
  *
  * Race day at the trails, 1993. Neon purple as the dominant brand
  * accent (the Z), fluoro green as the second punch, hot magenta as
  * the third for halftones / splatter / chip accents. Off-white paper
  * + carbon-black ink keep body legible.
  *
- * The brand wordmark: "ValveHead" sits in `--ink`; the trailing "Z"
+ * The brand wordmark: "StemDome" sits in `--ink`; the trailing "Z"
  * sits in `--brand` (neon purple) — italic + drop-shadowed wherever
  * displayed. Mark cap fills with `--brand`, head silhouette in
  * `--ink`, glasses cutout in `--paper`.
@@ -96,7 +96,7 @@
   --font-weight-black: 900;
   --radius: 0.75rem;
 
-  /* Memphis offset — used by .vhz-memphis utility for the period
+  /* Memphis offset — used by .sdz-memphis utility for the period
    * "drop-shadow box" effect. */
   --memphis-offset: 6px;
   --memphis-color: var(--accent2);
@@ -168,26 +168,26 @@
 /* ── 90s GRAPHIC UTILITIES ──────────────────────────────────────────── */
 
 /* Italic wordmark with drop shadow. The signature gesture. */
-.vhz-wordmark {
+.sdz-wordmark {
   font-style: italic;
   font-weight: 900;
   letter-spacing: -0.03em;
   color: var(--ink);
   text-shadow: 4px 4px 0 var(--accent2);
 }
-.vhz-wordmark .z {
+.sdz-wordmark .z {
   color: var(--brand);
   font-size: 1.4em;
   margin-left: -0.05em;
 }
 
 /* Memphis-offset card — render flat colored shadow box behind the
- * card, offset 6px right and down. Add `.vhz-memphis` to any
+ * card, offset 6px right and down. Add `.sdz-memphis` to any
  * positioned element. */
-.vhz-memphis {
+.sdz-memphis {
   position: relative;
 }
-.vhz-memphis::before {
+.sdz-memphis::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -198,16 +198,16 @@
 }
 
 /* Variant: shadow in accent3 (magenta) instead of accent2. */
-.vhz-memphis.vhz-memphis-magenta {
+.sdz-memphis.sdz-memphis-magenta {
   --memphis-color: var(--accent3);
 }
-.vhz-memphis.vhz-memphis-ink {
+.sdz-memphis.sdz-memphis-ink {
   --memphis-color: var(--ink);
 }
 
 /* Halftone dot field — apply to a section background. Density falls
  * off radially so the dots feel like a fade. */
-.vhz-halftone {
+.sdz-halftone {
   background-image:
     radial-gradient(circle at 12px 12px, var(--accent3) 2px, transparent 2.5px),
     radial-gradient(circle at 36px 36px, var(--accent3) 1.5px, transparent 2px);
@@ -217,7 +217,7 @@
 }
 
 /* Zigzag accent strip. Use as a top/bottom border on heroes. */
-.vhz-zigzag {
+.sdz-zigzag {
   --zigzag-color: var(--accent3);
   --zigzag-size: 14px;
   background:
@@ -230,7 +230,7 @@
 }
 
 /* Checker strip — top of hero / nav bar accent. */
-.vhz-checker {
+.sdz-checker {
   background-image:
     linear-gradient(45deg, var(--ink) 25%, transparent 25%, transparent 75%, var(--ink) 75%),
     linear-gradient(45deg, var(--ink) 25%, transparent 25%, transparent 75%, var(--ink) 75%);
@@ -242,7 +242,7 @@
 /* "Spray dot" texture — tiny multi-color dots scattered on a surface,
  * pure CSS via radial-gradient stacks. Cheap visual noise that reads
  * as 90s splatter without an SVG asset. */
-.vhz-splatter {
+.sdz-splatter {
   background-image:
     radial-gradient(circle at 12% 18%, var(--brand) 1.5px, transparent 2px),
     radial-gradient(circle at 87% 42%, var(--accent2) 2px, transparent 2.5px),
@@ -254,7 +254,7 @@
 }
 
 /* Italic-black display heading helper. */
-.vhz-display {
+.sdz-display {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, 'Inter', 'Helvetica Neue', sans-serif;
   font-style: italic;
   font-weight: 900;
@@ -272,7 +272,7 @@
  *
  * The border still uses var(--ink) so it inverts in dark mode (cream
  * border on dark page, ink border on cream page).  */
-.vhz-cta {
+.sdz-cta {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
@@ -288,13 +288,13 @@
   transition: transform 0.08s ease;
   cursor: pointer;
 }
-.vhz-cta:hover  { transform: translate(-2px, -2px); background: #5A1FCE; }
-.vhz-cta:active { transform: translate(2px, 2px); }
-.vhz-cta-secondary {
+.sdz-cta:hover  { transform: translate(-2px, -2px); background: #5A1FCE; }
+.sdz-cta:active { transform: translate(2px, 2px); }
+.sdz-cta-secondary {
   background: var(--paper);
   color: var(--ink);
 }
-.vhz-cta-secondary:hover { background: var(--paper-soft); }
+.sdz-cta-secondary:hover { background: var(--paper-soft); }
 
 /* Tab pill / chip — used for nav / tag clouds.
  *
@@ -303,7 +303,7 @@
  * mode --ink flip to cream makes ink-on-fluoro fall to 1.18:1 (FAIL
  * AA) — the audit caught it. The chip is a vivid brand surface, not
  * a body-text surface, so freezing the colors is the right call. */
-.vhz-chip {
+.sdz-chip {
   display: inline-flex;
   align-items: center;
   padding: 0.25rem 0.75rem;
@@ -317,8 +317,8 @@
   border-radius: 999px;
 }
 /* Magenta chip uses ink text (5.82:1 ✓) rather than white (3.37:1 ✗ AA). */
-.vhz-chip-magenta { background: #FF2EAB; color: #0E0A12; border-color: #0E0A12; }
-.vhz-chip-purple  { background: #7B2EFF; color: #FFFFFF; border-color: #0E0A12; }
+.sdz-chip-magenta { background: #FF2EAB; color: #0E0A12; border-color: #0E0A12; }
+.sdz-chip-purple  { background: #7B2EFF; color: #FFFFFF; border-color: #0E0A12; }
 
 /* Slide-down panel used for collapsible settings. */
 .collapse-panel {
@@ -371,7 +371,7 @@
     transition-duration: 0.001s !important;
     scroll-behavior: auto !important;
   }
-  .vhz-cta:hover, .vhz-cta:active {
+  .sdz-cta:hover, .sdz-cta:active {
     transform: none !important;
   }
 }
@@ -416,8 +416,8 @@
      * compliant value works in dark mode without change. */
     --gold:      #D89E2F;
   }
-  .vhz-wordmark { text-shadow: 4px 4px 0 var(--accent3); }
-  .vhz-checker { background-color: var(--brand); }
+  .sdz-wordmark { text-shadow: 4px 4px 0 var(--accent3); }
+  .sdz-checker { background-color: var(--brand); }
 }
 
 /* ── AAA opt-in (P6-011) ────────────────────────────────────────────── */
@@ -451,6 +451,6 @@
     --background: Canvas;
     --foreground: CanvasText;
   }
-  .vhz-memphis::before { display: none; }
-  .vhz-wordmark { text-shadow: none; }
+  .sdz-memphis::before { display: none; }
+  .sdz-wordmark { text-shadow: none; }
 }

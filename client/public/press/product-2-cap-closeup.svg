@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Product imagined: macro close-up of a single printed ValveHeadZ cap
+  Product imagined: macro close-up of a single printed StemDomeZ cap
   on a workshop bench. The threading is visible inside the cavity. The
   layer lines are emphasised because the press-kit user wants to see
   what an FDM print actually looks like.
 -->
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" role="img" aria-label="ValveHeadZ printed cap close-up">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" role="img" aria-label="StemDomeZ printed cap close-up">
   <!-- workshop paper -->
   <rect width="1600" height="900" fill="#E5E0CC"/>
   <!-- workbench shadow under the cap -->

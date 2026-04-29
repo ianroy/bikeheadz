@@ -528,7 +528,7 @@ PyMeshLab links MeshLab (GPL). Embedding it directly in the closed-source
 SaaS taints the deployment. Two paths:
 
 1. **Subprocess isolation.** Wrap `pymeshlab` calls in a `python -m
-   valveheadz.repair_subprocess` invocation that exchanges meshes via
+   stemdomez.repair_subprocess` invocation that exchanges meshes via
    temporary STL files. Subprocess output is not derivative work under
    established interpretation, but the included MeshLab binaries are still
    distributed with the image. Document it.

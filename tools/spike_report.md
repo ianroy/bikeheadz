@@ -1,7 +1,7 @@
 # Phase −1 Spike Report — 3D Pipeline Design Validation
 
 **Date:** 2026-04-27
-**Repo:** `valveheadz` @ `main` (e50901e)
+**Repo:** `stemdomez` @ `main` (e50901e)
 **Script:** `tools/spike_phase_minus_1.py` (re-runnable)
 **Raw data:** `tools/spike_results.json`
 

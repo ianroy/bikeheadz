@@ -16,7 +16,7 @@ const PALETTE = [
 ];
 
 const ABOUT =
-  'ValveHeadZ is a small workshop that turns a portrait photo into a printable bike-valve cap shaped like the rider\'s head. The pipeline hands heavy work to a TRELLIS GPU worker and ships a binary STL the user can print at home on a 0.4 mm-nozzle FDM printer, or order shipped from us. The product is built for clubs, group rides, and shops that want personalisation on every bike. We are independent, based in California, and answer the phone.';
+  'StemDomeZ is a small workshop that turns a portrait photo into a printable bike-valve cap shaped like the rider\'s head. The pipeline hands heavy work to a TRELLIS GPU worker and ships a binary STL the user can print at home on a 0.4 mm-nozzle FDM printer, or order shipped from us. The product is built for clubs, group rides, and shops that want personalisation on every bike. We are independent, based in California, and answer the phone.';
 
 function sectionShell(title, body) {
   return el(
@@ -47,7 +47,7 @@ function logoSvg() {
   svg.setAttribute('viewBox', '0 0 360 80');
   svg.setAttribute('width', '320');
   svg.setAttribute('height', '72');
-  svg.setAttribute('aria-label', 'ValveHeadZ wordmark');
+  svg.setAttribute('aria-label', 'StemDomeZ wordmark');
   svg.innerHTML = `
     <g fill="#7B2EFF">
       <path d="M14 18 L4 40 L14 62 L20 62 L12 40 L20 18 Z" />
@@ -56,7 +56,7 @@ function logoSvg() {
             font-family="Georgia, 'Times New Roman', serif"
             font-size="34" font-weight="700"
             letter-spacing="3"
-            fill="#7B2EFF">VALVEHEADZ</text>
+            fill="#7B2EFF">STEMDOMEZ</text>
       <rect x="32" y="58" width="296" height="2" />
     </g>`;
   return svg;
@@ -68,7 +68,7 @@ function monogramSvg() {
   svg.setAttribute('viewBox', '0 0 100 100');
   svg.setAttribute('width', '96');
   svg.setAttribute('height', '96');
-  svg.setAttribute('aria-label', 'ValveHeadZ monogram');
+  svg.setAttribute('aria-label', 'StemDomeZ monogram');
   svg.innerHTML = `
     <circle cx="50" cy="50" r="46" fill="#7B2EFF" />
     <text x="50" y="64" text-anchor="middle"
@@ -276,7 +276,7 @@ export function PressPage() {
   // About
   root.appendChild(
     sectionShell(
-      'About ValveHeadZ',
+      'About StemDomeZ',
       el(
         'p',
         {

@@ -12,7 +12,7 @@
 
 import { el } from '../dom.js';
 
-const DISMISS_KEY = 'vh_install_dismissed';
+const DISMISS_KEY = 'sd_install_dismissed';
 
 export function setupInstallPrompt({ socket } = {}) {
   void socket; // reserved for future analytics
@@ -34,7 +34,7 @@ export function setupInstallPrompt({ socket } = {}) {
   });
 
   // Global hook the home page calls after the *second* successful generation.
-  window.__vhzTriggerInstall = () => {
+  window.__sdzTriggerInstall = () => {
     if (isDismissed()) return false;
     if (!deferredPrompt) return false;
     showBanner();
@@ -88,7 +88,7 @@ export function setupInstallPrompt({ socket } = {}) {
 
     banner = el('div', {
       role: 'dialog',
-      'aria-label': 'Install ValveHeadZ',
+      'aria-label': 'Install StemDomeZ',
       class: 'fixed left-1/2 -translate-x-1/2 flex items-center gap-3 px-4 py-3 rounded-2xl shadow-2xl',
       style: {
         bottom: '16px',
@@ -99,7 +99,7 @@ export function setupInstallPrompt({ socket } = {}) {
       },
     },
       el('div.flex.flex-col', { style: { lineHeight: '1.2' } },
-        el('span', { style: { fontWeight: 700, color: '#0E0A12', fontSize: '0.95rem' } }, 'Install ValveHeadZ'),
+        el('span', { style: { fontWeight: 700, color: '#0E0A12', fontSize: '0.95rem' } }, 'Install StemDomeZ'),
         el('span', { style: { color: '#3D2F4A', fontSize: '0.8rem' } }, 'Add to your home screen for fast access.'),
       ),
       el('div.flex.items-center.gap-2', {}, dismissBtn, installBtn),

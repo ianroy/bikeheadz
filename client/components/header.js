@@ -1,7 +1,7 @@
 import { el, clear } from '../dom.js';
 import { icon } from '../icons.js';
 
-// ValveHeadZ header — Mongoose-BMX styling.
+// StemDomeZ header — Mongoose-BMX styling.
 //
 // Design notes:
 //   • Top is a checker strip (ink × fluoro green) — period detail.
@@ -38,7 +38,7 @@ export function HeaderComponent() {
 
   // Period checker strip across the top of the header.
   const checker = el('div', {
-    class: 'vhz-checker',
+    class: 'sdz-checker',
     style: { height: '6px', width: '100%' },
   });
 
@@ -93,10 +93,10 @@ export function HeaderComponent() {
         }),
         // Wordmark
         el('span', {
-          class: 'vhz-display vhz-wordmark',
+          class: 'sdz-display sdz-wordmark',
           style: { fontSize: '1.4rem', marginLeft: '8px' },
         },
-          'ValveHead',
+          'StemDome',
           el('span', { class: 'z' }, 'Z'),
         ),
       ),
@@ -127,7 +127,7 @@ export function HeaderComponent() {
     const profile = el('a', {
       href: '/account',
       'data-link': '',
-      class: 'ml-3 vhz-memphis',
+      class: 'ml-3 sdz-memphis',
       style: {
         position: 'relative',
         display: 'inline-flex',

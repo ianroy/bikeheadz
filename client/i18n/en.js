@@ -54,7 +54,7 @@ export default {
   'share.button': 'Share',
 
   // Install banner
-  'install.banner.text': 'Install ValveHeadZ on your phone for offline access.',
+  'install.banner.text': 'Install StemDomeZ on your phone for offline access.',
   'install.banner.yes': 'Install',
   'install.banner.no': 'Not now',
 };

@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Product imagined: a pack of four printed ValveHeadZ caps lined up on
+  Product imagined: a pack of four printed StemDomeZ caps lined up on
   a paper card. Each cap has a slightly different head silhouette to
   hint at "your friend group" — three from the front, one in profile.
   Press-kit photo #3.
 -->
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" role="img" aria-label="ValveHeadZ pack of four caps">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" role="img" aria-label="StemDomeZ pack of four caps">
   <!-- workshop paper background -->
   <rect width="1600" height="900" fill="#F5F2E5"/>
   <!-- card under the four caps (slightly off-white kraft) -->

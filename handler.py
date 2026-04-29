@@ -1,5 +1,5 @@
 """
-RunPod Serverless handler for ValveHeadZ.
+RunPod Serverless handler for StemDomeZ.
 
 Contract: one serverless invocation = one STL generation. The Node server
 calls POST /v2/<endpoint>/run with `{ "input": { image_b64, head_scale,
@@ -52,7 +52,7 @@ os.environ.setdefault("SPARSE_ATTN_BACKEND", "xformers")
 # tell from the worker logs whether the running container is actually
 # the image tag we think it is.
 HANDLER_VERSION = "v0.1.34"
-sys.stderr.write(f"[valveheadz] handler.py {HANDLER_VERSION} booting (pid={os.getpid()})\n")
+sys.stderr.write(f"[stemdomez] handler.py {HANDLER_VERSION} booting (pid={os.getpid()})\n")
 sys.stderr.flush()
 
 # ---- Module-load-time diagnostics ------------------------------------------
@@ -490,7 +490,7 @@ def _resolve_pipeline_version(inp):
     ).lower()
     if requested not in _VALID_PIPELINE_VERSIONS:
         sys.stderr.write(
-            f"[valveheadz] unknown PIPELINE_VERSION={requested!r}; falling back to legacy\n"
+            f"[stemdomez] unknown PIPELINE_VERSION={requested!r}; falling back to legacy\n"
         )
         return "legacy"
     return requested
@@ -532,7 +532,7 @@ def handler(job):
             cap_protrusion_fraction = max(0.0, min(0.25, float(cap_protrusion_fraction)))
         seed = int(inp.get("seed", 1))
         pipeline_version = _resolve_pipeline_version(inp)
-        sys.stderr.write(f"[valveheadz] pipeline_version={pipeline_version}\n")
+        sys.stderr.write(f"[stemdomez] pipeline_version={pipeline_version}\n")
 
         # Try the TRELLIS-output cache first. If the same image (+seed)
         # came through within the TTL, we already have its raw mesh on
@@ -560,7 +560,7 @@ def handler(job):
             yield {"type": "progress", "step": "Extracting head mesh…", "pct": 65}
             mesh_result = outputs["mesh"][0]
             sys.stderr.write(
-                f"[valveheadz] mesh_result type={type(mesh_result).__name__}, "
+                f"[stemdomez] mesh_result type={type(mesh_result).__name__}, "
                 f"vertices type={type(getattr(mesh_result, 'vertices', None)).__name__}, "
                 f"faces type={type(getattr(mesh_result, 'faces', None)).__name__}\n"
             )
@@ -570,12 +570,12 @@ def handler(job):
                 faces_np = _to_numpy(mesh_result.faces)
             except Exception as exc:  # noqa: BLE001
                 sys.stderr.write(
-                    f"[valveheadz] _to_numpy crash: {type(exc).__name__}: {exc}\n"
+                    f"[stemdomez] _to_numpy crash: {type(exc).__name__}: {exc}\n"
                 )
                 sys.stderr.flush()
                 raise
             sys.stderr.write(
-                f"[valveheadz] mesh tensors → numpy: "
+                f"[stemdomez] mesh tensors → numpy: "
                 f"verts shape={vertices_np.shape}, faces shape={faces_np.shape}\n"
             )
             sys.stderr.flush()
@@ -583,7 +583,7 @@ def handler(job):
                 vertices=vertices_np, faces=faces_np, process=True,
             )
             head.fix_normals()
-            sys.stderr.write(f"[valveheadz] head built: {len(head.faces)} tris\n")
+            sys.stderr.write(f"[stemdomez] head built: {len(head.faces)} tris\n")
             sys.stderr.flush()
             # Cache the freshly-generated raw head for next time. This
             # is best-effort; failures don't break the pipeline.
@@ -597,7 +597,7 @@ def handler(job):
             try:
                 from pipeline import run_v1, PipelineError
             except ImportError as e:
-                sys.stderr.write(f"[valveheadz] v1 pipeline not importable: {e}\n")
+                sys.stderr.write(f"[stemdomez] v1 pipeline not importable: {e}\n")
                 _write_failure(job_id, image_b64, code="v1_pipeline_unavailable",
                               stage="import", message=str(e))
                 yield {"type": "error", "error": f"v1_pipeline_unavailable: {e}"}
@@ -698,7 +698,7 @@ def handler(job):
         }
     except Exception as err:  # noqa: BLE001
         sys.stderr.write(
-            f"[valveheadz] CRASH {type(err).__name__}: {err}\n"
+            f"[stemdomez] CRASH {type(err).__name__}: {err}\n"
         )
         sys.stderr.write(traceback.format_exc())
         sys.stderr.flush()

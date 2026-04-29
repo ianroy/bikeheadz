@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Product imagined: a printed ValveHeadZ cap screwed onto a Schrader
+  Product imagined: a printed StemDomeZ cap screwed onto a Schrader
   valve on a black mountain-bike tire, three-quarter angle, workshop
   cream paper background. Press-kit photo #1.
 
   All vector; the "rubber" texture is a series of subtle parallel
   lines so the impression survives at thumbnail size.
 -->
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" role="img" aria-label="ValveHeadZ cap on a Schrader valve">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" role="img" aria-label="StemDomeZ cap on a Schrader valve">
   <!-- background -->
   <rect width="1600" height="900" fill="#F5F2E5"/>
   <!-- subtle paper grain via diagonal hatch -->
@@ -44,7 +44,7 @@
       <rect x="0" y="176" width="40" height="4"/>
       <rect x="0" y="190" width="40" height="4"/>
     </g>
-    <!-- printed ValveHeadZ cap on top of stem -->
+    <!-- printed StemDomeZ cap on top of stem -->
     <g transform="translate(-90 0)">
       <!-- cap body (red) -->
       <rect x="0" y="40" width="220" height="120" rx="14" fill="#7B2EFF"/>

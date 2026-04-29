@@ -33,7 +33,7 @@ export function LocaleSwitcher() {
 
   // Stay in sync when other components flip the locale.
   if (typeof window !== 'undefined') {
-    window.addEventListener('vh:localechange', (ev) => {
+    window.addEventListener('sd:localechange', (ev) => {
       const next = ev?.detail?.locale ?? getLocale();
       if (select.value !== next) select.value = next;
     });

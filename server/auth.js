@@ -27,7 +27,7 @@ import { db, hasDb } from './db.js';
 import { logger } from './logger.js';
 import { CommandError, ErrorCode } from './errors.js';
 
-const COOKIE_NAME = process.env.AUTH_COOKIE_NAME || 'vh_session';
+const COOKIE_NAME = process.env.AUTH_COOKIE_NAME || 'sd_session';
 const COOKIE_MAX_AGE_S = Number(process.env.AUTH_COOKIE_MAX_AGE_S) || 60 * 60 * 24 * 30; // 30d
 const TOKEN_TTL_MS = Number(process.env.AUTH_TOKEN_TTL_MS) || 15 * 60 * 1000;
 
@@ -40,7 +40,7 @@ function resolveAuthSecret() {
       msg: 'auth.using_dev_secret',
       hint: 'set AUTH_SECRET to a 32+ byte random string',
     });
-    return 'valveheadz-dev-only-do-not-use-in-prod';
+    return 'stemdomez-dev-only-do-not-use-in-prod';
   }
   const seed = process.env.DATABASE_URL || process.env.PUBLIC_URL || '';
   if (seed) {

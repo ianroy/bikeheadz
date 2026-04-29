@@ -69,7 +69,7 @@ export function HomePage({ socket }) {
   center.appendChild(
     el('div', { class: 'relative' },
       el('h1', {
-        class: 'vhz-display',
+        class: 'sdz-display',
         style: {
           fontSize: '2.2rem',
           color: 'var(--ink)',
@@ -111,7 +111,7 @@ export function HomePage({ socket }) {
   function renderUploader() {
     clear(uploaderSlot);
     const box = el('div', {
-      class: 'relative rounded-2xl border-2 border-dashed transition-all duration-200 cursor-pointer vhz-memphis',
+      class: 'relative rounded-2xl border-2 border-dashed transition-all duration-200 cursor-pointer sdz-memphis',
       style: {
         '--memphis-offset': '6px',
         '--memphis-color': 'var(--accent2)',
@@ -162,7 +162,7 @@ export function HomePage({ socket }) {
           el(
             'button',
             {
-              class: 'vhz-cta vhz-cta-secondary mt-2',
+              class: 'sdz-cta sdz-cta-secondary mt-2',
               style: { fontSize: '0.78rem', padding: '0.5rem 1rem' },
               onClick: (e) => {
                 e.stopPropagation();
@@ -776,7 +776,7 @@ export function HomePage({ socket }) {
       state.designTriangles = result.triangles || 0;
       state.stlData = result.stl_b64 || null;
       state.stlReady = true;
-      sessionStorage.setItem('valveheadz.designId', result.designId);
+      sessionStorage.setItem('stemdomez.designId', result.designId);
       renderFeedback();
     } catch (err) {
       console.error('stl.generate failed', err);

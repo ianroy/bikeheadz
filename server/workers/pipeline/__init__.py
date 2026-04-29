@@ -1,4 +1,4 @@
-"""ValveHeadZ mesh pipeline — the v1 codepath.
+"""StemDomeZ mesh pipeline — the v1 codepath.
 
 This package replaces the placeholder ``_merge`` in ``handler.py``
 (repo-root) with the seven-stage pipeline documented in

@@ -1,4 +1,4 @@
-# Digital Ocean App Platform spec for ValveHeadZ.
+# Digital Ocean App Platform spec for StemDomeZ.
 # Docs: https://docs.digitalocean.com/products/app-platform/reference/app-spec/
 #
 # Architecture:
@@ -15,7 +15,7 @@
 #   • All config comes from environment variables (12-factor §3).
 #   • stdout/stderr are captured by the platform as the log stream (§11).
 
-name: valveheadz
+name: stemdomez
 region: nyc
 
 features:
@@ -31,7 +31,7 @@ services:
     github:
       branch: main
       deploy_on_push: true
-      # repo: your-org/valveheadz    # fill in when wiring to GitHub
+      # repo: your-org/stemdomez    # fill in when wiring to GitHub
     build_command: npm install && npm run build
     run_command: node server/index.js
     health_check:
@@ -103,7 +103,7 @@ services:
       # ── Email (Resend or Postmark; both keys safe to leave blank) ──
       - key: EMAIL_FROM
         scope: RUN_TIME
-        value: "ValveHeadZ <noreply@valveheadz.app>"
+        value: "StemDomeZ <noreply@stemdomez.app>"
       - key: RESEND_API_KEY
         scope: RUN_TIME
         type: SECRET

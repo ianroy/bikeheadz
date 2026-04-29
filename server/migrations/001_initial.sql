@@ -1,4 +1,4 @@
--- Initial schema for ValveHeadZ on PostgreSQL 18 (Digital Ocean Managed).
+-- Initial schema for StemDomeZ on PostgreSQL 18 (Digital Ocean Managed).
 
 CREATE TABLE IF NOT EXISTS accounts (
   id            BIGINT PRIMARY KEY,

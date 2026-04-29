@@ -17,16 +17,16 @@ const FAQ = [
     a: 'PLA on a 0.4 mm nozzle is what we tune the pipeline for: walls are 1.2 mm (3× nozzle width) and the threaded section relies on PLA\'s low shrinkage. PETG, ABS, and ASA work but you may need to tighten clearances by 0.05–0.10 mm to keep the threads tight against a Schrader valve.',
   },
   {
-    q: 'How do I install my ValveHeadZ cap on a real valve?',
+    q: 'How do I install my StemDomeZ cap on a real valve?',
     a: 'Print cap-down (the flat circular face goes on the bed). Once printed, just twist it onto a standard Schrader valve like a regular dust cap — the threads are sized to bite against the inside walls of the cap and form a snug press-fit. No glue or tools required.',
   },
   {
-    q: 'How long does shipping take if I order from ValveHeadZ?',
+    q: 'How long does shipping take if I order from StemDomeZ?',
     a: 'Print-to-door is 3–5 business days for US/EU addresses, 7–10 days elsewhere. We print on demand — there is no "in stock" inventory — so a delay between order and ship is normal. You\'ll get a tracking link by email when the package leaves our shop.',
   },
   {
     q: 'What is your refund policy?',
-    a: 'Refunds are available within 14 days of purchase, less any costs already incurred for printing or shipping. Email help@valveheadz.app with your order id and we\'ll process the refund through Stripe within two business days.',
+    a: 'Refunds are available within 14 days of purchase, less any costs already incurred for printing or shipping. Email help@stemdomez.app with your order id and we\'ll process the refund through Stripe within two business days.',
   },
   {
     q: 'What kind of photo gives the best result?',
@@ -34,7 +34,7 @@ const FAQ = [
   },
   {
     q: 'My print failed (warped, didn\'t adhere, looked off). What do I do?',
-    a: 'Send us the failed print + a photo of the slicer settings to help@valveheadz.app and we\'ll either send a corrected STL free of charge or refund the order. The most common causes we\'ve seen: print orientation other than cap-down, layer height >0.2 mm, or non-PLA filament without clearance compensation. See the printing guide on `/how-it-works` for the recommended profile.',
+    a: 'Send us the failed print + a photo of the slicer settings to help@stemdomez.app and we\'ll either send a corrected STL free of charge or refund the order. The most common causes we\'ve seen: print orientation other than cap-down, layer height >0.2 mm, or non-PLA filament without clearance compensation. See the printing guide on `/how-it-works` for the recommended profile.',
   },
   {
     q: 'What 3D file formats do you support?',
@@ -54,7 +54,7 @@ const FAQ = [
   },
   {
     q: 'I have a question that isn\'t answered here. How do I reach support?',
-    a: 'Email help@valveheadz.app — we read every message and respond within one business day. For abuse reports use abuse@valveheadz.app, and for security issues use security@valveheadz.app (PGP key on request, see /security).',
+    a: 'Email help@stemdomez.app — we read every message and respond within one business day. For abuse reports use abuse@stemdomez.app, and for security issues use security@stemdomez.app (PGP key on request, see /security).',
   },
 ];
 
@@ -144,7 +144,7 @@ export function HelpPage() {
               textAlign: 'center',
             },
           },
-          'No questions match. Try a different keyword, or email help@valveheadz.app.'
+          'No questions match. Try a different keyword, or email help@stemdomez.app.'
         )
       );
       return;

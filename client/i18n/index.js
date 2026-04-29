@@ -8,7 +8,7 @@
 //   import { t, setLocale, getLocale } from './i18n/index.js';
 //   t('cta.generate');           // → 'Generate' / 'Generar'
 //   t('share.copied');           // → 'Link copied'
-//   setLocale('es');             // emits window 'vh:localechange'
+//   setLocale('es');             // emits window 'sd:localechange'
 //
 // Variable interpolation uses {name} placeholders:
 //   t('greeting', { name: 'Sam' })  // dict: 'greeting': 'Hi {name}!'
@@ -21,7 +21,7 @@ export const availableLocales = ['en', 'es'];
 const dictionaries = { en, es };
 
 const FALLBACK = 'en';
-const STORAGE_KEY = 'vh_locale';
+const STORAGE_KEY = 'sd_locale';
 
 function detectLocale() {
   try {
@@ -46,7 +46,7 @@ export function setLocale(locale) {
   currentLocale = locale;
   try { localStorage.setItem(STORAGE_KEY, locale); } catch { /* ignore */ }
   if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('vh:localechange', { detail: { locale } }));
+    window.dispatchEvent(new CustomEvent('sd:localechange', { detail: { locale } }));
   }
 }
 

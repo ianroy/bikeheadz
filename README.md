@@ -1,4 +1,4 @@
-# ValveHeadZ — your face on a bike valve cap
+# StemDomeZ — your face on a bike valve cap
 
 <p>
   <img alt="Node" src="https://img.shields.io/badge/node-22.x-3c873a">
@@ -8,13 +8,13 @@
   <img alt="Deploy" src="https://img.shields.io/badge/deploy-Digital%20Ocean%20App%20Platform-0080FF">
   <img alt="Pipeline" src="https://img.shields.io/badge/pipeline-v1%20%E2%9C%93%20shipped-22c55e">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-blue">
-  <a href="https://console.runpod.io/hub/ianroy/valveheadz"><img alt="RunPod Hub" src="https://api.runpod.io/badge/ianroy/valveheadz"></a>
+  <a href="https://console.runpod.io/hub/ianroy/stemdomez"><img alt="RunPod Hub" src="https://api.runpod.io/badge/ianroy/stemdomez"></a>
 </p>
 
 > Upload a portrait → 3D-printable Schrader valve cap with your head on
 > top. $2 STL download. Optional print-and-ship tiers on the way.
 
-ValveHeadZ turns a selfie into an FDM/PLA-printable bike valve stem cap.
+StemDomeZ turns a selfie into an FDM/PLA-printable bike valve stem cap.
 Photo lands on the server, Microsoft's
 [TRELLIS](https://github.com/Microsoft/TRELLIS) image-to-3D model
 generates a head mesh on a RunPod Serverless GPU, a seven-stage CAD
@@ -121,7 +121,7 @@ cp .env.example .env
 # at minimum set STRIPE_SECRET_KEY=sk_test_… for local checkout
 
 # 3. (optional) Postgres — the app runs in-memory without one
-createdb valveheadz && npm run migrate
+createdb stemdomez && npm run migrate
 
 # 4. Boot
 npm install

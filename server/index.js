@@ -144,26 +144,26 @@ app.get('/metrics', (req, res) => {
   }
   res.set('Content-Type', 'text/plain; version=0.0.4');
   const lines = [];
-  lines.push('# HELP valveheadz_active_sockets active socket.io connections');
-  lines.push('# TYPE valveheadz_active_sockets gauge');
-  lines.push(`valveheadz_active_sockets ${metrics.active_sockets}`);
-  lines.push('# HELP valveheadz_command_total command count by name');
-  lines.push('# TYPE valveheadz_command_total counter');
+  lines.push('# HELP stemdomez_active_sockets active socket.io connections');
+  lines.push('# TYPE stemdomez_active_sockets gauge');
+  lines.push(`stemdomez_active_sockets ${metrics.active_sockets}`);
+  lines.push('# HELP stemdomez_command_total command count by name');
+  lines.push('# TYPE stemdomez_command_total counter');
   for (const [name, n] of metrics.cmd_total) {
-    lines.push(`valveheadz_command_total{name="${name}"} ${n}`);
+    lines.push(`stemdomez_command_total{name="${name}"} ${n}`);
   }
-  lines.push('# HELP valveheadz_command_error_total command error count by name');
-  lines.push('# TYPE valveheadz_command_error_total counter');
+  lines.push('# HELP stemdomez_command_error_total command error count by name');
+  lines.push('# TYPE stemdomez_command_error_total counter');
   for (const [name, n] of metrics.cmd_error_total) {
-    lines.push(`valveheadz_command_error_total{name="${name}"} ${n}`);
+    lines.push(`stemdomez_command_error_total{name="${name}"} ${n}`);
   }
-  lines.push('# HELP valveheadz_stl_latency_ms last 100 stl.generate latencies');
-  lines.push('# TYPE valveheadz_stl_latency_ms summary');
+  lines.push('# HELP stemdomez_stl_latency_ms last 100 stl.generate latencies');
+  lines.push('# TYPE stemdomez_stl_latency_ms summary');
   if (metrics.stl_latency_ms.length) {
     const sorted = [...metrics.stl_latency_ms].sort((a, b) => a - b);
-    lines.push(`valveheadz_stl_latency_ms{quantile="0.5"} ${sorted[Math.floor(sorted.length * 0.5)]}`);
-    lines.push(`valveheadz_stl_latency_ms{quantile="0.95"} ${sorted[Math.floor(sorted.length * 0.95)] || 0}`);
-    lines.push(`valveheadz_stl_latency_ms_count ${sorted.length}`);
+    lines.push(`stemdomez_stl_latency_ms{quantile="0.5"} ${sorted[Math.floor(sorted.length * 0.5)]}`);
+    lines.push(`stemdomez_stl_latency_ms{quantile="0.95"} ${sorted[Math.floor(sorted.length * 0.95)] || 0}`);
+    lines.push(`stemdomez_stl_latency_ms_count ${sorted.length}`);
   }
   res.send(lines.join('\n') + '\n');
 });
@@ -189,7 +189,7 @@ app.get('/auth/consume', async (req, res) => {
 
 // ── P1-001 — POST endpoint for SPA to clear the cookie on logout.
 app.post('/auth/logout', (_req, res) => {
-  res.setHeader('Set-Cookie', `vh_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`);
+  res.setHeader('Set-Cookie', `sd_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`);
   res.json({ ok: true });
 });
 
@@ -199,12 +199,12 @@ app.get('/.well-known/security.txt', (_req, res) => {
   res.set('Content-Type', 'text/plain');
   res.send(
     [
-      'Contact: mailto:security@valveheadz.app',
+      'Contact: mailto:security@stemdomez.app',
       'Preferred-Languages: en',
       `Expires: ${expires}`,
-      'Acknowledgments: https://valveheadz.app/security',
-      'Policy: https://valveheadz.app/security',
-      'Canonical: https://valveheadz.app/.well-known/security.txt',
+      'Acknowledgments: https://stemdomez.app/security',
+      'Policy: https://stemdomez.app/security',
+      'Canonical: https://stemdomez.app/.well-known/security.txt',
     ].join('\n') + '\n'
   );
 });
@@ -212,7 +212,7 @@ app.get('/.well-known/security.txt', (_req, res) => {
 // ── X-010 — robots.txt + sitemap.xml.
 app.get('/robots.txt', (_req, res) => {
   res.set('Content-Type', 'text/plain');
-  const base = process.env.APP_URL || 'https://valveheadz.app';
+  const base = process.env.APP_URL || 'https://stemdomez.app';
   res.send(
     [
       'User-agent: *',
@@ -227,7 +227,7 @@ app.get('/robots.txt', (_req, res) => {
 });
 
 app.get('/sitemap.xml', (_req, res) => {
-  const base = (process.env.APP_URL || 'https://valveheadz.app').replace(/\/$/, '');
+  const base = (process.env.APP_URL || 'https://stemdomez.app').replace(/\/$/, '');
   const lastmod = new Date().toISOString().slice(0, 10);
   const urls = [
     '/',
@@ -272,8 +272,8 @@ app.get('/d/:token', async (req, res, next) => {
   if (!isBot) return next();
 
   const token = String(req.params.token || '');
-  let title = 'ValveHeadZ — shared design';
-  let description = "Someone's ValveHeadZ cap. Tap Remix to make your own.";
+  let title = 'StemDomeZ — shared design';
+  let description = "Someone's StemDomeZ cap. Tap Remix to make your own.";
   let imageUrl = `${process.env.APP_URL || ''}/og.png`;
   try {
     const dot = token.indexOf('.');
@@ -286,7 +286,7 @@ app.get('/d/:token', async (req, res, next) => {
           [designId]
         );
         if (rows[0]?.display_name) {
-          title = `${rows[0].display_name}'s ValveHeadZ cap`;
+          title = `${rows[0].display_name}'s StemDomeZ cap`;
         }
       }
       imageUrl = `${process.env.APP_URL || ''}/og/d/${encodeURIComponent(token)}.svg`;
@@ -319,7 +319,7 @@ app.get('/og/d/:token.svg', (req, res) => {
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
   <rect width="1200" height="630" fill="#FAF7F2" />
   <rect x="40" y="40" width="1120" height="550" rx="24" fill="#FFFFFF" stroke="#E5DFD3" stroke-width="2" />
-  <text x="80" y="180" font-family="-apple-system, system-ui, sans-serif" font-size="64" font-weight="800" fill="#C71F1F">ValveHeadZ</text>
+  <text x="80" y="180" font-family="-apple-system, system-ui, sans-serif" font-size="64" font-weight="800" fill="#C71F1F">StemDomeZ</text>
   <text x="80" y="260" font-family="-apple-system, system-ui, sans-serif" font-size="38" fill="#1A1614">Your face on a Schrader valve cap</text>
   <text x="80" y="540" font-family="ui-monospace, monospace" font-size="20" fill="#6B6157">/d/${safe.slice(0, 36)}</text>
 </svg>`);
@@ -343,8 +343,8 @@ app.get('/u/:username', async (req, res, next) => {
     res.set('Content-Type', 'text/html; charset=utf-8');
     res.send(`<!doctype html><html lang="en"><head>
       <meta charset="utf-8" />
-      <title>${safe(rows[0].display_name)} on ValveHeadZ</title>
-      <meta property="og:title" content="${safe(rows[0].display_name)} on ValveHeadZ" />
+      <title>${safe(rows[0].display_name)} on StemDomeZ</title>
+      <meta property="og:title" content="${safe(rows[0].display_name)} on StemDomeZ" />
       <meta property="og:type" content="profile" />
       <meta http-equiv="refresh" content="0; url=${safe(req.originalUrl)}" />
     </head><body>${safe(rows[0].display_name)}</body></html>`);

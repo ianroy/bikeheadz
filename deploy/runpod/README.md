@@ -1,4 +1,4 @@
-# ValveHeadZ × RunPod Serverless deployment guide
+# StemDomeZ × RunPod Serverless deployment guide
 
 > **Read this first if you're deploying.** Read
 > [`docs/RUNPOD_TRELLIS_PLAYBOOK.md`](../../docs/RUNPOD_TRELLIS_PLAYBOOK.md)
@@ -8,7 +8,7 @@
 > debugging run paid for. This file covers the *deployment* steps; the
 > playbook covers the *why* behind handler design choices.
 
-The TRELLIS GPU worker for ValveHeadZ is packaged as a RunPod **Hub** listing
+The TRELLIS GPU worker for StemDomeZ is packaged as a RunPod **Hub** listing
 (RunPod's GitHub-backed serverless template system). Everything it needs is
 in the repo:
 
@@ -31,7 +31,7 @@ local Python spawn path in `server/workers/trellis_generate.py`.
 ## Deploying via RunPod Hub (recommended)
 
 You already selected **Serverless repos** in the RunPod dashboard and
-pointed it at `ianroy/valveheadz`. The Hub wizard's six steps map to this
+pointed it at `ianroy/stemdomez`. The Hub wizard's six steps map to this
 repo like so:
 
 | Step | What the wizard wants       | Where it lives / what to do                                   |
@@ -59,7 +59,7 @@ v0.1.0 → Publish release`.
 Within a minute or two RunPod will pick up the tag, run a Docker build
 from your `Dockerfile`, execute `.runpod/tests.json`, and (if tests
 pass) list a ready endpoint on your account. Watch progress on the
-repo's Hub page: `https://console.runpod.io/hub/ianroy/valveheadz`.
+repo's Hub page: `https://console.runpod.io/hub/ianroy/stemdomez`.
 
 ### After the build succeeds
 
@@ -97,7 +97,7 @@ Then:
 3. Save. The next request lands on the new image.
 
 **Always bump `HANDLER_VERSION` in `handler.py`** in the same commit.
-The boot log prints `[valveheadz] handler.py vX.X.X booting` — the first
+The boot log prints `[stemdomez] handler.py vX.X.X booting` — the first
 thing you grep for when debugging in production. If the banner doesn't
 match what you expect, you have a deploy problem, not a code problem.
 
@@ -113,7 +113,7 @@ attach a **Network Volume** to the endpoint the download happens once
 and persists across cold starts.
 
 1. RunPod dashboard → **Storage → Network Volumes → + New**.
-2. Name `valveheadz-models`, **same region** as your endpoint (e.g.
+2. Name `stemdomez-models`, **same region** as your endpoint (e.g.
    `US-OR-1`), size `25 GB` (~$1.75/mo).
 3. Endpoint settings → attach this volume at `/runpod-volume`.
 4. Send one **Test Request** from the endpoint page:
@@ -145,7 +145,7 @@ repo root:
 docker login
 docker buildx build \
   --platform linux/amd64 \
-  -t <your-dockerhub-username>/valveheadz-trellis:latest \
+  -t <your-dockerhub-username>/stemdomez-trellis:latest \
   --push .
 ```
 

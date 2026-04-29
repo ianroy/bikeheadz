@@ -1,4 +1,4 @@
-"""Error taxonomy for the ValveHeadZ mesh pipeline.
+"""Error taxonomy for the StemDomeZ mesh pipeline.
 
 Every failure path in the pipeline raises a ``PipelineError`` with one
 of the codes below. The handler turns these into the

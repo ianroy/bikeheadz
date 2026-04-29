@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-ValveHeadZ — WCAG 2.2 contrast audit.
+StemDomeZ — WCAG 2.2 contrast audit.
 
 Computes the relative-luminance contrast ratio for every documented
 text/background pairing in the Mongoose BMX palette across:
@@ -58,7 +58,7 @@ LIGHT = {
     'accent3-dim': '#CE1F8B',
     'gold':        '#7C5E1F',  # darkened from #D89E2F (was 2.11, now 5.38)
     'white':       '#FFFFFF',
-    # Chip surfaces — pinned literals (see .vhz-chip in theme.css).
+    # Chip surfaces — pinned literals (see .sdz-chip in theme.css).
     'chip-bg-fluoro':  '#2EFF8C',
     'chip-bg-magenta': '#FF2EAB',
     'chip-bg-purple':  '#7B2EFF',
@@ -85,7 +85,7 @@ DARK = {
     'accent3-dim': '#CE1F8B',
     'gold':        '#D89E2F',
     'white':       '#FFFFFF',
-    # Chip colors are pinned to literal hexes (see .vhz-chip rules in
+    # Chip colors are pinned to literal hexes (see .sdz-chip rules in
     # theme.css) so they look identical in light + dark. Audit them
     # here as fixed surfaces, not as theme-tokens.
     'chip-bg-fluoro':  '#2EFF8C',
@@ -93,7 +93,7 @@ DARK = {
     'chip-bg-purple':  '#7B2EFF',
     'chip-fg-ink':     '#0E0A12',
     'chip-fg-white':   '#FFFFFF',
-    # CTA surface is also pinned to literals (see .vhz-cta).
+    # CTA surface is also pinned to literals (see .sdz-cta).
     'cta-bg':          '#7B2EFF',
     'cta-fg':          '#FFFFFF',
 }
@@ -107,7 +107,7 @@ AAA = {
     'ink-soft':    '#14091F',
     'ink-muted':   '#2A1A40',
     # Chips stay at full saturation across all themes — that's what
-    # the .vhz-chip rules in theme.css actually do (literal hexes,
+    # the .sdz-chip rules in theme.css actually do (literal hexes,
     # not vars). Auditing them as theme-stable.
     'chip-bg-fluoro':  '#2EFF8C',
     'chip-bg-magenta': '#FF2EAB',
@@ -139,11 +139,11 @@ PAIRINGS = [
     ('Brand-dim hover',                    'brand-dim',   'paper',       'normal'),
     ('Brand-light (large display only)',   'brand-light', 'paper',       'large'),
 
-    # ── CTA button surfaces (literal-pinned, see .vhz-cta) ────────────
+    # ── CTA button surfaces (literal-pinned, see .sdz-cta) ────────────
     ('Primary CTA label',                  'cta-fg',      'cta-bg',      'normal'),
     ('Secondary CTA label (ink on paper)', 'ink',         'paper',       'normal'),
 
-    # ── Accent chips (pinned literal colors, see .vhz-chip rules) ─────
+    # ── Accent chips (pinned literal colors, see .sdz-chip rules) ─────
     ('Chip — fluoro / ink',                'chip-fg-ink',   'chip-bg-fluoro',  'normal'),
     ('Chip — magenta / ink',               'chip-fg-ink',   'chip-bg-magenta', 'normal'),
     ('Chip — purple / white',              'chip-fg-white', 'chip-bg-purple',  'normal'),
@@ -189,7 +189,7 @@ def report(palette_name, palette):
 
 
 def main():
-    print('ValveHeadZ — WCAG 2.2 contrast audit')
+    print('StemDomeZ — WCAG 2.2 contrast audit')
     all_fails = []
     for name, pal in [('LIGHT', LIGHT), ('DARK', DARK), ('AAA opt-in', AAA)]:
         all_fails.extend(report(name, pal))

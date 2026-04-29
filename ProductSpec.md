@@ -1,7 +1,7 @@
-# ProductSpec — ValveHeadZ developer onboarding
+# ProductSpec — StemDomeZ developer onboarding
 
 > **Who this is for**: engineers (human or agentic) who need to build,
-> extend, or operate ValveHeadZ. Start at the top; skim the TL;DR; deep-dive
+> extend, or operate StemDomeZ. Start at the top; skim the TL;DR; deep-dive
 > into the section that matches your task.
 
 ---
@@ -54,7 +54,7 @@
 
 ## 2. Mental model
 
-ValveHeadZ is the Node app coordinating four backends through two protocols:
+StemDomeZ is the Node app coordinating four backends through two protocols:
 
 ```
                                                   ┌─ RunPod Serverless (prod) ──┐
@@ -135,7 +135,7 @@ Three invariants hold everywhere:
   `child_process.spawn(PYTHON_BIN, [WORKER])`.
 - **GPU worker image** (prod): GitHub Actions builds the Dockerfile on
   each release tag and pushes to GHCR
-  (`ghcr.io/ianroy/valveheadz:<tag>` and `:latest`). RunPod Serverless
+  (`ghcr.io/ianroy/stemdomez:<tag>` and `:latest`). RunPod Serverless
   pulls the image; weights cache to a Network Volume mounted at
   `/runpod-volume/hf` so cold-starts after the first request stay quick.
 
@@ -428,7 +428,7 @@ Everything is read from `process.env` at startup. Canonical list in
   does not validate under Node's default trust store; this matches DO's
   own Node.js connection recipe.
 - **`APP_URL`** is used to build Stripe success/cancel URLs. Set it to your
-  production domain (e.g. `https://valveheadz.ondigitalocean.app`).
+  production domain (e.g. `https://stemdomez.ondigitalocean.app`).
 - **`STRIPE_PRICE_STL_CENTS`** overrides the STL-download price without code changes.
 - **`RUNPOD_ENDPOINT_URL`** — base URL of the RunPod Serverless endpoint,
   e.g. `https://api.runpod.ai/v2/k7ys399t88zplj`. When this **and**
@@ -640,7 +640,7 @@ order, tracked by `schema_migrations`.
 
 - **Worker logs** stream from RunPod's runtime. Look in RunPod Console →
   endpoint → Workers → \[worker id\] → Logs. Lines prefixed with
-  `[valveheadz]`, `[probe]`, `[diag]`, `[trellis]`, `[stage*]`,
+  `[stemdomez]`, `[probe]`, `[diag]`, `[trellis]`, `[stage*]`,
   `[telemetry]` come from `handler.py`.
 - **Image versioning**: `HANDLER_VERSION` is a string at the top of
   `handler.py` printed at module load time. Bump it when changing the
@@ -702,7 +702,7 @@ Phase 4. The full diagnostic playbook for the GPU tier is in
 | Client shows "Generating… 0%" forever (local backend)      | Python worker isn't installed / `PYTHON_BIN` wrong / `TRELLIS_PATH` invalid. Check `stderr` under `worker.stderr`. |
 | `runpod_no_result (last_status=COMPLETED)` after only ~2 min | The worker finished but the Node tier never reassembled chunks. Check the worker log for `Failed to return job results. \| 400, message='Bad Request'`. If the URL has `isStream=false`, you're hitting the aggregate-POST cap — confirm `return_aggregate_stream=False` is set in `handler.py`. If `isStream=true`, individual chunks are too big — reduce CHUNK_SIZE. See [docs/RUNPOD_TRELLIS_PLAYBOOK.md §3–§5](docs/RUNPOD_TRELLIS_PLAYBOOK.md). |
 | `runpod_no_result (last_status=IN_QUEUE)` after 12 min     | RunPod has the job but no worker picked it up. Check RunPod Console → endpoint → Workers tab: is **Max Workers** ≥ 1? Are workers **Throttled** (region out of GPUs)? Is the active image actually the latest tag? Click **Manage → New Release** to re-pull. |
-| Worker log doesn't show `[valveheadz] handler.py vX.X.X booting` for the version you expect | RunPod is still on the old image. Open Manage → New Release → paste the new GHCR tag. Don't debug code that isn't running. |
+| Worker log doesn't show `[stemdomez] handler.py vX.X.X booting` for the version you expect | RunPod is still on the old image. Open Manage → New Release → paste the new GHCR tag. Don't debug code that isn't running. |
 | Pipeline crashes at stage 1.5 with `non_manifold_input_unrepairable` | The hard gate from older code revisions. Stage 1.5 has been a **warning** since v0.1.34 — pull the latest. |
 | `runpod_http_401` from `runRunpod`                         | `RUNPOD_API_KEY` invalid or expired. Regenerate in RunPod Console → API Keys; update DO Settings → App-Level Environment Variables. |
 | `runpod_worker_error:no module named 'X'` at boot          | Image build dropped a dependency. Common case: setup.sh's PyTorch-version case-statement misses `2.4.0+cu121` and the corresponding CUDA wheel never installs. Fix in `Dockerfile` with an explicit `pip install` and bump `HANDLER_VERSION`. See playbook §9. |

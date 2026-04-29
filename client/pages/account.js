@@ -574,7 +574,7 @@ export function AccountPage({ socket }) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = res.filename || 'ValveHeadZ_ValveStem.stl';
+      a.download = res.filename || 'StemDomeZ_ValveStem.stl';
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
@@ -587,7 +587,7 @@ export function AccountPage({ socket }) {
       const res = await socket.request('designs.createShareLink', { designId: design.id });
       const url = `${location.origin}/d/${res.token}`;
       if (navigator.share) {
-        await navigator.share({ title: 'My ValveHeadZ', text: 'Check out my design.', url });
+        await navigator.share({ title: 'My StemDomeZ', text: 'Check out my design.', url });
       } else if (navigator.clipboard) {
         await navigator.clipboard.writeText(url);
         window.alert('Share link copied to clipboard.');
@@ -617,7 +617,7 @@ export function AccountPage({ socket }) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `valveheadz-export-${new Date().toISOString().slice(0, 10)}.json`;
+      a.download = `stemdomez-export-${new Date().toISOString().slice(0, 10)}.json`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {

@@ -1,6 +1,6 @@
 # Attributions
 
-ValveHeadZ is built on the shoulders of several open-source projects and
+StemDomeZ is built on the shoulders of several open-source projects and
 content licenses. Thank you to all the maintainers below.
 
 ## Code & libraries
@@ -40,8 +40,8 @@ content licenses. Thank you to all the maintainers below.
 
 - Photos from [Unsplash](https://unsplash.com) used under their
   [license](https://unsplash.com/license).
-- ValveHeadZ wordmark, illustrations, and the workshop palette are © 2026
-  ValveHeadZ Ltd.
+- StemDomeZ wordmark, illustrations, and the workshop palette are © 2026
+  StemDomeZ Ltd.
 
 ## Worker images
 

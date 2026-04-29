@@ -8,7 +8,7 @@ import { CommandError, ErrorCode } from '../errors.js';
 
 const DEFAULT_PROFILE = {
   displayName: 'Alex Rider',
-  email: 'alex@valveheadz.com',
+  email: 'alex@stemdomez.com',
   preferences: { shipNotify: true, marketing: false, defaultChrome: true },
 };
 

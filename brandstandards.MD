@@ -1,4 +1,4 @@
-# ValveHeadZ — Brand Standards
+# StemDomeZ — Brand Standards
 
 > One-page reference. **Mongoose BMX palette + retro-90s skate-shop
 > vocabulary.** Race day at the trails, 1993. Neon purple is the brand;
@@ -11,14 +11,19 @@ Last updated: 2026-04-29 · Maintainer: Ian Roy.
 
 ## 1. Name
 
-- **ValveHeadZ** — capital V, capital H, capital Z. One word, no
+- **StemDomeZ** — capital S, capital D, capital Z. One word, no
   space, no hyphen.
 - **Lowercase form** (slugs, package names, env keys, URLs, file
-  paths): `valveheadz`.
-- **Plural / possessive** stays case-true: "your ValveHeadZ", "all
-  ValveHeadZ caps."
-- **Don't write**: ValveHeadz, Valveheadz, valveheadZ, VALVEHEADZ in
-  body copy, "Valve Headz", "VHZ" as a name (VHZ is the monogram only).
+  paths): `stemdomez`.
+- **Plural / possessive** stays case-true: "your StemDomeZ", "all
+  StemDomeZ caps."
+- **Don't write**: Stemdomez, stemDomeZ, STEMDOMEZ in body copy.
+  "SDZ" is the monogram only — never use it as a standalone name.
+- **Don't reference the prior names** (BikeHeadz, ValveHeadZ) outside
+  of historical context — those are previous identities, not aliases.
+
+Domain: **stemdomez.com** (owned 2026-04-29). The `.app` is also
+held; both point at the same DO App Platform deployment.
 
 The Z is the brand cue. Whenever the wordmark appears split-color the
 trailing Z is **always** in `--brand` (neon purple); every other
@@ -27,13 +32,13 @@ wherever the canvas allows. This is non-negotiable.
 
 ## 2. Monogram
 
-`VHZ` — three letters, all caps, italic, drop-shadowed. Used where
+`SDZ` — three letters, all caps, italic, drop-shadowed. Used where
 the wordmark won't fit: favicons over 16px, social-avatar squares,
 stickers, t-shirt tags.
 
-In the monogram the **Z is oversized** relative to V and H, and
-shifted up so its top-bar nests over the shoulder of the H. The Z is
-neon purple; V and H are ink; both carry the green drop shadow.
+In the monogram the **Z is oversized** relative to S and D, and
+shifted up so its top-bar nests over the shoulder of the D. The Z is
+neon purple; S and D are ink; both carry the green drop shadow.
 
 Files:
 - `client/public/press/logo-monogram.svg` (canonical vector)
@@ -89,8 +94,8 @@ display feel. System font stack only — no web fonts ship.
 
 Helper classes (in `client/styles/theme.css`):
 
-- `.vhz-display` — italic-black display heading.
-- `.vhz-wordmark` — italic + drop-shadow + green-accented `.z` span.
+- `.sdz-display` — italic-black display heading.
+- `.sdz-wordmark` — italic + drop-shadow + green-accented `.z` span.
 
 ## 5. The cap-and-head mark
 
@@ -115,24 +120,24 @@ already do most of the work; vocabulary elements are seasoning.
 
 - **Italic wordmark with drop shadow** (always, every surface).
 - **Memphis offset boxes** — flat colored shadow rect 6px down+right
-  behind cards, CTAs, and image tiles. Helper: `.vhz-memphis`.
+  behind cards, CTAs, and image tiles. Helper: `.sdz-memphis`.
 - **Halftone dot fields** in `--accent3` magenta, density falling off
-  radially. Helper: `.vhz-halftone`.
+  radially. Helper: `.sdz-halftone`.
 - **Zigzag accent strips** in `--accent3` along the top/bottom of
-  hero sections. Helper: `.vhz-zigzag`.
+  hero sections. Helper: `.sdz-zigzag`.
 - **Checker strips** (ink × fluoro green) at the very top of the
-  header / OG card / nav. Helper: `.vhz-checker`.
+  header / OG card / nav. Helper: `.sdz-checker`.
 - **CMY splatter dots** (purple / green / magenta) sprinkled near the
-  wordmark area. Helper: `.vhz-splatter`.
+  wordmark area. Helper: `.sdz-splatter`.
 
 ## 7. CTAs
 
 ```css
-.vhz-cta              /* primary — brand fill, white text, ink border */
-.vhz-cta-secondary    /* outlined — paper fill, ink text */
-.vhz-chip             /* fluoro-green pill chip (default) */
-.vhz-chip-magenta     /* hot-magenta pill */
-.vhz-chip-purple      /* neon-purple pill */
+.sdz-cta              /* primary — brand fill, white text, ink border */
+.sdz-cta-secondary    /* outlined — paper fill, ink text */
+.sdz-chip             /* fluoro-green pill chip (default) */
+.sdz-chip-magenta     /* hot-magenta pill */
+.sdz-chip-purple      /* neon-purple pill */
 ```
 
 Primary CTA labels are italic + uppercase + tracked.
@@ -277,11 +282,11 @@ to base.
 Three surfaces deliberately bypass `var()` and pin literal hexes so
 they look identical across light / dark / AAA modes:
 
-- `.vhz-cta` — primary CTA. `background: #7B2EFF; color: #FFFFFF;`
+- `.sdz-cta` — primary CTA. `background: #7B2EFF; color: #FFFFFF;`
   (5.71:1 ✓ everywhere). Without pinning, dark-mode `--brand`
   lightens to `#A267FF` and white text on it fails AA at 3.55:1.
-- `.vhz-cta:hover` — `background: #5A1FCE` (darker, fixed).
-- `.vhz-chip` family — chip backgrounds (`#2EFF8C` / `#FF2EAB` /
+- `.sdz-cta:hover` — `background: #5A1FCE` (darker, fixed).
+- `.sdz-chip` family — chip backgrounds (`#2EFF8C` / `#FF2EAB` /
   `#7B2EFF`) and chip text (`#0E0A12` ink or `#FFFFFF` white) are
   all literal. Chips are vivid stickers, not body type — they
   should NOT track the page theme.
@@ -323,9 +328,9 @@ leave alone unless the viewer aesthetic itself is being redesigned.
 system-semantic colors go in the allowlist with a comment justifying
 why they live outside the brand palette.
 
-## 16. Pending rebrand candidates (if ValveHeadZ.com is taken)
+## 16. Pending rebrand candidates (if StemDomeZ.com is taken)
 
-There's a pre-existing **valveheadz.com** doing a similar product.
+There's a pre-existing **stemdomez.com** doing a similar product.
 If trademark / domain conflicts force a rename, these are the 10
 candidates that fit our DNA (one-word camelcase + trailing punch
 letter + Schrader-cap-with-your-face product fit + 90s skate-shop
@@ -368,7 +373,7 @@ Check the domain + social handles either way:
 
 If a rename does happen, the rebrand pipeline is:
 1. Run a Python find-replace pass with the same shape as the
-   `bikeheadz → valveheadz` migration (commit `c21278c`).
+   `bikeheadz → stemdomez` migration (commit `c21278c`).
 2. Update token usage in `theme.css` only if the `Z` signature
    shifts.
 3. Re-render PNG assets via `python3 tools/render_brand.py`.
@@ -380,6 +385,16 @@ If a rename does happen, the rebrand pipeline is:
 
 | Date         | Change                                                          |
 |--------------|------------------------------------------------------------------|
+| 2026-04-29   | **Brand renamed ValveHeadZ → StemDomeZ.** valveheadz.com was    |
+|              | already taken by an existing site doing similar work. Owner     |
+|              | suggested **StemDomeZ** ("stem" = bike component, "dome" = 90s |
+|              | skater slang for skull). DNS sniff confirmed both stemdomez.com|
+|              | and stemdomez.app open; owner purchased the .com 2026-04-29.   |
+|              | Wordmark "ValveHead" → "StemDome", monogram VHZ → SDZ, cookie  |
+|              | rotation vh_* → sd_*, CSS class rotation .vhz-* → .sdz-*,       |
+|              | Prometheus metric prefix valveheadz_* → stemdomez_*. Rename    |
+|              | pipeline same shape as the prior BikeHeadz → ValveHeadZ pass.   |
+|              | Palette didn't change — Mongoose BMX is the brand.              |
 | 2026-04-29   | **WCAG AA conformance pass.** Tools/audit_a11y.py written; 14   |
 |              | initial failures fixed. Gold token darkened `#D89E2F → #7C5E1F` |
 |              | (5.38:1 ✓). Dark-mode brand lightened to `#A267FF`; hover       |
@@ -392,8 +407,8 @@ If a rename does happen, the rebrand pipeline is:
 |              | hot magenta) on warm cream. Italic wordmark with green drop      |
 |              | shadow becomes the canonical treatment. Memphis offset, halftone,|
 |              | zigzag, checker, splatter all added as utilities.                |
-| 2026-04-29   | Brand name **renamed BikeHeadz → ValveHeadZ**. Trailing-Z        |
-|              | signature established. Monogram BH → VHZ.                        |
+| 2026-04-29   | Brand name **renamed BikeHeadz → StemDomeZ**. Trailing-Z        |
+|              | signature established. Monogram BH → SDZ.                        |
 | 2026-04-29   | Mark redesign — cylindrical cap + ¾-profile head + glasses cue,  |
 |              | abstracting the chrome 3D product reference.                     |
 | 2026-04-29   | Initial workshop-cream palette (signal-red brand) established —  |

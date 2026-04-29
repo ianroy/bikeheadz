@@ -26,7 +26,7 @@
     </linearGradient>
   </defs>
 
-  <text x="640" y="36" text-anchor="middle" font-size="22" font-weight="700" fill="#0f172a">ValveHeadZ — System architecture (v0.1.34)</text>
+  <text x="640" y="36" text-anchor="middle" font-size="22" font-weight="700" fill="#0f172a">StemDomeZ — System architecture (v0.1.34)</text>
   <text x="640" y="58" text-anchor="middle" font-size="13" fill="#475569">photo → TRELLIS → 7-stage CAD pipeline → chunked-yield delivery → Three.js viewer → Stripe Checkout → STL download</text>
 
   <rect x="40" y="90" width="380" height="240" rx="14" fill="url(#bgClient)" stroke="#16a34a" stroke-width="2"/>
@@ -88,7 +88,7 @@
 
   <rect x="900" y="148" width="320" height="120" rx="8" fill="#ffffff" stroke="#c4b5fd" stroke-width="1.5"/>
   <text x="1060" y="170" text-anchor="middle" font-size="12" font-weight="700" fill="#0f172a">handler.py (generator)</text>
-  <text x="1060" y="190" text-anchor="middle" font-size="11" fill="#475569">[valveheadz] handler.py v0.1.34 booting</text>
+  <text x="1060" y="190" text-anchor="middle" font-size="11" fill="#475569">[stemdomez] handler.py v0.1.34 booting</text>
   <text x="1060" y="207" text-anchor="middle" font-size="11" fill="#475569">module-load probes · failure corpus</text>
   <text x="1060" y="225" text-anchor="middle" font-size="11" fill="#475569">return_aggregate_stream=False ✓</text>
   <text x="1060" y="243" text-anchor="middle" font-size="11" fill="#475569">yields: progress · result_chunk × N · result</text>

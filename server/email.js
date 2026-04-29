@@ -17,7 +17,7 @@ import { db, hasDb } from './db.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEMPLATE_DIR = path.join(__dirname, 'emails');
-const FROM = process.env.EMAIL_FROM || 'ValveHeadZ <noreply@valveheadz.test>';
+const FROM = process.env.EMAIL_FROM || 'StemDomeZ <noreply@stemdomez.test>';
 
 export function emailEnabled() {
   return Boolean(process.env.RESEND_API_KEY || process.env.POSTMARK_TOKEN);

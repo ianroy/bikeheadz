@@ -3,9 +3,9 @@
   Maskable variant. Same geometry as icon.svg, but: art shrinks into
   the inner 80% safe zone (Android masks aggressively — round /
   squircle / teardrop), and no rounded corners (the OS does the
-  masking). VHZ stamp dropped — too small inside the safe zone.
+  masking). SDZ stamp dropped — too small inside the safe zone.
 -->
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="ValveHeadZ">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="StemDomeZ">
   <rect width="512" height="512" fill="#F5F2E5"/>
 
   <!-- Cylindrical cap inside safe zone. -->

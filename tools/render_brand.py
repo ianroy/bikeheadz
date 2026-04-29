@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Composite the ValveHeadZ brand PNGs from scratch via Pillow.
+Composite the StemDomeZ brand PNGs from scratch via Pillow.
 
 Why not pure SVG → PNG? `qlmanage` (the SVG→PNG renderer we have on this
 build host) ignores `textLength` / `lengthAdjust`, so wordmark
@@ -286,9 +286,9 @@ def draw_cap_and_head(im, draw, ox, oy, scale=1.0):
 
 
 def render_wordmark(out_path, w=1600, h=400):
-    """ValveHeadZ wordmark — italic, with green drop shadow.
+    """StemDomeZ wordmark — italic, with green drop shadow.
 
-    Mongoose-BMX vocabulary: italic "ValveHead" in ink with a
+    Mongoose-BMX vocabulary: italic "StemDome" in ink with a
     fluoro-green drop shadow + oversized neon-purple "Z" in italic.
     Magenta halftone field bottom-right; spray-dot splatter near
     the wordmark.
@@ -307,7 +307,7 @@ def render_wordmark(out_path, w=1600, h=400):
     draw_splatter(im, ox=290, oy=40, w=900, h=240,
                   palette=[BRAND, ACCENT2, ACCENT3], seed=42, count=60)
 
-    # Wordmark: italic "ValveHead" with fluoro-green drop shadow + oversized purple Z.
+    # Wordmark: italic "StemDome" with fluoro-green drop shadow + oversized purple Z.
     fnt_main = font(150, 'black')
     fnt_z    = font(230, 'black')
     fnt_tag  = font(22,  'medium')
@@ -315,11 +315,11 @@ def render_wordmark(out_path, w=1600, h=400):
     base_y = 250
 
     drop = (ACCENT2[0], ACCENT2[1], ACCENT2[2], 235)
-    # "ValveHead"
-    draw_italic_text(draw, (text_x, base_y - 145), "ValveHead", fnt_main,
+    # "StemDome"
+    draw_italic_text(draw, (text_x, base_y - 145), "StemDome", fnt_main,
                      fill=INK, skew=0.16, shadow=drop, shadow_offset=(6, 6))
     # Estimate the consumed width to position the Z.
-    main_w = text_w(draw, "ValveHead", fnt_main)
+    main_w = text_w(draw, "StemDome", fnt_main)
     z_x = text_x + main_w + int(150 * 0.16) - 24
     draw_italic_text(draw, (z_x, base_y - 175), "Z", fnt_z,
                      fill=BRAND, skew=0.16, shadow=drop, shadow_offset=(8, 8))
@@ -333,7 +333,7 @@ def render_wordmark(out_path, w=1600, h=400):
 
 
 def render_monogram(out_path, size=800):
-    """Square monogram. Shared cap+head mark on top, italic "VHZ" below
+    """Square monogram. Shared cap+head mark on top, italic "SDZ" below
     with VH in ink and oversized neon-purple Z, fluoro drop shadow.
     Memphis offset behind the entire tile."""
     im = Image.new('RGBA', (size, size), PAPER)
@@ -360,14 +360,14 @@ def render_monogram(out_path, size=800):
     ox = (size - offset - mark_w) // 2
     oy = 70
     draw_cap_and_head(im, draw, ox=ox, oy=oy, scale=mark_scale)
-    # "VHZ" wordmark (italic, drop shadow) — VH ink, Z neon purple oversize.
+    # "SDZ" wordmark (italic, drop shadow) — SD ink, Z neon purple oversize.
     fnt_main = font(180, 'black')
     fnt_z    = font(280, 'black')
     drop = (ACCENT3[0], ACCENT3[1], ACCENT3[2], 235)
-    mw = text_w(draw, "VH", fnt_main)
+    mw = text_w(draw, "SD", fnt_main)
     base_x = (size - offset - (mw + text_w(draw, "Z", fnt_z) - 12)) // 2
     base_y = 600
-    draw_italic_text(draw, (base_x, base_y - 140), "VH", fnt_main,
+    draw_italic_text(draw, (base_x, base_y - 140), "SD", fnt_main,
                      fill=INK, skew=0.16, shadow=drop, shadow_offset=(6, 6))
     draw_italic_text(draw, (base_x + mw - 24, base_y - 190), "Z", fnt_z,
                      fill=BRAND, skew=0.16, shadow=drop, shadow_offset=(8, 8))
@@ -379,7 +379,7 @@ def render_icon(out_path, size=512, masked=False):
     """App icon. Uses the shared cylindrical-cap + ¾-profile-head mark.
 
     Layout: cap centered, head riding on top with glasses cue. The
-    optional VHZ stamp lives in the lower-right (skipped on the
+    optional SDZ stamp lives in the lower-right (skipped on the
     maskable variant — Android masks corners aggressively).
     """
     im = Image.new('RGBA', (size, size), PAPER)
@@ -400,14 +400,14 @@ def render_icon(out_path, size=512, masked=False):
     draw_cap_and_head(im, draw, ox=ox, oy=oy, scale=mark_scale)
 
     if not masked:
-        # Lower-right VHZ stamp (V/H ink, Z brand-red).
+        # Lower-right SDZ stamp (S/D ink, Z brand purple).
         f = font(S(40), 'black')
-        vh = "VH"; z = "Z"
-        vw = text_w(draw, vh, f); zw = text_w(draw, z, f)
-        bx = size - vw - zw - S(20)
+        sd = "SD"; z = "Z"
+        sw = text_w(draw, sd, f); zw = text_w(draw, z, f)
+        bx = size - sw - zw - S(20)
         by = size - S(60)
-        draw.text((bx, by), vh, font=f, fill=INK)
-        draw.text((bx + vw, by), z, font=f, fill=BRAND)
+        draw.text((bx, by), sd, font=f, fill=INK)
+        draw.text((bx + sw, by), z, font=f, fill=BRAND)
     im.save(out_path)
     return im
 
@@ -490,9 +490,9 @@ def render_og(out_path, w=1200, h=630):
     fnt_main = font(110, 'black')
     fnt_z = font(160, 'black')
     drop = (ACCENT2[0], ACCENT2[1], ACCENT2[2], 230)
-    draw_italic_text(draw, (440, 250), "ValveHead", fnt_main,
+    draw_italic_text(draw, (440, 250), "StemDome", fnt_main,
                      fill=INK, skew=0.16, shadow=drop, shadow_offset=(5, 5))
-    main_w = text_w(draw, "ValveHead", fnt_main)
+    main_w = text_w(draw, "StemDome", fnt_main)
     draw_italic_text(draw, (440 + main_w + 4, 222), "Z", fnt_z,
                      fill=BRAND, skew=0.16, shadow=drop, shadow_offset=(7, 7))
 

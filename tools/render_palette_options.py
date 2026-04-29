@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-ValveHeadZ — retro-90s skate/BMX/surf-shop palette options.
+StemDomeZ — retro-90s skate/BMX/surf-shop palette options.
 
 The owner asked for a "retro 90s throwback brand — bike skate surf
 shops from the era of rollerblading." Reference vocabulary:
@@ -292,9 +292,9 @@ def render_card(slug, label, tagline,
     # Splatter near the wordmark area.
     draw_splatter(im, ox=20, oy=160, w=900, h=320, accent=accent, accent2=accent2, seed=hash(slug) & 0xFFFF)
 
-    # Wordmark — italic, with drop shadow. "ValveHead" ink + oversized "Z" accent.
+    # Wordmark — italic, with drop shadow. "StemDome" ink + oversized "Z" accent.
     fnt_main = font(120, 'black')
-    main_str = "ValveHead"
+    main_str = "StemDome"
     drop = with_alpha(ink, 0.22)
     draw_italic_text(draw, (50, 200), main_str, fnt_main, fill=ink, skew=0.16, shadow=drop)
     # Z accent — render large italic Z in accent.

@@ -1,4 +1,4 @@
-/* P7-001 — ValveHeadZ service worker.
+/* P7-001 — StemDomeZ service worker.
  *
  * Strategy:
  *   • Precache the app shell (`/` + `/manifest.webmanifest`) so the home

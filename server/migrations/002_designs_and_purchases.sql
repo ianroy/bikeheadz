@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS generated_designs (
   id          UUID PRIMARY KEY,
   account_id  BIGINT REFERENCES accounts(id) ON DELETE SET NULL,
   stl_bytes   BYTEA NOT NULL,
-  filename    TEXT NOT NULL DEFAULT 'ValveHeadZ_ValveStem.stl',
+  filename    TEXT NOT NULL DEFAULT 'StemDomeZ_ValveStem.stl',
   settings    JSONB NOT NULL DEFAULT '{}'::jsonb,
   photo_name  TEXT,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),

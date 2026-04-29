@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  ValveHeadZ master app icon.
+  StemDomeZ master app icon.
 
   Abstracts the actual product (a chrome 3D-printed head wearing
   glasses, riding on a Schrader-valve cap) into a 2D mark:
@@ -14,7 +14,7 @@
   pipeline (tools/render_brand.py) re-emits this via PIL for
   typographic determinism.
 -->
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="ValveHeadZ">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="StemDomeZ">
   <!-- Background tile + bezel. -->
   <rect width="512" height="512" rx="96" fill="#F5F2E5"/>
   <rect x="6" y="6" width="500" height="500" rx="92" fill="none" stroke="#0E0A12" stroke-opacity="0.06" stroke-width="2"/>
@@ -79,8 +79,8 @@
     <rect x="33" y="-5"  width="9"  height="6"  fill="#F5F2E5"/>
   </g>
 
-  <!-- "VHZ" stamp lower-right. -->
+  <!-- "SDZ" stamp lower-right. -->
   <g transform="translate(360 460)" font-family="-apple-system, system-ui, 'Inter', sans-serif" font-weight="900" font-size="44" letter-spacing="-1">
-    <text x="0" y="0" fill="#0E0A12">VH<tspan fill="#7B2EFF">Z</tspan></text>
+    <text x="0" y="0" fill="#0E0A12">SD<tspan fill="#7B2EFF">Z</tspan></text>
   </g>
 </svg>
