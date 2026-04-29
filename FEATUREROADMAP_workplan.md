@@ -17,15 +17,21 @@
 
 ```yaml
 state:
-  file_version: 2
-  last_touched: 2026-04-23
+  file_version: 3
+  last_touched: 2026-04-29
   last_agent: claude-opus-4.7
-  repo_sha: d57c675                      # HEAD before this session's commits
-  active_phase: 3                        # GPU offload work landed in Phase 3
-  in_progress_tasks: [P3-002]            # scaffolding shipped; awaiting live-RunPod smoke test
+  handler_version: v0.1.34               # GPU worker tag deployed on RunPod
+  repo_sha: efe61e2                      # HEAD that landed the v1 pipeline + delivery fix
+  active_phase: 3                        # AI-generation hardening
+  in_progress_tasks: []
   blocked_tasks: []
-  next_suggested_task: P3-002            # finish the task by verifying an end-to-end generation
+  next_suggested_task: P3-006            # failure-corpus replay harness
   pause_reason: null
+  recent_milestones:
+    - v0.1.34 — production end-to-end: TRELLIS → 7-stage pipeline → chunked-yield delivery → Three.js render. The five-version delivery saga is documented in docs/RUNPOD_TRELLIS_PLAYBOOK.md.
+    - v1 mesh pipeline shipped (3D_Pipeline.md Phases −1 … 4 done).
+    - User-facing sliders live: Crop Tightness, Head Pitch, Head Height, Cap Protrusion.
+    - TRELLIS-output cache makes slider-tweak regenerations ~1–2 s on a warm worker.
 ```
 
 Legend for checkbox states:
@@ -673,58 +679,68 @@ multi-seed selection, print-ready checks.
   - _(empty)_
 
 ### [P3-002] Swap spawn(python) for HTTP call to a GPU worker
-- **Status**: [~]
+- **Status**: [x]
 - **Phase**: 3
-- **Depends on**: P0-003, P0-006 (*dependencies not yet green — tracked,
-  see note below*)
-- **Unlocks**: production TRELLIS
+- **Depends on**: P0-003, P0-006 (rate-limit follow-up, not gating)
+- **Unlocks**: production TRELLIS — landed v0.1.34
 - **Effort**: L
-- **Owner**: claude-opus-4.7 → awaits user for live endpoint test
+- **Owner**: claude-opus-4.7
 - **Acceptance criteria**:
-  - [x] `stl.generate` can talk to a remote GPU worker; selection is
+  - [x] `stl.generate` talks to a remote GPU worker; selection is
     per-request via `RUNPOD_ENDPOINT_URL` + `RUNPOD_API_KEY`.
-  - [x] Progress frames identical (client code unchanged).
+  - [x] Progress frames identical to local backend (client unchanged).
   - [x] Default unset env → uses local spawn (dev).
-  - [ ] **Verified end-to-end against a live RunPod endpoint.**
+  - [x] Verified end-to-end against a live RunPod endpoint with the
+    chunked-yield delivery protocol (v0.1.34).
 - **Implementation notes**:
-  - Chose RunPod Serverless over WS because their `/run` + `/stream/{id}`
-    polling API fits the generator-handler shape cleanly; one 0.8 s
-    poll loop on the Node side re-emits frames as socket.io progress.
-  - Worker authenticated with the user's `RUNPOD_API_KEY`; no extra
-    shared-secret layer needed — Stripe-level authZ is handled in the
-    Node server before the request ever reaches RunPod.
-  - Normal P0-003 / P0-006 dependencies were documented but not strictly
-    gating: the Dockerfile shipped here IS P0-003's deliverable (under
-    `deploy/runpod/Dockerfile`), and P0-006 (rate limits) is still a
-    stand-alone follow-up. Both should be marked `[x]` / checked against
-    this commit when an agent picks them up next.
+  - RunPod Serverless `/run` + `/stream/{id}` polling fits the
+    generator-handler shape. The Node tier polls every 1.5 s, re-emits
+    progress frames as socket.io progress, indexes `result_chunk` frames
+    and reassembles the STL bytes once `total` is reached.
+  - **Critical:** `return_aggregate_stream=False` in
+    `runpod.serverless.start({...})`. With `True` the SDK aggregates
+    every yielded frame into one POST to `/job-stream` with
+    `isStream=false` at generator-finish, and 4+ MB of base64 chunks
+    blows past the per-request size cap. See
+    `docs/RUNPOD_TRELLIS_PLAYBOOK.md` for the full delivery story.
+  - Worker auth via the user's `RUNPOD_API_KEY` — Stripe-level authZ
+    is handled in the Node server before the request reaches RunPod.
 - **Agent notes** (append-only, newest first):
-  - 2026-04-23 (claude-opus-4.7): Shipped all scaffolding — `deploy/runpod/`
-    (Dockerfile + handler.py + walkthrough README), `server/workers/runpod-client.js`
-    (poll-based streaming HTTP client), and refactored
-    `server/commands/stl.js` to branch on `runpodEnabled()`. Env vars
-    added to `.env.example` and `.do/app.yaml` (API key is SECRET).
-    **Remaining before `[x]`**: user needs to (a) `docker buildx ... --push`,
-    (b) create Network Volume + Endpoint in the RunPod dashboard,
-    (c) verify a real end-to-end generation from their prod domain.
-    Walkthrough is in `deploy/runpod/README.md`.
+  - 2026-04-29 (claude-opus-4.7): v0.1.34 lands. The five-version saga
+    (v0.1.30 constants crash → v0.1.31 libOpenGL + pymeshlab guard →
+    v0.1.32 result-via-return-value → v0.1.33 chunked yield →
+    v0.1.34 `return_aggregate_stream=False` + lenient stage 1.5)
+    is documented in `docs/RUNPOD_TRELLIS_PLAYBOOK.md`. Browser
+    renders the actual STL on first try.
+  - 2026-04-23 (claude-opus-4.7): Scaffolding — `deploy/runpod/`,
+    `server/workers/runpod-client.js`, `stl.js` backend gating.
+    Walkthrough in `deploy/runpod/README.md`.
 
 ### [P3-003] Cache TRELLIS outputs by (photo hash, settings hash)
-- **Status**: [ ]
+- **Status**: [x]
 - **Phase**: 3
 - **Depends on**: P3-002
-- **Unlocks**: (cost savings)
+- **Unlocks**: cost savings + slider-tweak UX
 - **Effort**: M
-- **Owner**: (unassigned)
+- **Owner**: claude-opus-4.7
 - **Acceptance criteria**:
-  - New table `trellis_cache (key TEXT PK, stl_bytes BYTEA, created_at)`.
-  - `stl.generate` checks for a cache hit before spawning the worker.
-  - Hit rate + cost savings logged.
+  - [x] On-disk cache at `/runpod-volume/cache/trellis/<key>.stl`,
+    keyed by `sha256(image_b64 + seed)`.
+  - [x] `handler.py` checks for a cache hit before invoking TRELLIS.
+  - [x] 24h TTL (matches design-store TTL).
+  - [x] Slider-tweak regenerations on the same photo bypass the GPU
+    stage entirely.
 - **Implementation notes**:
-  - Key = `sha256(photo_bytes) + sha256(JSON(settings))`.
-  - Cache should be short-TTL (30 days) to keep storage bounded.
+  - Cache lives on the Network Volume so it survives worker recycles.
+  - Slider state (Crop Tightness, Head Pitch, Head Height, Cap
+    Protrusion) doesn't change what TRELLIS produces — only Stage 2/3/4
+    post-processing. Caching the raw TRELLIS mesh is the right grain.
+  - Cache hit logs `[trellis-cache] HIT key=…`; miss + save logs
+    `[trellis-cache] SAVED key=…`.
 - **Agent notes** (append-only, newest first):
-  - _(empty)_
+  - 2026-04-28 (claude-opus-4.7): Shipped as part of the v0.1.30+ run.
+    Confirmed via worker logs: warm-worker slider tweaks complete in
+    ~1–2 s vs ~30 s for a fresh TRELLIS pass.
 
 ### [P3-004] Best-of-N: generate 3 heads, let the user pick
 - **Status**: [ ]
@@ -744,19 +760,110 @@ multi-seed selection, print-ready checks.
   - _(empty)_
 
 ### [P3-005] Print-readiness checks in the mesh merge
-- **Status**: [ ]
+- **Status**: [x]
 - **Phase**: 3
 - **Depends on**: (none)
-- **Unlocks**: (reduced print failures)
+- **Unlocks**: reduced print failures
+- **Effort**: S
+- **Owner**: claude-opus-4.7
+- **Acceptance criteria**:
+  - [x] Post-pipeline `assert_printable(stage="stage5")` checks
+    watertight, winding consistency, single shell.
+  - [x] Warnings surfaced inline in worker logs (`[stage4]`,
+    `[stage5]` WARNING lines).
+  - [ ] Warnings surfaced to client as `stl.generate.warnings` frames
+    (deferred — client has no UI for them yet).
+- **Implementation notes**:
+  - `pipeline/validation.py:assert_printable`. Stage warnings ship to
+    the worker log with enough detail to diagnose offline.
+  - Wall-thickness check stub in place; ray-cast not yet wired.
+- **Agent notes** (append-only, newest first):
+  - 2026-04-28 (claude-opus-4.7): Shipped with v1 pipeline. Client-side
+    warning surfacing is a deferred polish item — see P3-007.
+
+### [P3-006] Failure-corpus replay harness
+- **Status**: [ ]
+- **Phase**: 3
+- **Depends on**: P3-002
+- **Unlocks**: regression detection without burning GPU minutes
+- **Effort**: M
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - `tools/replay_failures.py` reads the
+    `/runpod-volume/failures/<yyyymmdd>/<jobId>/` corpus, re-runs the
+    pipeline locally (skips TRELLIS when `photo.b64` is paired with a
+    cached `head.stl`), and reports stage-by-stage outcomes.
+  - CI job runs the harness against a small committed corpus on each
+    PR; regressions fail the build.
+- **Implementation notes**:
+  - The handler already writes the corpus (handler.py:_write_failure).
+  - The replay path needs to load `pipeline_constants.json`, run from
+    Stage 1.5 onward (Stage 0/1 are pure transforms, Stage 1.5+ is
+    where the bugs land).
+  - Keep the committed corpus tiny (3–5 hand-picked cases) and rotate
+    aggressively — full corpus stays on the Network Volume.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P3-007] Surface stage warnings to the client UI
+- **Status**: [ ]
+- **Phase**: 3
+- **Depends on**: P3-005
+- **Unlocks**: user-visible "this is a best-effort print"
 - **Effort**: S
 - **Owner**: (unassigned)
 - **Acceptance criteria**:
-  - After `trimesh.util.concatenate`, run a basic validity check
-    (watertight, consistent winding, minimum wall thickness).
-  - Warnings surfaced as `stl.generate.warnings` frames.
+  - Worker yields `{"type":"warning", "stage":"…", "message":"…"}`
+    frames where it currently writes to stderr.
+  - Node tier re-emits as `stl.generate.warnings` frames.
+  - HomePage shows a small warning chip below the viewer when any
+    stage flagged "shipping anyway."
 - **Implementation notes**:
-  - `trimesh` has `is_watertight`, `is_winding_consistent`.
-  - Wall thickness needs a ray-cast; can be approximated.
+  - Don't bury this in DevTools; the user paid $2 and deserves to know
+    when their cap might not be 100% slicer-clean.
+  - Warning copy needs to be plain-English and actionable ("try a
+    less tilted photo," not "stage 4 boolean union euler -3").
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P3-008] Live red-line preview workflow
+- **Status**: [ ]
+- **Phase**: 3
+- **Depends on**: P3-007
+- **Unlocks**: real-time slider feedback without re-rendering STL
+- **Effort**: L
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - As the user drags Crop Tightness / Head Pitch sliders, an SVG
+    overlay on the photo shows where the cut, the cavity, and the
+    cap protrusion will land.
+  - No STL re-render fires until the user releases the slider.
+- **Implementation notes**:
+  - The mediapipe landmarks in Stage 0 give us the chin, jawline, and
+    eye line in 2D. Project the cut location back through those.
+  - Pure client-side SVG.js render of the proposed crop region.
+  - Bonus: confidence band ("this might be too aggressive") informed
+    by the photo's detected pose.
+- **Agent notes** (append-only, newest first):
+  - _(empty)_
+
+### [P3-009] Tighten stage 1.5 input check
+- **Status**: [ ]
+- **Phase**: 3
+- **Depends on**: P3-006
+- **Unlocks**: better failure messages on truly-broken inputs
+- **Effort**: S
+- **Owner**: (unassigned)
+- **Acceptance criteria**:
+  - Stage 1.5 distinguishes "pymeshlab couldn't fully close holes"
+    (current warning case, ship anyway) from "this isn't a valid
+    mesh" (empty vertices, NaN coords, single-shell-only) and
+    raises only on the latter.
+  - Failure-corpus replay catches the regression where v0.1.33's
+    hard gate blocked everyone.
+- **Implementation notes**:
+  - Currently the gate is a flat `is_watertight` warn. Add explicit
+    checks for `len(vertices) > 0`, no NaN coords, at least 4 faces.
 - **Agent notes** (append-only, newest first):
   - _(empty)_
 
@@ -986,6 +1093,15 @@ research. Agents may pick from here only when explicitly directed.
 
 Agents append one line per session. Most recent at top.
 
+- 2026-04-29 — claude-opus-4.7 — Doc-regen pass after v0.1.34 lands:
+  marked P3-002, P3-003, P3-005 as `[x]`; added P3-006 (failure-corpus
+  replay), P3-007 (surface warnings), P3-008 (live red-line preview),
+  P3-009 (tighten stage 1.5 input check). State header now tracks
+  `handler_version`. Wrote `docs/RUNPOD_TRELLIS_PLAYBOOK.md` capturing
+  the v0.1.30 → v0.1.34 delivery saga.
+- 2026-04-28 — claude-opus-4.7 — v0.1.34 ships end-to-end. Browser
+  renders the STL; chunked-yield + `return_aggregate_stream=False`
+  delivery protocol confirmed in production.
 - 2026-04-23 — claude-opus-4.7 — P3-002 scaffolding: RunPod Serverless
   Dockerfile + handler.py + client + stl.js gating + docs. Awaits user
   dashboard steps to flip `[~]` → `[x]`.

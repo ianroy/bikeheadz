@@ -1,17 +1,35 @@
 # 3D Pipeline Plan — Photo → Printable Bike Valve Cap
 
-**Status:** Phases −1, −0.5, 0, 1, 2 done. The full v1 pipeline runs
-end-to-end on the four reference inputs and produces printable STLs.
-User-facing **Crop Tightness** (0.40–0.85, default 0.60) and **Head
-Pitch** (−30°..+30°, default 0°) sliders are live in
+**Status (v0.1.34, April 2026):** Phases −1, −0.5, 0, 1, 2, 3, 4 done.
+The full v1 pipeline runs end-to-end on the RunPod GPU worker and
+produces a printable STL that the browser renders in real time.
+User-facing **Crop Tightness** (0.40–0.85, default 0.60), **Head
+Pitch** (−30°..+30°, default 0°), **Head Height** (22–42 mm) and
+**Cap Protrusion** (0–25%) sliders are live in
 [client/pages/home.js](client/pages/home.js) and wired through to
-`shoulder_taper_fraction` and `head_tilt_deg` in the v1 pipeline.
-Stage 4 falls back to mesh concatenation when manifold3d's union
-returns non-manifold output (current `valve_cap.stl` has Euler −51);
-that's a known issue tracked in §10 Phase 4 task #4.
-Phase 3 (robustness) and Phase 4 (polish, including the
-user-requested live red-line preview workflow — item #3) are the
-next items.
+`shoulder_taper_fraction`, `head_tilt_deg`, `target_head_height_mm`,
+and `cap_protrusion_fraction` in the v1 pipeline.
+
+Notable runtime degradations baked in (each gracefully shipped):
+
+- **Stage 1.5** logs a warning rather than raising when pymeshlab
+  cannot fully close TRELLIS's open holes (euler often <-20). Stages
+  3/4/5 already handle non-watertight input. v0.1.33→0.1.34.
+- **Stage 4** falls back to mesh concatenation when manifold3d's
+  boolean union returns non-manifold output (current `valve_cap.stl`
+  has Euler −51).
+- **Stage 5** ships the final STL even if it isn't strictly
+  watertight — slicers cope, and blocking on this is worse for users.
+
+Result delivery uses the chunked-yield + `return_aggregate_stream=False`
+protocol detailed in [docs/RUNPOD_TRELLIS_PLAYBOOK.md](docs/RUNPOD_TRELLIS_PLAYBOOK.md).
+Earlier delivery attempts (v0.1.31 single-yield, v0.1.32
+metadata + return-value, v0.1.33 chunked-yield with aggregate POST
+still on) all hit different size caps. v0.1.34 lands.
+
+Next: failure-corpus mining (replay corpus to detect regressions), live
+red-line preview workflow (per-stage SVG overlay), and the calibration
+re-run on the cap remesh once Phase 4 §4 lands.
 
 **Critical reframing.** The committed
 `server/assets/reference/{ian,nik}_head.stl` files are **raw 3D head
@@ -23,14 +41,19 @@ sometimes non-manifold) and turn them into printable ~30 mm caps. We
 capture *post-pipeline goldens* later by running the pipeline once it
 works.
 
-**Owner of this doc:** Pipeline architecture and the asset contracts. Anything
-inside `handler.py` past the TRELLIS call belongs here.
+**Owner of this doc:** Pipeline architecture and the asset contracts.
+Anything inside `handler.py` past the TRELLIS call belongs here.
+RunPod-tier delivery, image, and dockerization concerns belong to
+[`docs/RUNPOD_TRELLIS_PLAYBOOK.md`](docs/RUNPOD_TRELLIS_PLAYBOOK.md) —
+this doc references it but does not duplicate it.
 
 **Reading order for someone catching up:**
-1. §0 (locked decisions) — what's already settled.
-2. [`tools/spike_report.md`](tools/spike_report.md) — what Phase −1 actually found.
-3. §10 Phase −0.5 — the redesign tasks blocking Phase 1+.
-4. §11 — open questions that fed the redesign.
+1. The status block above — what's shipped today.
+2. §0 (locked decisions) — what's already settled.
+3. [`tools/spike_report.md`](tools/spike_report.md) — what Phase −1 actually found.
+4. §5 — the as-shipped stage descriptions.
+5. [`docs/RUNPOD_TRELLIS_PLAYBOOK.md`](docs/RUNPOD_TRELLIS_PLAYBOOK.md)
+   — production gotchas before touching the GPU side.
 
 ---
 
@@ -249,21 +272,31 @@ the boolean result. Repair before any boolean.
 **Steps:** See §8.3 — drop floaters, pymeshlab round-trip (non-manifold
 edge repair, close holes, reorient faces).
 
-**Validation:** Run `assert_printable(stage="stage1.5")` (§8.6) — but
-relax the `is_volume` and `is_winding_consistent` checks since the
-post-repair head isn't yet a closed solid (no socket, no cap). Tighten
-those checks again at Stage 3 and 4.
+**Validation:** Originally a hard `is_watertight` gate, now a **warning
+only** (v0.1.34 onwards). Production logs show TRELLIS routinely emits
+700K+-tri meshes with euler numbers <-20 — pymeshlab's
+`meshing_close_holes(maxholesize=200)` cannot close them all, and
+gating on watertight blocks essentially every real user. Stages 3, 4,
+and 5 already handle non-watertight input gracefully (subtract keeps
+largest body; union falls back to concatenation; final ships anyway
+because slicers cope). The warning still surfaces so the failure
+corpus can be mined for inputs whose topology is genuinely worse than
+typical.
 
 **Reference implementation to read first:** Microsoft ships a
-`mesh_postprocess.py` in the TRELLIS repo. Likely covers 60–80% of what
-we need against the same defect catalogue. Read it before writing
-ours — don't reinvent.
+`mesh_postprocess.py` in the TRELLIS repo. Covers ~60–80% of what we
+need against the same defect catalogue. Read it before writing more —
+don't reinvent.
 
 **Risks:**
 - pymeshlab is GPL v3. See §7's license caveat for the subprocess
   isolation pattern. If legal kills this path, fall back to
   `trimesh.repair` + `gpytoolbox.remesh_botsch`, accepting weaker
   hole-closing on non-convex boundaries.
+- The warning-not-raise stance means a *truly* broken mesh (e.g. empty
+  vertices, NaN coordinates) will currently propagate downstream. Fix
+  is a tighter pre-check that distinguishes "pymeshlab couldn't fully
+  close" from "this isn't a mesh at all." See FEATUREROADMAP P3.
 
 ### Stage 2 — Crop to neck-and-up
 

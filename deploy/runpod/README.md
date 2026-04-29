@@ -1,5 +1,13 @@
 # BikeHeadz × RunPod Serverless deployment guide
 
+> **Read this first if you're deploying.** Read
+> [`docs/RUNPOD_TRELLIS_PLAYBOOK.md`](../../docs/RUNPOD_TRELLIS_PLAYBOOK.md)
+> *before* you change `handler.py` or the Dockerfile — it captures the
+> production gotchas (per-frame size cap, `return_aggregate_stream`,
+> chunked-yield protocol, Dockerfile traps) that the v0.1.30 → v0.1.34
+> debugging run paid for. This file covers the *deployment* steps; the
+> playbook covers the *why* behind handler design choices.
+
 The TRELLIS GPU worker for BikeHeadz is packaged as a RunPod **Hub** listing
 (RunPod's GitHub-backed serverless template system). Everything it needs is
 in the repo:
@@ -69,13 +77,29 @@ repo's Hub page: `https://console.runpod.io/hub/ianroy/bikeheadz`.
 ### Iterating
 
 Pushes to `main` don't retrigger a Hub build on their own; you need a
-new tag. Pattern:
+**GitHub release**, not just a tag. The `.github/workflows/build-runpod-image.yml`
+workflow listens for `release: [published]`:
 
 ```bash
-# after merging changes to deploy/runpod/ or server/assets/
-git tag v0.1.1 -m "bumped handler & Dockerfile"
-git push origin v0.1.1
+# after merging changes to handler.py, server/workers/pipeline/, or Dockerfile
+gh release create v0.1.X \
+  --title "v0.1.X — short description" \
+  --notes "Body explaining why this release ships"
 ```
+
+…or use the GitHub UI: Releases → Draft a new release → Publish.
+
+Within ~17–25 min the GHA build finishes (cold cache up to ~24 min).
+Then:
+
+1. RunPod Console → endpoint → **Manage → New Release**.
+2. Paste the new image URL: `ghcr.io/<owner>/<repo>:v0.1.X`.
+3. Save. The next request lands on the new image.
+
+**Always bump `HANDLER_VERSION` in `handler.py`** in the same commit.
+The boot log prints `[bikeheadz] handler.py vX.X.X booting` — the first
+thing you grep for when debugging in production. If the banner doesn't
+match what you expect, you have a deploy problem, not a code problem.
 
 Semver helps RunPod order releases but isn't enforced.
 
@@ -148,10 +172,19 @@ Pod templates → New Template**, pasting your image URL.
 
 | Symptom                                          | Likely cause & fix                                                                     |
 | ------------------------------------------------ | -------------------------------------------------------------------------------------- |
-| Hub page says "no releases"                      | You haven't pushed a tag. `git tag v0.1.0 && git push origin v0.1.0`.                  |
+| Hub page says "no releases"                      | You haven't published a release. `gh release create vX.Y.Z`.                            |
+| Worker boot banner doesn't match the version you deployed | RunPod is on the old image. Manage → New Release → re-paste the new tag. Don't debug code that isn't running. |
+| `runpod_no_result (last_status=COMPLETED)` after ~2 min | Worker finished but result delivery hit a size cap. See [`docs/RUNPOD_TRELLIS_PLAYBOOK.md` §3](../../docs/RUNPOD_TRELLIS_PLAYBOOK.md). Most likely culprit: `return_aggregate_stream=True` on a chunked handler. |
+| `runpod_no_result (last_status=IN_QUEUE)` after 12 min | RunPod has the job but no worker picked it up. Check Max Workers ≥ 1; check region GPU availability. |
 | `.runpod/tests.json` test times out              | First-ever build had to download weights. Re-run, or raise the timeout in tests.json.  |
 | Tests fail with "no face detected"               | The 1×1 PNG in tests.json was enough to check booting but TRELLIS rejected it. Ignore unless the build is marked failed — RunPod still publishes the endpoint if the handler returned an error frame (not crashed). |
 | `runpod_http_401:unauthorized` from DO           | API key mistyped or revoked. Regenerate in RunPod → Account → API Keys.                |
-| First DO-served request hangs 2+ min             | Cold start + weight download. Warm-up with one dashboard test request.                 |
-| Every request `TIMED_OUT`                        | Usually a Dockerfile bug — check the endpoint's **Logs** tab.                          |
+| First DO-served request hangs 2+ min             | Cold start + weight download. Attach a Network Volume; warm-up with one dashboard test request. |
+| Every request `TIMED_OUT`                        | Usually a Dockerfile bug — check the endpoint's **Logs** tab. Common: missing `libOpenGL.so.0` (pymeshlab); CUDA wheel install skipped by setup.sh. See playbook §9. |
+| Pipeline crashes at stage 1.5 with `non_manifold_input_unrepairable` | Pre-v0.1.34 hard gate. Update the image. |
+| GHA build dies mid-step with no log              | One-off cache corruption. `gh cache delete --all` and rerun. Don't disable the cache permanently. |
 | Docker Hub pull fails (manual path)              | Image is private; add registry credentials in endpoint settings, or make it public.    |
+
+For deeper diagnostics — what to grep for in worker logs, how to walk
+the layers from worker → Node → browser when nothing arrives — see
+[`docs/RUNPOD_TRELLIS_PLAYBOOK.md` §13–§14](../../docs/RUNPOD_TRELLIS_PLAYBOOK.md).

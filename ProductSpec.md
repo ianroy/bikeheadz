@@ -32,22 +32,23 @@
   bike valve stem cap with the user's head on top. Target output is FDM/PLA
   printable on a Bambu A1 / Prusa MK4 / Elegoo Centauri Carbon-class
   printer at 0.4 mm nozzle / 0.12–0.16 mm layer height.
-- **How it works (today)**: photo → RunPod Serverless TRELLIS worker
-  (`handler.py`) → naïve trimesh merge with the threaded screw cap
-  (`server/assets/valve_cap.stl`) → Stripe Checkout → download.
-- **How it works (planned)**: replace the naïve merge with a 7-stage CAD
-  pipeline (validate → normalize → repair → crop → boolean subtract →
-  boolean union → print-prep) using `manifold3d`. Full plan and rollout
-  in [3D_Pipeline.md](3D_Pipeline.md).
+- **Production status (v0.1.34)**: the v1 mesh pipeline runs end-to-end on
+  the RunPod GPU worker. Photo → TRELLIS head mesh (~780 K tris) →
+  7-stage CAD pipeline (validate / normalize / repair / crop / subtract /
+  union / print-prep) → chunk-streamed STL → Three.js viewer in the
+  browser → Stripe Checkout → download. Pipeline details in
+  [3D_Pipeline.md](3D_Pipeline.md); GPU-tier production gotchas (chunked
+  delivery, `return_aggregate_stream`, Dockerfile traps) in
+  [docs/RUNPOD_TRELLIS_PLAYBOOK.md](docs/RUNPOD_TRELLIS_PLAYBOOK.md).
 - **How it's built**: vanilla JS + Three.js WebGL viewer client, socket.io
   command pattern, Node 22 Express server, RunPod Serverless GPU worker
-  (Python TRELLIS) with a local Python fallback for dev, Postgres 18 for
-  state.
-- **How it deploys**: Digital Ocean App Platform serves the Node app,
-  Managed Postgres attached. The TRELLIS image is built by GitHub Actions,
-  pushed to GHCR, and pulled by RunPod Serverless. Stripe Checkout
-  verified on user return via `payments.verifySession` (no webhook, no
-  REST surface).
+  (Python TRELLIS + manifold3d + pymeshlab) with a local Python fallback
+  for dev, Postgres 18 for state.
+- **How it deploys**: DigitalOcean App Platform serves the Node app,
+  Managed Postgres attached. The TRELLIS image is built by GitHub Actions
+  on each release tag, pushed to GHCR, and pulled by RunPod Serverless.
+  Stripe Checkout verified on user return via `payments.verifySession`
+  (no webhook, no REST surface).
 
 ---
 
@@ -111,8 +112,9 @@ Three invariants hold everywhere:
 | `server/design-store.js`                 | STL persistence (Postgres BYTEA, memory fallback, TTL expiry)    |
 | `server/workers/runpod-client.js`        | HTTP client for RunPod Serverless; submits jobs, polls `/stream/<id>` for progress + result frames; activated when `RUNPOD_ENDPOINT_URL` + `RUNPOD_API_KEY` are set |
 | `server/workers/trellis_generate.py`     | Local Python fallback; one-shot process, reads stdin, streams stdout frames. Used for dev / CI / when RunPod is unconfigured |
-| `handler.py` (repo root)                 | RunPod Serverless TRELLIS worker. Imports TRELLIS, runs the pipeline, yields progress + result frames over RunPod's job protocol |
-| `Dockerfile` (repo root)                 | Builds the TRELLIS GPU image. Base `pytorch/pytorch:2.4.0-cuda12.1-cudnn9-devel`, clones TRELLIS, force-installs the CUDA-extension wheels (xformers, kaolin, spconv-cu121, nvdiffrast) that setup.sh's case-mismatch fails to install |
+| `handler.py` (repo root)                 | RunPod Serverless TRELLIS worker. Imports TRELLIS, runs the v1 pipeline, yields progress + chunked result frames. Module banner prints `HANDLER_VERSION` so the boot log identifies the running release. Registered with `return_aggregate_stream=False` so chunked yields stream individually rather than aggregating into one oversized POST |
+| `server/workers/pipeline/`               | The v1 mesh pipeline (Python). `__init__.py` exposes `run_v1`; `stages.py` implements stages 1, 1.5, 2, 3, 4, 5; `constants.py` loads `pipeline_constants.json`; `errors.py` carries `PipelineError` + `ErrorCode`; `validation.py` provides `assert_printable` |
+| `Dockerfile` (repo root)                 | Builds the TRELLIS GPU image. Base `pytorch/pytorch:2.4.0-cuda12.1-cudnn9-devel`, clones TRELLIS, installs OpenGL libs (libopengl0/libegl1/libgles2 — pymeshlab needs them), force-installs the CUDA-extension wheels (xformers, kaolin, spconv-cu121, nvdiffrast) that setup.sh's case-mismatch fails to install. See `docs/RUNPOD_TRELLIS_PLAYBOOK.md §9` for the full set of gotchas |
 | `.github/workflows/build-runpod-image.yml` | CI image build → `ghcr.io/<owner>/<repo>:<tag>` on each release |
 | `.runpod/hub.json`                       | RunPod Hub manifest (env vars, GPU presets, allowed CUDA versions) |
 | `server/assets/valve_cap.stl`            | Threaded screw cap (~7.4K tris) — minimal version, runtime asset |
@@ -161,12 +163,17 @@ Client ─ socket "command" {name: 'stl.generate', payload: {imageData, settings
 Server ─ dispatchCommand() → stlCommands['stl.generate']
    │       ├─ write photo to tempdir
    │       ├─ if (runpodEnabled())  ← RUNPOD_ENDPOINT_URL + RUNPOD_API_KEY set
-   │       │     POST {base}/run    body: {input: {image_b64, head_scale, …}}
+   │       │     POST {base}/run    body: {input: {image_b64, head_scale, …, pipeline_version}}
    │       │       ← {id: jobId, status: "IN_QUEUE"}
-   │       │     poll {base}/stream/<jobId> every 1.5s (≤12 min cap)
-   │       │       ← {stream: [{output: {type:"progress", step, pct}}, …]}
-   │       │     each {type:"progress"} → re-emitted as stl.generate.progress
-   │       │     each {type:"result", stl_b64} → buffer the STL
+   │       │     poll {base}/stream/<jobId> every 1.5 s (≤12 min cap)
+   │       │       ← {stream: [{output:…}, …]}
+   │       │     frame router:
+   │       │       {type:"progress",     step, pct}        → stl.generate.progress
+   │       │       {type:"result_chunk", index, total, data} → stlChunks[index]
+   │       │       {type:"result",       chunks, stl_bytes_len} → mark expected
+   │       │       {type:"error",        error}              → throw runpod_worker_error:…
+   │       │     reassemble base64 = stlChunks.join('') as soon as
+   │       │       stlChunks.length === stlChunkTotal (don't wait for COMPLETED)
    │       │   else  (local fallback)
    │       │     spawn python3 server/workers/trellis_generate.py
    │       │       stdin  ← {image_path, valve_cap_path, output_path, head_scale, …}
@@ -180,6 +187,14 @@ Client ← {id, name: 'stl.generate.result', payload: {designId, …, stl_b64}}
    │
    └─ valve-stem-viewer.update({stlData: stl_b64})  ← 3D viewer renders the real mesh
 ```
+
+**Why chunked delivery.** The base64 of a typical 60 K-tri binary STL
+is ~4 MB, well over RunPod's per-frame `/job-stream` size cap (~1 MB).
+v0.1.31–0.1.33 each tried to ship the result in fewer larger pieces and
+each tripped a different cap; v0.1.34 settled on 700 KB chunks plus
+`return_aggregate_stream=False`, which keeps `/stream/<id>` polling
+delivery and drops the broken aggregate POST at generator finish. See
+`docs/RUNPOD_TRELLIS_PLAYBOOK.md` §3–§5 for the full story.
 
 **The result includes the STL bytes (`stl_b64`)** so the Three.js viewer
 can render the real mesh as an immediate preview without waiting for
@@ -625,23 +640,38 @@ order, tracked by `schema_migrations`.
 
 - **Worker logs** stream from RunPod's runtime. Look in RunPod Console →
   endpoint → Workers → \[worker id\] → Logs. Lines prefixed with
-  `[bikeheadz]`, `[probe]`, `[diag]`, `[trellis]` come from `handler.py`.
+  `[bikeheadz]`, `[probe]`, `[diag]`, `[trellis]`, `[stage*]`,
+  `[telemetry]` come from `handler.py`.
 - **Image versioning**: `HANDLER_VERSION` is a string at the top of
   `handler.py` printed at module load time. Bump it when changing the
   worker so a glance at the boot log confirms which release is running.
+  This banner is the first thing to grep for when diagnosing a "no 3D
+  output" report — if it doesn't match the expected version, the
+  deploy didn't take.
 - **Cold-start cost**: ~5–10 minutes on a fresh worker (model download
-  to Network Volume). Warm-worker requests are ~30–60 s. Watch the
-  `runpod.job_complete` line for `bytes` to confirm the result shape.
+  to Network Volume). Warm-worker requests are ~30–60 s. Slider-tweak
+  re-generations on the same photo hit the TRELLIS-output cache (24 h
+  TTL on `/runpod-volume/cache/trellis/`) and complete in ~1–2 s. Watch
+  the `runpod.job_complete` line in DO logs for `bytes` to confirm the
+  result shape.
+- **Failure corpus**: every pipeline error writes input photo + structured
+  `error.json` to `/runpod-volume/failures/<yyyymmdd>/<jobId>/`. To
+  reproduce a user-reported failure, pull the photo from the corpus and
+  re-run the handler against it.
 
-### Mesh-pipeline telemetry (planned)
+### Mesh-pipeline telemetry
 
-[3D_Pipeline.md §9.5](3D_Pipeline.md) defines a per-stage telemetry
-schema (per-stage timing, triangle counts in/out, validation outcomes,
-photo hash) that ships when Phase 1 lands. Until then, mesh-pipeline
-visibility is whatever the worker logs surface line-by-line.
+`handler.py` emits one structured `[telemetry]` JSON line per request
+on stderr — `kind`, `outcome`, `version`, `handler_version`, `job_id`,
+`image_sha`, per-stage `timings`, settings used. This is what an
+aggregator (BetterStack, Loki) ingests when wired up. Stage warnings
+(`[stage3]`, `[stage4]`, `[stage5]`) appear inline in the worker log
+and tell you when manifold3d fell back to mesh concatenation, when the
+final mesh shipped non-watertight, etc.
 
-For richer telemetry, see FEATUREROADMAP → Observability phase (Sentry,
-OpenTelemetry).
+For richer telemetry (Sentry, OpenTelemetry), see FEATUREROADMAP →
+Phase 4. The full diagnostic playbook for the GPU tier is in
+[docs/RUNPOD_TRELLIS_PLAYBOOK.md](docs/RUNPOD_TRELLIS_PLAYBOOK.md) §13.
 
 ---
 
@@ -670,11 +700,14 @@ OpenTelemetry).
 | Symptom                                                    | Likely cause & fix                                                                                                 |
 | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
 | Client shows "Generating… 0%" forever (local backend)      | Python worker isn't installed / `PYTHON_BIN` wrong / `TRELLIS_PATH` invalid. Check `stderr` under `worker.stderr`. |
+| `runpod_no_result (last_status=COMPLETED)` after only ~2 min | The worker finished but the Node tier never reassembled chunks. Check the worker log for `Failed to return job results. \| 400, message='Bad Request'`. If the URL has `isStream=false`, you're hitting the aggregate-POST cap — confirm `return_aggregate_stream=False` is set in `handler.py`. If `isStream=true`, individual chunks are too big — reduce CHUNK_SIZE. See [docs/RUNPOD_TRELLIS_PLAYBOOK.md §3–§5](docs/RUNPOD_TRELLIS_PLAYBOOK.md). |
 | `runpod_no_result (last_status=IN_QUEUE)` after 12 min     | RunPod has the job but no worker picked it up. Check RunPod Console → endpoint → Workers tab: is **Max Workers** ≥ 1? Are workers **Throttled** (region out of GPUs)? Is the active image actually the latest tag? Click **Manage → New Release** to re-pull. |
+| Worker log doesn't show `[bikeheadz] handler.py vX.X.X booting` for the version you expect | RunPod is still on the old image. Open Manage → New Release → paste the new GHCR tag. Don't debug code that isn't running. |
+| Pipeline crashes at stage 1.5 with `non_manifold_input_unrepairable` | The hard gate from older code revisions. Stage 1.5 has been a **warning** since v0.1.34 — pull the latest. |
 | `runpod_http_401` from `runRunpod`                         | `RUNPOD_API_KEY` invalid or expired. Regenerate in RunPod Console → API Keys; update DO Settings → App-Level Environment Variables. |
-| `runpod_worker_error:no module named 'X'` at boot          | Image build dropped a dependency. Common case: setup.sh's PyTorch-version case-statement misses `2.4.0+cu121` and the corresponding CUDA wheel never installs. Fix in `Dockerfile` with an explicit `pip install` and bump `HANDLER_VERSION`. |
+| `runpod_worker_error:no module named 'X'` at boot          | Image build dropped a dependency. Common case: setup.sh's PyTorch-version case-statement misses `2.4.0+cu121` and the corresponding CUDA wheel never installs. Fix in `Dockerfile` with an explicit `pip install` and bump `HANDLER_VERSION`. See playbook §9. |
 | Worker boots fine but `pipeline.run` raises `zero-size array to reduction` | rembg detected no foreground in the input photo. The user uploaded a 1×1 PNG / abstract image / something with no face. Front-load this with a mediapipe pre-flight (planned Stage 0 in [3D_Pipeline.md](3D_Pipeline.md)). |
-| Three.js viewer shows the placeholder forever after generate | Either: (a) server is on legacy code that doesn't include `stl_b64` in the result — redeploy past commit `f9dc227`. (b) The `stl.generate` call errored — check the browser DevTools console for the `stl.generate` rejection message. |
+| Three.js viewer shows the placeholder forever after generate | Either: (a) server is on legacy code that doesn't include `stl_b64` in the result — redeploy past commit `f9dc227`. (b) The `stl.generate` call errored — check the browser DevTools console for the `stl.generate` rejection message. (c) The Node tier is on pre-chunk-aware `runpod-client.js` — pull past commit `3fb5393`. |
 | `stl.backend` log line says `local_spawn` in production     | `RUNPOD_ENDPOINT_URL` or `RUNPOD_API_KEY` is unset / empty in DO config. Set both, redeploy, terminate any warm Node processes so they re-read env. |
 | `payments.createCheckoutSession` errors `stripe_not_configured` | `STRIPE_SECRET_KEY` is empty. Set it in `.env` (dev) or DO dashboard (prod).                                   |
 | STL download returns `payment_required`                    | The purchase row isn't `status='paid'`. Usually means the user navigated away before `payments.verifySession` ran. |
