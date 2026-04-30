@@ -626,8 +626,10 @@ export function HomePage({ socket: _socket }) {
           // the graffiti treatment — magenta strike + fluoro tag —
           // so the navigation reads consistent everywhere.
           ['Pricing', '/pricing', paymentsOff ? { graffiti: 'free' } : null],
+          ['Sadie’s Sixpack', '/sixpack'],
           ['Showcase', '/showcase'],
           ['How it works', '/how-it-works'],
+          ['Account', '/account'],
         ]),
         footerCol('Help', [
           ['FAQ', '/help'],

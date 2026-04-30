@@ -13,6 +13,8 @@ import { LoginPage } from './pages/login.js';
 import { AdminPage } from './pages/admin.js';
 import { GalleryPage, ShareDesignPage } from './pages/gallery.js';
 import { HelpPage } from './pages/help.js';
+import { SixpackPage } from './pages/sixpack.js';
+import './sdz-radical.js';
 import { StatusPage } from './pages/status.js';
 import { ChangelogPage, IncidentsPage } from './pages/changelog.js';
 import { PressPage } from './pages/press.js';
@@ -83,6 +85,7 @@ const router = new Router({
     '/admin': () => AdminPage({ socket }),
     '/showcase': () => GalleryPage({ socket }),
     '/gallery': () => GalleryPage({ socket }),
+    '/sixpack': () => SixpackPage({ socket }),
     '/help': () => HelpPage({ socket }),
     '/status': () => StatusPage({ socket }),
     '/changelog': () => ChangelogPage({ socket }),
@@ -118,10 +121,23 @@ router.render = function patchedRender(url) {
     this.mount.appendChild(page.el);
     this.onRoute?.(pathname);
     window.scrollTo(0, 0);
+    initRadicalAfterRender();
     return;
   }
   _origRender(url);
+  initRadicalAfterRender();
 };
+
+// Wire `sdzr-*` decorations (wordmark splatter, draggable stickers, etc.)
+// after each route mount. The radical layer is namespaced so it's a no-op
+// on routes that don't include any `sdzr-*` markup.
+function initRadicalAfterRender() {
+  if (!window.SDZRadical?.init) return;
+  // Wait one frame so the new page DOM is committed before we wire it.
+  requestAnimationFrame(() => {
+    try { window.SDZRadical.init(document); } catch { /* ignore */ }
+  });
+}
 
 // Prime the runtime config (payments / printing / aaaToggle) once,
 // then re-render the active route so pages branch on the resolved
