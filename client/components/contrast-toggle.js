@@ -3,20 +3,19 @@
 // Flips `<html data-contrast="aaa">` on/off and persists to
 // localStorage.sd_contrast. The actual color override lives in
 // theme.css under `:root[data-contrast="aaa"]`.
+//
+// Hydration is intentionally deferred to ContrastToggle()'s call site
+// (mounted from main.js only when the admin's `aaa_toggle_enabled`
+// flag is on). Putting the hydrate at module-load fired AAA on every
+// page load whether or not the toggle was supposed to exist, leaving
+// returning visitors stuck in high-contrast after admin disabled the
+// chip — see syncAaaChip in main.js for the disable-time cleanup.
 
 import { el } from '../dom.js';
 
 const STORAGE_KEY = 'sd_contrast';
 const ATTR = 'contrast';
 const VALUE = 'aaa';
-
-// Hydrate at module load so the page renders with the right palette
-// before any component mounts.
-try {
-  if (typeof localStorage !== 'undefined' && localStorage.getItem(STORAGE_KEY) === VALUE) {
-    document.documentElement.dataset[ATTR] = VALUE;
-  }
-} catch { /* localStorage may be unavailable */ }
 
 function isOn() {
   return document.documentElement.dataset[ATTR] === VALUE;
@@ -33,6 +32,14 @@ function setOn(on) {
 }
 
 export function ContrastToggle() {
+  // Hydrate now (only runs when the chip is being mounted, which is
+  // gated by the admin flag in main.js).
+  try {
+    if (typeof localStorage !== 'undefined' && localStorage.getItem(STORAGE_KEY) === VALUE) {
+      document.documentElement.dataset[ATTR] = VALUE;
+    }
+  } catch { /* localStorage may be unavailable */ }
+
   const button = el('button', {
     type: 'button',
     'aria-label': 'Toggle high-contrast mode',

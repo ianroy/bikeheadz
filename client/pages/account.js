@@ -18,7 +18,7 @@ export function AccountPage({ socket }) {
   const state = {
     activeTab: 'designs',
     user: null,
-    profile: { displayName: 'Guest', email: '', preferences: {}, emailPrefs: {} },
+    profile: { displayName: '', email: '', preferences: {}, emailPrefs: {} },
     designs: [],
     orders: [],
     photos: [],
@@ -26,6 +26,13 @@ export function AccountPage({ socket }) {
   };
 
   const root = el('div.max-w-3xl.mx-auto.px-4.py-8');
+
+  // Guest empty state — replaces the entire page (profile header,
+  // tabs, content) when the visitor isn't signed in. Previously the
+  // page rendered a fake "Alex Rider" identity with stub orders;
+  // that lied about session state and confused fresh visitors.
+  const guestSlot = el('div');
+  root.appendChild(guestSlot);
 
   const profileHeader = el('div', {
     class: 'rounded-2xl p-6 border mb-6 flex items-center gap-5',
@@ -41,6 +48,57 @@ export function AccountPage({ socket }) {
 
   const content = el('div');
   root.appendChild(content);
+
+  function renderGuest() {
+    clear(guestSlot);
+    profileHeader.style.display = state.user ? '' : 'none';
+    tabBar.style.display = state.user ? '' : 'none';
+    content.style.display = state.user ? '' : 'none';
+    if (state.user) return;
+    guestSlot.appendChild(
+      el(
+        'div',
+        {
+          class: 'rounded-2xl p-8 border text-center',
+          style: { background: '#FFFFFF', borderColor: '#D7CFB6' },
+        },
+        el(
+          'h1',
+          {
+            class: 'sdz-display',
+            style: {
+              fontSize: '1.6rem',
+              color: 'var(--ink)',
+              textShadow: '4px 4px 0 var(--accent2)',
+              marginBottom: '0.75rem',
+            },
+          },
+          'Sign in to see your account.'
+        ),
+        el(
+          'p',
+          {
+            style: {
+              color: 'var(--ink-muted)',
+              fontSize: '0.95rem',
+              maxWidth: '40ch',
+              margin: '0 auto 1.5rem',
+              lineHeight: 1.5,
+            },
+          },
+          paymentsOff
+            ? 'Sign in and your designs, downloads, and saved photos all live here. STL is free for the MVP launch.'
+            : 'Sign in and your designs, photos, orders, and downloads all live here.'
+        ),
+        el(
+          'div',
+          { class: 'flex justify-center gap-3 flex-wrap' },
+          el('a', { href: '/login?next=/account', 'data-link': '', class: 'sdz-cta' }, 'SIGN IN'),
+          el('a', { href: '/stemdome-generator', 'data-link': '', class: 'sdz-cta sdz-cta-secondary' }, 'MAKE YOURS  →')
+        )
+      )
+    );
+  }
 
   function renderProfile() {
     clear(profileHeader);
@@ -666,6 +724,14 @@ export function AccountPage({ socket }) {
     } catch {
       /* ignore */
     }
+    if (!state.user) {
+      // Guest — skip profile / designs / orders fetches entirely so
+      // the SPA never holds onto a fake identity, then render the
+      // sign-in card.
+      state.loaded = true;
+      renderGuest();
+      return;
+    }
     try {
       const profile = await socket.request('account.get');
       if (profile) {
@@ -677,19 +743,17 @@ export function AccountPage({ socket }) {
     } catch {
       /* ignore */
     }
-    if (state.user) {
-      try {
-        const r = await socket.request('designs.listMine', { page: 1, pageSize: 12 });
-        state.designs = r?.rows || [];
-      } catch {
-        state.designs = [];
-      }
-      try {
-        const ph = await socket.request('photos.list', { page: 1, pageSize: 8 });
-        state.photos = ph?.rows || [];
-      } catch {
-        state.photos = [];
-      }
+    try {
+      const r = await socket.request('designs.listMine', { page: 1, pageSize: 12 });
+      state.designs = r?.rows || [];
+    } catch {
+      state.designs = [];
+    }
+    try {
+      const ph = await socket.request('photos.list', { page: 1, pageSize: 8 });
+      state.photos = ph?.rows || [];
+    } catch {
+      state.photos = [];
     }
     try {
       const orders = await socket.request('orders.list');
@@ -698,10 +762,14 @@ export function AccountPage({ socket }) {
       /* ignore */
     }
     state.loaded = true;
+    renderGuest();
     renderProfile();
     renderContent();
   }
 
+  // First paint: hide the auth-only chrome so guests don't flash the
+  // empty profile header before loadInitial resolves.
+  renderGuest();
   renderProfile();
   renderTabs();
   renderContent();

@@ -16,11 +16,10 @@ import { CommandError, ErrorCode } from '../errors.js';
 import { recordAudit } from '../audit.js';
 import { designStore } from '../design-store.js';
 
-const FALLBACK = [
-  { id: '1', name: "Alex's Head", date: 'Apr 18, 2026', thumbnail: 'https://images.unsplash.com/photo-1684770114368-6e01b4f8741a?w=200&q=80', material: 'chrome', stars: 5 },
-  { id: '2', name: 'Jordan Stem', date: 'Apr 12, 2026', thumbnail: 'https://images.unsplash.com/photo-1667761673934-70b67e527f1f?w=200&q=80', material: 'gloss',  stars: 4 },
-  { id: '3', name: 'Sam Rider',   date: 'Mar 29, 2026', thumbnail: 'https://images.unsplash.com/photo-1651557747176-5aa3c20b6780?w=200&q=80', material: 'matte',  stars: 5 },
-];
+// No demo gallery for anonymous visitors. The "Alex's Head / Jordan
+// Stem / Sam Rider" stub leaked into production and made /account
+// look populated for guests; the SPA now renders a proper "Sign in"
+// empty state for anonymous callers.
 
 const PageSchema = z.object({
   page: z.number().int().min(1).default(1),
@@ -37,27 +36,25 @@ function signShare(designId) {
 }
 
 export const designsCommands = {
-  // Legacy demo gallery — still used in dev when the user has no real designs.
+  // Lightweight gallery used by the home/account headers. Empty for
+  // anonymous callers, the user's real designs otherwise.
   'designs.list': async ({ socket }) => {
     const user = maybeUser({ socket });
-    if (!hasDb()) return FALLBACK;
-    if (user) {
-      const { rows } = await db.query(
-        `SELECT id::text,
-                photo_name AS name,
-                to_char(created_at, 'Mon DD, YYYY') AS date,
-                'chrome' AS material,
-                5 AS stars,
-                NULL::text AS thumbnail
-           FROM generated_designs
-          WHERE account_id = $1
-          ORDER BY created_at DESC
-          LIMIT 50`,
-        [user.id]
-      );
-      return rows.length ? rows : FALLBACK;
-    }
-    return FALLBACK;
+    if (!user || !hasDb()) return [];
+    const { rows } = await db.query(
+      `SELECT id::text,
+              photo_name AS name,
+              to_char(created_at, 'Mon DD, YYYY') AS date,
+              'chrome' AS material,
+              5 AS stars,
+              NULL::text AS thumbnail
+         FROM generated_designs
+        WHERE account_id = $1
+        ORDER BY created_at DESC
+        LIMIT 50`,
+      [user.id]
+    );
+    return rows;
   },
 
   // P1-005 — paginated authoritative gallery for /account.

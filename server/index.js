@@ -511,6 +511,9 @@ async function seedMvpFlags() {
   if (!existing.has('printing_enabled')) {
     await setFlag({ key: 'printing_enabled', enabled: false, percent: 0 });
   }
+  if (!existing.has('aaa_toggle_enabled')) {
+    await setFlag({ key: 'aaa_toggle_enabled', enabled: false, percent: 0 });
+  }
   const RESET_MARKER = 'mvp_launch_v2';
   if (!existing.has(RESET_MARKER)) {
     await setFlag({ key: 'payments_enabled', enabled: false, percent: 0 });

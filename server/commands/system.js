@@ -64,6 +64,7 @@ export const systemCommands = {
     return {
       paymentsEnabled: flags.paymentsEnabled,
       printingEnabled: flags.printingEnabled,
+      aaaToggleEnabled: flags.aaaToggleEnabled,
       stripeConfigured: stripeEnabled(),
     };
   },

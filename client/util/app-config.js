@@ -7,15 +7,15 @@ let cached = null;
 let inflight = null;
 const subscribers = new Set();
 
-// First-paint defaults — match the server's: BOTH OFF for the MVP
-// launch window. The real values arrive from `system.config` shortly
-// after socket connect; main.js re-renders the active route once they
-// resolve so the no-flash window is small. Defaulting payments OFF
-// here means a returning visitor sees the graffiti on first paint
-// even before the socket round-trip completes.
+// First-paint defaults — match the server's: payments + printing
+// OFF for the MVP launch window, AAA toggle chip hidden by default.
+// The real values arrive from `system.config` shortly after socket
+// connect; main.js re-renders the active route once they resolve so
+// the no-flash window is small.
 const DEFAULT = {
   paymentsEnabled: false,
   printingEnabled: false,
+  aaaToggleEnabled: false,
   stripeConfigured: false,
 };
 

@@ -115,12 +115,15 @@ router.render = function patchedRender(url) {
   _origRender(url);
 };
 
-// Prime the runtime config (payments_enabled / printing_enabled) once,
-// then re-render the active route so pages branch on the resolved values.
-getAppConfig({ socket }).then(() => {
+// Prime the runtime config (payments / printing / aaaToggle) once,
+// then re-render the active route so pages branch on the resolved
+// values + sync the AAA chip visibility.
+getAppConfig({ socket }).then((cfg) => {
+  syncAaaChip(cfg);
   router.render(location.pathname + location.search);
 });
-onAppConfigChange(() => {
+onAppConfigChange((cfg) => {
+  syncAaaChip(cfg);
   router.render(location.pathname + location.search);
 });
 
@@ -142,17 +145,49 @@ if ('serviceWorker' in navigator) {
 // trigger the banner after the user's second successful generation.
 setupInstallPrompt({ socket });
 
-// P6-002 / P6-011 — mount locale switcher + AAA-contrast toggle as a floating
-// bottom-right chip cluster. Header-right would be more discoverable but
-// crowds the nav; revisit when the toolbar gets a redesign pass.
-const settingsChip = el(
-  'div',
-  {
-    class: 'fixed bottom-3 right-3 z-50 flex items-center gap-2',
-    role: 'group',
-    'aria-label': 'Site settings',
-  },
-  ContrastToggle().el,
-  LocaleSwitcher().el
-);
+// P6-002 / P6-011 — floating bottom-right chip cluster.
+//
+// LocaleSwitcher mounts unconditionally. ContrastToggle only mounts
+// when the admin has flipped `aaa_toggle_enabled` ON via /admin —
+// the chip otherwise clutters the chrome for visitors who never
+// need it. When flipped on/off at runtime, we re-render the cluster
+// and force-clear `<html data-contrast="aaa">` so a stale localStorage
+// state can't keep AAA visually applied after the toggle disappears.
+function mountSettingsChip() {
+  const existing = document.getElementById('sdz-settings-chip');
+  if (existing) existing.remove();
+  const cfg = getAppConfig._cached || null; // not available — fall back to cache
+  const chip = el(
+    'div',
+    {
+      id: 'sdz-settings-chip',
+      class: 'fixed bottom-3 right-3 z-50 flex items-center gap-2',
+      role: 'group',
+      'aria-label': 'Site settings',
+    },
+    LocaleSwitcher().el
+  );
+  return chip;
+}
+
+const settingsChip = mountSettingsChip();
 document.body.appendChild(settingsChip);
+
+function syncAaaChip(cfg) {
+  const aaaOn = !!cfg?.aaaToggleEnabled;
+  const chip = document.getElementById('sdz-settings-chip');
+  if (!chip) return;
+  // Strip any existing ContrastToggle child so we can rebuild idempotently.
+  const existing = chip.querySelector('[data-aaa-toggle]');
+  if (existing) existing.remove();
+  if (aaaOn) {
+    const t = ContrastToggle().el;
+    t.dataset.aaaToggle = '1';
+    chip.insertBefore(t, chip.firstChild);
+  } else {
+    // Admin disabled the toggle — clear any stale data-contrast attr
+    // so a returning visitor doesn't stay locked in AAA mode.
+    delete document.documentElement.dataset.contrast;
+    try { localStorage.removeItem('sd_contrast'); } catch { /* ignore */ }
+  }
+}

@@ -114,12 +114,14 @@ export function HeaderComponent() {
     const cfg = getCachedAppConfig();
     const paymentsOff = !cfg.paymentsEnabled;
 
+    // No "Account" entry — the avatar circle on the right is the
+    // single entry point so guests don't see a redundant "Account"
+    // link next to a profile chip that goes to the same place.
     const links = [
       ['/how-it-works', 'How It Works'],
       ['/pricing', 'Pricing'],
       ['/showcase', 'Showcase'],
       ['/help', 'Help'],
-      ['/account', 'Account'],
     ];
 
     for (const [to, label] of links) {

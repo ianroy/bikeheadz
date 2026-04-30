@@ -236,8 +236,8 @@ export function HomePage({ socket: _socket }) {
         paymentsOff ? 'Print it free' : 'Print or buy printed',
         paymentsOff
           ? (printingOff
-              ? 'Sign in and grab the STL — free for a limited time. Print it on your own FDM/PLA setup.'
-              : 'Sign in and grab the STL — free for a limited time. Print it yourself, or order one printed and shipped soon.')
+              ? 'Sign in and grab the STL file — free for a limited time. Print it on your own 3D Printer.'
+              : 'Sign in and grab the STL file — free for a limited time. Print it on your own 3D Printer, or order one printed and shipped soon.')
           : '$2 grabs the STL. $19.99 ships you a printed cap. $59.99 a pack of four for the crew.',
         'var(--accent2-dim)'
       )

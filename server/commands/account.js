@@ -6,10 +6,19 @@ import { requireAuth } from '../auth.js';
 import { recordAudit } from '../audit.js';
 import { CommandError, ErrorCode } from '../errors.js';
 
-const DEFAULT_PROFILE = {
-  displayName: 'Alex Rider',
-  email: 'alex@stemdomez.com',
-  preferences: { shipNotify: true, marketing: false, defaultChrome: true },
+// Empty profile for anonymous callers. The legacy "Alex Rider /
+// alex@stemdomez.com" demo profile shipped a fake identity to logged-
+// out visitors which made the /account page look like someone was
+// already signed in. Now we return null fields so the SPA renders
+// the genuine guest state ("Sign in to see your designs").
+const ANONYMOUS_PROFILE = {
+  displayName: '',
+  email: '',
+  preferences: {},
+  emailPrefs: {},
+  avatar: { kind: 'identicon' },
+  username: null,
+  locale: 'en',
 };
 
 const UpdateSchema = z.object({
@@ -62,11 +71,7 @@ const RESERVED_USERNAMES = new Set([
 export const accountCommands = {
   'account.get': async ({ socket }) => {
     const user = socket.data?.user;
-    if (!user) {
-      if (!hasDb()) return DEFAULT_PROFILE;
-      // Anonymous read — return demo profile
-      return DEFAULT_PROFILE;
-    }
+    if (!user) return ANONYMOUS_PROFILE;
     return publicProfile(user);
   },
 

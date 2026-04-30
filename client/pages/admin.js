@@ -155,6 +155,12 @@ export function AdminPage({ socket }) {
         title: '3rd-party printing options',
         onLabel: 'Printed Stem + Pack of 4 visible on the site',
         offLabel: 'Printed Stem + Pack of 4 hidden everywhere',
+      }),
+      toggleRow({
+        flagKey: 'aaa_toggle_enabled',
+        title: 'AAA contrast toggle chip',
+        onLabel: 'Floating "AAA on/off" chip visible bottom-right of every page',
+        offLabel: 'Chip hidden — site renders in standard AA palette',
       })
     );
   }
