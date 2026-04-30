@@ -92,15 +92,12 @@
 
 .sdzr-wordmark {
   display: inline-block;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui,
-               'Helvetica Neue', sans-serif;
-  font-style: italic;
-  font-weight: 900;
-  letter-spacing: -0.035em;
-  text-transform: lowercase;
   position: relative;
   cursor: default;
-  color: var(--sdzr-ink);
+  /* Inherit font / weight / casing from .sdz-wordmark — the prototype
+   * forced lowercase + italic in this class, but our header wordmark
+   * is mixed-case "StemDomeZ" and the lowercase rule made it
+   * unreadable. Keep this class purely as a hover-splatter hook. */
 }
 .sdzr-wordmark .sdzr-z {
   color: var(--sdzr-brand);

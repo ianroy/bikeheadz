@@ -245,7 +245,6 @@ app.get('/sitemap.xml', (_req, res) => {
     '/',
     '/stemdome-generator',
     '/pricing',
-    '/how-it-works',
     '/help',
     '/showcase',
     '/security',

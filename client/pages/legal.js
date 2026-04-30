@@ -156,7 +156,7 @@ function legalShell({ title, intro, sections }) {
     }, '→ Your account'),
     el('span', null, '·'),
     el('a', {
-      href: '/sixpack',
+      href: '/#sixpack',
       'data-link': '',
       style: { color: '#7B2EFF', textDecoration: 'underline', textUnderlineOffset: '3px', fontWeight: 700 },
     }, '→ Sadie’s Sixpack'),

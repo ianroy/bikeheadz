@@ -119,8 +119,8 @@ export function HeaderComponent() {
     // single entry point so guests don't see a redundant "Account"
     // link next to a profile chip that goes to the same place.
     const links = [
-      ['/how-it-works', 'How It Works'],
-      ['/sixpack', 'Sixpack'],
+      ['/#how', 'How It Works'],
+      ['/#sixpack', 'Sixpack'],
       ['/pricing', 'Pricing'],
       ['/showcase', 'Showcase'],
       ['/help', 'Help'],

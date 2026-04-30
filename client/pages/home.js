@@ -97,7 +97,7 @@ function heroCap({ paymentsOff }) {
 
   const ctas = el('div', { style: { display: 'flex', gap: '0.8rem', flexWrap: 'wrap' } },
     el('a', { class: 'sdzr-cta', href: '/stemdome-generator', 'data-link': '' }, 'Make Yours →'),
-    el('a', { class: 'sdzr-cta sdzr-cta--ghost', href: '/how-it-works', 'data-link': '' }, 'How it works'),
+    el('a', { class: 'sdzr-cta sdzr-cta--ghost', href: '/#how', 'data-link': '' }, 'How it works'),
   );
 
   // The "$2" line gets a graffiti strikethrough when payments are off.
@@ -109,8 +109,19 @@ function heroCap({ paymentsOff }) {
       )
     : el('span', null, '$2 STL · 3D printable on any FDM/PLA setup.');
 
+  // Splatter dots — must be a real SVGElement (createElementNS), otherwise
+  // the painted <circle> children won't render. SDZRadical.init paints
+  // them once the element is in the DOM via refreshSplatter().
+  const splatter = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  splatter.setAttribute('class', 'sdzr-splatter');
+  splatter.setAttribute('aria-hidden', 'true');
+  splatter.setAttribute('data-count', '120');
+  Object.assign(splatter.style, {
+    position: 'absolute', inset: '0', width: '100%', height: '100%', pointerEvents: 'none',
+  });
+
   return el('section', { class: 'hero hero--cap sdzr-bg-paper sdzr-grain' },
-    el('svg', { class: 'sdzr-splatter', 'aria-hidden': 'true', style: { position: 'absolute', inset: '0', width: '100%', height: '100%', pointerEvents: 'none' } }),
+    splatter,
     el('div', { class: 'wrap hero__inner' },
       el('div', null,
         el('span', { class: 'sdzr-eyebrow' }, 'EST. 1993 · DROP 001 · STEMDOMEZ.COM'),
@@ -295,14 +306,14 @@ function architectureSection() {
 
   return el('section', { class: 'section sdzr-bg-violet sdzr-grain', id: 'gallery', style: { paddingTop: '5rem' } },
     el('div', { class: 'wrap' },
-      el('div', { class: 'section__head' },
-        el('div', null,
-          el('span', { class: 'sdzr-eyebrow', style: { color: 'var(--sdzr-accent2)' } }, 'TECH STACK'),
-          el('h2', { class: 'section__title sdzr-display sdzr-shadow-magenta' }, 'HOW IT REALLY', el('br'), 'WORKS.'),
-          el('p', { class: 'section__lede', style: { color: 'var(--sdzr-paper)' } },
-            'Photo in, STL out — here is the whole pipeline. Browser fires a single socket.io command, the DO app dispatches it, RunPod’s GPU runs TRELLIS + a 7-stage CAD pipeline, the binary STL streams back in 700 KB chunks. Build → release lifecycle runs out of GitHub Actions → GHCR → RunPod releases.'),
+      el('div', { style: { marginBottom: '1.2rem' } },
+        el('span', { class: 'sdzr-eyebrow', style: { color: 'var(--sdzr-accent2)' } }, 'TECH STACK'),
+        el('h2', { class: 'section__title sdzr-display sdzr-shadow-magenta' }, 'HOW IT REALLY', el('br'), 'WORKS.'),
+        el('p', { class: 'section__lede', style: { color: 'var(--sdzr-paper)' } },
+          'Photo in, STL out — here is the whole pipeline. Browser fires a single socket.io command, the DO app dispatches it, RunPod’s GPU runs TRELLIS + a 7-stage CAD pipeline, the binary STL streams back in 700 KB chunks. Build → release lifecycle runs out of GitHub Actions → GHCR → RunPod releases.'),
+        el('div', { style: { marginTop: '1rem' } },
+          el('span', { class: 'sdzr-sticker sdzr-sticker--green', 'data-rot': '-6' }, 'SOURCED FROM ARCHITECTURE.SVG'),
         ),
-        el('span', { class: 'sdzr-sticker sdzr-sticker--green', 'data-rot': '-6' }, 'SOURCED FROM ARCHITECTURE.SVG'),
       ),
       subFlow,
       el('article', { class: 'archdiagram' }, cols, lane, legend),
@@ -402,18 +413,18 @@ function sixpackSection() {
 
   return el('section', { class: 'section sdzr-bg-paper-soft', id: 'sixpack', style: { position: 'relative' } },
     el('div', { class: 'wrap' },
-      el('div', { class: 'section__head' },
-        el('div', null,
-          el('span', { class: 'sdzr-eyebrow' }, 'SADIE’S SIXPACK · DROP 002 · FREE STLs'),
-          el('h2', { class: 'section__title sdzr-display sdzr-shadow-tri' }, 'SADIE’S SIXPACK.'),
-          el('p', { class: 'section__lede' },
-            'Six valve caps printed from Sadie’s Bikes lore — every regular, every rumor, every bolt-eating creature in the back. Pop a quarter in the gumball machine: you get one of these. Want the other five? Or your own face on a cap? Hit ',
-            el('strong', null, 'StemDome'),
-            el('span', { style: { color: 'var(--sdzr-brand)', fontStyle: 'italic', fontWeight: 900 } }, 'Z'),
-            ' below and roll your own.',
-          ),
+      el('div', { style: { marginBottom: '1.2rem' } },
+        el('span', { class: 'sdzr-eyebrow' }, 'SADIE’S SIXPACK · DROP 002 · FREE STLs'),
+        el('h2', { class: 'section__title sdzr-display sdzr-shadow-tri' }, 'SADIE’S SIXPACK.'),
+        el('p', { class: 'section__lede' },
+          'Six valve caps printed from Sadie’s Bikes lore — every regular, every rumor, every bolt-eating creature in the back. Pop a quarter in the gumball machine: you get one of these. Want the other five? Or your own face on a cap? Hit ',
+          el('strong', null, 'StemDome'),
+          el('span', { style: { color: 'var(--sdzr-brand)', fontStyle: 'italic', fontWeight: 900 } }, 'Z'),
+          ' below and roll your own.',
         ),
-        el('span', { class: 'sdzr-sticker sdzr-sticker--magenta', 'data-rot': '-7', style: { whiteSpace: 'nowrap' } }, 'FREE · NO CHECKOUT'),
+        el('div', { style: { marginTop: '1rem' } },
+          el('span', { class: 'sdzr-sticker sdzr-sticker--magenta', 'data-rot': '-7', style: { whiteSpace: 'nowrap' } }, 'FREE · NO CHECKOUT'),
+        ),
       ),
       grid,
       cta,
@@ -562,9 +573,9 @@ function brandFooter({ paymentsOff }) {
         footerCol('Product', [
           ['Make yours', '/stemdome-generator'],
           ['Pricing', '/pricing', paymentsOff ? { graffiti: 'free' } : null],
-          ['Sadie’s Sixpack', '/sixpack'],
+          ['Sadie’s Sixpack', '/#sixpack'],
           ['Showcase', '/showcase'],
-          ['How it works', '/how-it-works'],
+          ['How it works', '/#how'],
           ['Account', '/account'],
         ]),
         footerCol('Help', [

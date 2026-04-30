@@ -34,7 +34,7 @@ const FAQ = [
   },
   {
     q: 'My print failed (warped, didn\'t adhere, looked off). What do I do?',
-    a: 'Send us the failed print + a photo of the slicer settings to help@stemdomez.com and we\'ll either send a corrected STL free of charge or refund the order. The most common causes we\'ve seen: print orientation other than cap-down, layer height >0.2 mm, or non-PLA filament without clearance compensation. See the printing guide on `/how-it-works` for the recommended profile.',
+    a: 'Send us the failed print + a photo of the slicer settings to help@stemdomez.com and we\'ll either send a corrected STL free of charge or refund the order. The most common causes we\'ve seen: print orientation other than cap-down, layer height >0.2 mm, or non-PLA filament without clearance compensation. See the printing guide on the landing page (#how section) for the recommended profile.',
   },
   {
     q: 'What 3D file formats do you support?',

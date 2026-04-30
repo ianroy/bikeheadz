@@ -5,7 +5,6 @@ import { SocketClient } from './socket.js';
 import { HeaderComponent } from './components/header.js';
 import { HomePage } from './pages/home.js';
 import { GeneratorPage } from './pages/generator.js';
-import { HowItWorksPage } from './pages/how-it-works.js';
 import { AccountPage } from './pages/account.js';
 import { PricingPage } from './pages/pricing.js';
 import { CheckoutReturnPage } from './pages/checkout-return.js';
@@ -13,7 +12,6 @@ import { LoginPage } from './pages/login.js';
 import { AdminPage } from './pages/admin.js';
 import { GalleryPage, ShareDesignPage } from './pages/gallery.js';
 import { HelpPage } from './pages/help.js';
-import { SixpackPage } from './pages/sixpack.js';
 import { mountTweaksPanel, applyPersistedTweaks } from './components/tweaks-panel.js';
 import './sdz-radical.js';
 import { StatusPage } from './pages/status.js';
@@ -78,7 +76,6 @@ const router = new Router({
     // bookmarks/inbound links so they don't 404.
     '/generator': ({ query }) => GeneratorPage({ socket, remix: query.remix }),
     '/generate': ({ query }) => GeneratorPage({ socket, remix: query.remix }),
-    '/how-it-works': () => HowItWorksPage({ socket }),
     '/account': () => AccountPage({ socket }),
     '/pricing': ({ query }) => PricingPage({ socket, cancelled: query.cancelled === '1' }),
     '/checkout/return': ({ query }) => CheckoutReturnPage({ socket, sessionId: query.session_id }),
@@ -86,7 +83,6 @@ const router = new Router({
     '/admin': () => AdminPage({ socket }),
     '/showcase': () => GalleryPage({ socket }),
     '/gallery': () => GalleryPage({ socket }),
-    '/sixpack': () => SixpackPage({ socket }),
     '/help': () => HelpPage({ socket }),
     '/status': () => StatusPage({ socket }),
     '/changelog': () => ChangelogPage({ socket }),
@@ -112,7 +108,10 @@ const router = new Router({
 // P5-002 — match `/d/<token>` and `/u/<username>` dynamically.
 const _origRender = router.render.bind(router);
 router.render = function patchedRender(url) {
-  const [pathname] = url.split('?');
+  // Strip any #fragment from the URL before route matching so links like
+  // `/#how` resolve to `/` and we can scroll to the in-page anchor afterwards.
+  const [pathAndQuery, hash = ''] = url.split('#');
+  const [pathname] = pathAndQuery.split('?');
   const dMatch = pathname.match(/^\/d\/([\w.-]+)$/);
   if (dMatch) {
     if (this.current?.destroy) try { this.current.destroy(); } catch { /* ignore */ }
@@ -123,11 +122,31 @@ router.render = function patchedRender(url) {
     this.onRoute?.(pathname);
     window.scrollTo(0, 0);
     initRadicalAfterRender();
+    if (hash) scrollToHash(hash);
     return;
   }
-  _origRender(url);
+  _origRender(pathAndQuery);
   initRadicalAfterRender();
+  if (hash) scrollToHash(hash);
 };
+
+// Scroll to an in-page anchor after a route renders. We retry a couple of
+// frames since the page DOM may still be settling (image loads, marquee
+// fills, etc. can shift layout).
+function scrollToHash(hash) {
+  const id = hash.replace(/^#/, '');
+  if (!id) return;
+  let attempts = 0;
+  const tryScroll = () => {
+    const target = document.getElementById(id);
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else if (attempts++ < 8) {
+      requestAnimationFrame(tryScroll);
+    }
+  };
+  requestAnimationFrame(tryScroll);
+}
 
 // Wire `sdzr-*` decorations (wordmark splatter, draggable stickers, etc.)
 // after each route mount. The radical layer is namespaced so it's a no-op
