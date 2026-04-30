@@ -192,19 +192,43 @@ export function HomePage({ socket: _socket }) {
           el('span', { class: 'sdz-chip sdz-chip-magenta' }, 'Schrader fit')
         )
       ),
-      // right column — big monogram render
+      // right column — spinning CSS-3D valve cap (lifted from prototype
+      // hero variant A). SDZRadical.init wires drag-to-spin via the
+      // `.sdzr-cap` class. Keeps payments-off graffiti on the left
+      // intact; just swaps the static monogram render for the cap.
       el(
         'div',
-        { class: 'flex justify-center md:justify-end' },
-        el('img', {
-          src: '/press/logo-monogram.png',
-          alt: 'StemDomeZ monogram — cap, head, and the SDZ letterform',
-          style: {
-            width: 'min(360px, 80%)',
-            height: 'auto',
-            transform: 'rotate(-4deg)',
+        { class: 'flex justify-center md:justify-end sdzr-cap-stage' },
+        el('div', { class: 'cap-shell', title: 'drag to spin' },
+          el('div', { class: 'sdzr-cap' },
+            el('div', { class: 'cap-cyl' },
+              el('div', { class: 'cap-cyl__side' }),
+              el('div', { class: 'cap-cyl__top' }),
+            ),
+            el('div', { class: 'cap-head' }),
+            el('div', { class: 'cap-glasses' }),
+          ),
+        ),
+        el(
+          'div',
+          {
+            style: {
+              position: 'absolute',
+              bottom: '4px',
+              left: '0',
+              right: '0',
+              textAlign: 'center',
+              color: '#3D2F4A',
+              fontFamily: 'ui-monospace, monospace',
+              fontSize: '0.72rem',
+              letterSpacing: '0.18em',
+              textTransform: 'uppercase',
+              fontWeight: 700,
+              pointerEvents: 'none',
+            },
           },
-        })
+          'DRAG TO SPIN ↻',
+        ),
       )
     ),
     // zigzag bottom border
@@ -218,7 +242,16 @@ export function HomePage({ socket: _socket }) {
   // ── 2. HOW IT WORKS ────────────────────────────────────────────────
   const how = el(
     'section',
-    { class: 'max-w-6xl mx-auto px-6 py-16 md:py-20' },
+    {
+      class: 'sdzr-bg-paper-soft',
+      style: {
+        borderTop: '3px solid #0E0A12',
+        borderBottom: '3px solid #0E0A12',
+      },
+    },
+    el(
+      'div',
+      { class: 'max-w-6xl mx-auto px-6 py-16 md:py-20' },
     el(
       'h2',
       {
@@ -262,6 +295,7 @@ export function HomePage({ socket: _socket }) {
       )
     ),
     architectureBlock()
+    )
   );
   root.appendChild(how);
 
@@ -271,18 +305,19 @@ export function HomePage({ socket: _socket }) {
     'TRELLIS IMAGE→3D', 'MONGOOSE BMX PALETTE', 'EST. 1993 · SOFTLY',
   ], { reverse: true }));
 
-  // ── 3. VIDEO DEMO ──────────────────────────────────────────────────
-  // The page checks for a real demo video at /demo/landing.mp4. If it
-  // exists, it auto-plays muted-loop; otherwise the static poster card
-  // explains "demo coming soon" and the layout stays intact.
+  // ── 3. MINT CTA + VIDEO ────────────────────────────────────────────
+  // Pinned-dark per brandstandards.MD §14 — accent2 / paper text on
+  // ink stays readable in any color-scheme. The video tile sits on the
+  // right; left column is the "DROP 003" mint pitch.
   const videoSection = el(
     'section',
     {
       class: 'relative',
       style: {
-        background: 'var(--paper-soft)',
-        borderTop: '3px solid var(--ink)',
-        borderBottom: '3px solid var(--ink)',
+        background: '#0E0A12',
+        color: '#F5F2E5',
+        borderTop: '3px solid #0E0A12',
+        borderBottom: '3px solid #0E0A12',
       },
     },
     el(
@@ -292,124 +327,175 @@ export function HomePage({ socket: _socket }) {
         'div',
         {},
         el(
+          'span',
+          {
+            style: {
+              display: 'inline-block',
+              fontFamily: 'ui-monospace, monospace',
+              fontSize: '0.78rem',
+              fontWeight: 700,
+              letterSpacing: '0.16em',
+              textTransform: 'uppercase',
+              color: '#2EFF8C',
+              marginBottom: '0.5rem',
+            },
+          },
+          'DROP 003 · YOUR FACE',
+        ),
+        el(
           'h2',
           {
             class: 'sdz-display',
-            style: { fontSize: '2rem', color: 'var(--ink)', marginBottom: '0.5rem' },
+            style: {
+              fontSize: 'clamp(2.4rem, 5vw, 3.6rem)',
+              color: '#F5F2E5',
+              textShadow: '4px 4px 0 #7B2EFF, 7px 7px 0 #FF2EAB',
+              margin: '0.2rem 0 0.8rem',
+              fontStyle: 'italic',
+              lineHeight: '0.95',
+            },
           },
-          'See it ride.'
+          'Now make ',
+          el('em', { style: { fontStyle: 'italic', color: '#2EFF8C' } }, 'yours'),
+          '.',
         ),
         el(
           'p',
           {
             style: {
-              color: 'var(--ink-muted)',
-              fontSize: '1rem',
-              fontStyle: 'italic',
-              maxWidth: '32ch',
+              color: '#F5F2E5',
+              fontSize: '1.05rem',
               lineHeight: '1.5',
+              maxWidth: '50ch',
+              margin: '0 0 1rem',
             },
           },
-          'Photo in. STL out. ~60 seconds end-to-end on a warm worker. Output prints clean on a Bambu A1 / Prusa MK4 / Elegoo Centauri at 0.4 mm nozzle.'
-        )
+          'The Sixpack is the lore. ',
+          el('strong', { style: { color: '#2EFF8C' } }, 'StemDomeZ'),
+          ' is the press. Drop a portrait. The pipeline does the rest. Free during launch — use code ',
+          el('code', {
+            style: {
+              background: '#FF2EAB',
+              color: '#0E0A12',
+              padding: '2px 8px',
+              fontFamily: 'ui-monospace, monospace',
+              fontWeight: 700,
+              letterSpacing: '0.06em',
+            },
+          }, 'SADYSBIKES'),
+          ' after.',
+        ),
+        el(
+          'a',
+          {
+            class: 'sdz-cta',
+            href: '/stemdome-generator',
+            'data-link': '',
+            style: { fontSize: '1rem', padding: '0.85rem 1.5rem' },
+          },
+          'MINT YOUR OWN  ↗',
+        ),
       ),
       videoTile()
     )
   );
   root.appendChild(videoSection);
 
-  // ── 4. ABOUT ────────────────────────────────────────────────────────
+  // ── 4. ABOUT — "MADE FOR A GUMBALL MACHINE." ───────────────────────
+  // Lifted from prototype's #about block. Pinned-fluoro-green ground
+  // (sdzr-bg-green = accent2 + ink text = 14.75:1 in any color-scheme).
+  // Replaces the previous "About / workshop-made" block with the
+  // residency story.
   const about = el(
     'section',
-    { class: 'max-w-6xl mx-auto px-6 py-16 md:py-20' },
+    {
+      class: 'sdzr-bg-green sdzr-grain',
+      style: {
+        position: 'relative',
+        borderTop: '3px solid #0E0A12',
+        borderBottom: '3px solid #0E0A12',
+      },
+    },
     el(
       'div',
-      { class: 'grid md:grid-cols-[1fr_2fr] gap-10' },
-      el(
-        'div',
-        {},
-        el(
-          'h2',
-          {
-            class: 'sdz-display',
-            style: {
-              fontSize: '2rem',
-              color: 'var(--ink)',
-              textShadow: '4px 4px 0 var(--accent3)',
-              marginBottom: '1rem',
-            },
-          },
-          'About.'
-        ),
-        el('span', { class: 'sdz-chip sdz-chip-purple' }, 'WORKSHOP-MADE')
+      { class: 'max-w-6xl mx-auto px-6 py-16 md:py-20' },
+      el('span', {
+        style: {
+          display: 'inline-block',
+          fontFamily: 'ui-monospace, monospace',
+          fontSize: '0.78rem',
+          fontWeight: 700,
+          letterSpacing: '0.18em',
+          textTransform: 'uppercase',
+          color: '#0E0A12',
+          marginBottom: '0.5rem',
+        },
+      }, 'ABOUT'),
+      el('h2', {
+        class: 'sdz-display',
+        style: {
+          fontSize: 'clamp(2.4rem, 6vw, 4.4rem)',
+          color: '#0E0A12',
+          textShadow: '5px 5px 0 #F5F2E5, 9px 9px 0 #7B2EFF',
+          margin: '0 0 1.25rem',
+          fontStyle: 'italic',
+          lineHeight: '0.92',
+          letterSpacing: '-0.02em',
+          textTransform: 'uppercase',
+        },
+      },
+        'MADE FOR A',
+        el('br'),
+        'GUMBALL MACHINE.',
       ),
       el(
         'div',
         {
           class: 'flex flex-col gap-4',
-          style: { fontSize: '1.05rem', lineHeight: '1.6', color: 'var(--ink)' },
+          style: {
+            fontSize: '1.08rem',
+            lineHeight: '1.65',
+            color: '#0E0A12',
+            maxWidth: '64ch',
+          },
         },
         el(
           'p',
           {},
-          'StemDomeZ is a small-batch maker product for cyclists who like fiddling with their bike. ',
-          'Schrader valve cap. Your face. PLA. Done.'
-        ),
-        el(
-          'p',
-          {},
-          'We started this because every other valve cap is the same matte-black blob — and we figured a cyclist with a 3D printer should be able to put their kid, their dog, or their own glasses-wearing dome on top of every wheel they own. ',
-          el(
-            'span',
-            { style: { fontStyle: 'italic', color: 'var(--brand)' } },
-            'Race day at the trails, 1993,'
-          ),
-          ' but the trails are now and the printer is the one in your garage.'
-        ),
-        el(
-          'p',
-          {},
-          'Right now we’re running the ',
-          el('strong', { style: { color: 'var(--brand)' } }, 'Gumball Machine Takeover'),
-          ' residency at ',
-          el('strong', {}, 'Sadie’s Bikes'),
-          ' — drop a quarter, get a hand-modeled lore cap (a Captain, a Big Mick, a Sasquatch Foot). The six freebies live on the ',
+          'StemDomeZ was built for the ',
+          el('strong', {}, 'Gumball Machine Takeover'),
+          ' — a curatorial residency run by ',
           el('a', {
-            href: '/sixpack',
-            'data-link': '',
-            style: { color: 'var(--brand)', textDecoration: 'underline', fontWeight: 700 },
-          }, 'Sixpack page'),
-          ' if you can’t make it in.'
+            href: 'https://www.instagram.com/sadiesbikes/',
+            target: '_blank',
+            rel: 'noopener noreferrer',
+            style: {
+              color: '#0E0A12',
+              textDecoration: 'underline',
+              textDecorationColor: '#7B2EFF',
+              textDecorationThickness: '3px',
+              fontWeight: 700,
+            },
+          }, 'Sadie’s Bikes'),
+          ' out of Great (Turners) Falls, Massachusetts. The brief: come up with 200 things that fit inside a 2″ capsule, and sell each one for 50¢.',
         ),
-        paymentsOff
-          ? el(
-              'p',
-              {},
-              'No subscriptions. No upsells. ',
-              el('strong', { class: 'sdz-graffiti-strike' }, '$2 STL'),
-              ' ',
-              el(
-                'span',
-                {
-                  class: 'sdz-graffiti-tag sdz-graffiti-tag-magenta',
-                  style: { fontSize: '1.05em', display: 'inline-block', verticalAlign: 'baseline' },
-                },
-                'Free!'
-              ),
-              ' for a limited time — sign in and the STL is yours.'
-            )
-          : el(
-              'p',
-              {},
-              'No subscriptions. No upsells. ',
-              el('strong', {}, '$2 STL'),
-              ' if you print it yourself, ',
-              el('strong', {}, '$19.99'),
-              ' if you want it shipped, ',
-              el('strong', {}, '$59.99'),
-              ' for the four-pack.'
-            )
-      )
+        el(
+          'p',
+          {},
+          'So I made a working e-commerce site that prints custom valve-stem caps from a photo of your face, packed it into capsules at ',
+          el('strong', {}, 'Waterway Arts'),
+          ', and pointed people at the URL on the card inside. The machine is the flyer. The capsule is the box. The cap is the product. The site is real and it ships.',
+        ),
+        el(
+          'p',
+          {},
+          'Opens First Friday with snacks. ',
+          el('strong', {}, 'Anything left over rides around in the grab-bag machine'),
+          ' at The Wagon Wheel and The Upper Bend until the capsules run out. Big thanks to ',
+          el('strong', {}, 'Nik Perry'),
+          ' for the invitation and the constraints — both of which made the work better.',
+        ),
+      ),
     )
   );
   root.appendChild(about);
@@ -1355,9 +1441,13 @@ function sixpackTeaser() {
   return el(
     'section',
     {
-      class: 'max-w-6xl mx-auto px-6 py-12 md:py-16',
-      style: { borderTop: '3px dashed var(--ink)' },
+      class: 'sdzr-bg-paper-soft',
+      style: {
+        borderTop: '3px solid #0E0A12',
+        borderBottom: '3px solid #0E0A12',
+      },
     },
+    el('div', { class: 'max-w-6xl mx-auto px-6 py-12 md:py-16' },
     el(
       'div',
       {
@@ -1411,6 +1501,7 @@ function sixpackTeaser() {
       ),
     ),
     grid,
+    )
   );
 }
 
