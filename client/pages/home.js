@@ -581,7 +581,7 @@ export function HomePage({ socket: _socket }) {
         el(
           'p',
           { style: { color: 'var(--ink-muted)', fontStyle: 'italic', maxWidth: '40ch' } },
-          'Opt-in showcase wall. Riders, dogs, kids. Some classics, some weirdos.'
+          'Opt-in showcase wall. Riders, dogs, makers. Some classics, some weirdos.'
         )
       ),
       el(
@@ -681,7 +681,22 @@ export function HomePage({ socket: _socket }) {
             color: '#2EFF8C',
           },
         },
-        el('span', {}, '© ' + new Date().getFullYear() + ' StemDomeZ. Made in a workshop.'),
+        el(
+          'span',
+          {},
+          '© ' + new Date().getFullYear() + ' StemDomeZ. Made in a workshop by ',
+          el(
+            'a',
+            {
+              href: 'https://ianroy.org/',
+              target: '_blank',
+              rel: 'noopener noreferrer',
+              style: { color: '#2EFF8C', textDecoration: 'underline', fontWeight: 600 },
+            },
+            'ianroy.org'
+          ),
+          '.'
+        ),
         el(
           'span',
           {},

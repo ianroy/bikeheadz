@@ -22,7 +22,7 @@
 //
 // Cookies are HttpOnly, SameSite=Lax, and Secure in production.
 
-import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import { db, hasDb } from './db.js';
 import { logger } from './logger.js';
 import { CommandError, ErrorCode } from './errors.js';

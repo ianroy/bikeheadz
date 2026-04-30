@@ -17,6 +17,7 @@ import { sendEmail } from './email.js';
 import { setFlag, listFlags } from './flags.js';
 import { invalidateAppConfigCache } from './app-config.js';
 import { applyPendingMigrations } from './migrate.js';
+import { pageViewMiddleware } from './page-view.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -112,6 +113,13 @@ if (webhookEnabled()) {
 }
 
 app.use(express.json({ limit: '12mb' }));
+
+// Page-view middleware — populates page_views for the admin Trends /
+// Funnel / Devices / Referrer dashboards. Skips static assets, the
+// socket.io upgrade endpoint, /health, /metrics, /webhooks, etc.
+// Persistence is fire-and-forget after next() so the user's first
+// paint is unaffected by any geo-IP latency.
+app.use(pageViewMiddleware());
 
 // ── /health (DO App Platform), enriched with RunPod ping (P0-011).
 let runpodCache = { reachable: null, lastChecked: 0, latencyMs: null };
