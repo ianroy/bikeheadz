@@ -163,14 +163,36 @@ export function AccountPage({ socket }) {
             'Sign in'
           )
         : el(
-            'button',
-            {
-              class: 'flex items-center gap-1.5 transition-colors',
-              style: { color: '#3D2F4A', fontSize: '0.8rem' },
-              onClick: signOut,
-            },
-            icon('logOut', { size: 16 }),
-            'Sign out'
+            'div',
+            { class: 'flex flex-col items-end gap-2' },
+            // Admin-only CTA so operators don't have to type /admin
+            // by hand. Only renders when the current user has the
+            // admin role; guests + regular riders never see it.
+            state.user?.role === 'admin'
+              ? el(
+                  'a',
+                  {
+                    href: '/admin',
+                    'data-link': true,
+                    class: 'sdz-cta',
+                    style: {
+                      fontSize: '0.78rem',
+                      padding: '0.5rem 0.9rem',
+                    },
+                  },
+                  'ADMIN PANEL  →'
+                )
+              : null,
+            el(
+              'button',
+              {
+                class: 'flex items-center gap-1.5 transition-colors',
+                style: { color: '#3D2F4A', fontSize: '0.8rem' },
+                onClick: signOut,
+              },
+              icon('logOut', { size: 16 }),
+              'Sign out'
+            )
           )
     );
   }
