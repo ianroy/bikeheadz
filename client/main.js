@@ -139,6 +139,50 @@ function initRadicalAfterRender() {
   });
 }
 
+// Calm-mode floating toggle — bottom-left. Toggles `html.sdz-calm`
+// which freezes all `sdzr-*` motion (and respects prefers-reduced-
+// motion automatically). Persists in localStorage via SDZRadical.setCalm.
+(function mountCalmToggle() {
+  if (!window.SDZRadical) return;
+  // Honor stored preference on first paint so animations don't flash on.
+  try { window.SDZRadical.setCalm(window.SDZRadical.getCalm()); } catch { /* ignore */ }
+  const btn = el('button', {
+    type: 'button',
+    'aria-label': 'Toggle calm mode (pause animations)',
+    title: 'Pause / play animations',
+    style: {
+      position: 'fixed',
+      left: '16px',
+      bottom: '16px',
+      zIndex: '40',
+      width: '44px',
+      height: '44px',
+      borderRadius: '999px',
+      background: 'var(--paper)',
+      border: '2px solid var(--ink)',
+      boxShadow: '3px 3px 0 var(--ink)',
+      cursor: 'pointer',
+      fontFamily: 'ui-monospace, monospace',
+      fontSize: '1.1rem',
+      lineHeight: '1',
+      color: 'var(--ink)',
+      display: 'grid',
+      placeItems: 'center',
+    },
+  });
+  function syncLabel() {
+    const calm = window.SDZRadical.getCalm();
+    btn.textContent = calm ? '▶' : '∥';
+    btn.setAttribute('aria-pressed', calm ? 'true' : 'false');
+  }
+  syncLabel();
+  btn.addEventListener('click', () => {
+    window.SDZRadical.setCalm(!window.SDZRadical.getCalm());
+    syncLabel();
+  });
+  document.body.appendChild(btn);
+})();
+
 // Prime the runtime config (payments / printing / aaaToggle) once,
 // then re-render the active route so pages branch on the resolved
 // values + sync the AAA chip visibility.

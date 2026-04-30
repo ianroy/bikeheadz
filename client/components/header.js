@@ -92,10 +92,11 @@ export function HeaderComponent() {
             </svg>
           `,
         }),
-        // Wordmark
+        // Wordmark — sdzr-wordmark wires up the on-hover splatter burst
+        // from sdz-radical.js (init runs after each route mount).
         el('span', {
-          class: 'sdz-display sdz-wordmark',
-          style: { fontSize: '1.4rem', marginLeft: '8px' },
+          class: 'sdz-display sdz-wordmark sdzr-wordmark',
+          style: { fontSize: '1.4rem', marginLeft: '8px', position: 'relative' },
         },
           'StemDome',
           el('span', { class: 'z' }, 'Z'),

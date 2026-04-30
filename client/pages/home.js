@@ -223,13 +223,15 @@ export function HomePage({ socket: _socket }) {
         '01',
         'Drop a photo',
         'Front-facing portrait from the shoulders up. Good light, clean background. PNG or JPEG, up to 5 MB. Drag in or click to upload. Your data stays on our private server and never goes to any AI in the cloud for processing.',
-        'var(--brand)'
+        'var(--brand)',
+        STEP_ART_UPLOAD
       ),
       stepCard(
         '02',
         'Generator does the work',
         'Our privately hosted TRELLIS generates a 3D head from your photo. A 7-stage CAD pipeline grafts it onto a Schrader valve cap. ~30–60 s on a GPU-powered private server.',
-        'var(--accent3)'
+        'var(--accent3)',
+        STEP_ART_SCULPT
       ),
       stepCard(
         '03',
@@ -239,7 +241,8 @@ export function HomePage({ socket: _socket }) {
               ? 'Sign in and grab the STL file — free for a limited time. Print it on your own 3D Printer.'
               : 'Sign in and grab the STL file — free for a limited time. Print it on your own 3D Printer, or order one printed and shipped soon.')
           : '$2 grabs the STL. $19.99 ships you a printed cap. $59.99 a pack of four for the crew.',
-        'var(--accent2-dim)'
+        'var(--accent2-dim)',
+        STEP_ART_PRINT
       )
     ),
     architectureBlock()
@@ -341,6 +344,21 @@ export function HomePage({ socket: _socket }) {
           ),
           ' but the trails are now and the printer is the one in your garage.'
         ),
+        el(
+          'p',
+          {},
+          'Right now we’re running the ',
+          el('strong', { style: { color: 'var(--brand)' } }, 'Gumball Machine Takeover'),
+          ' residency at ',
+          el('strong', {}, 'Sadie’s Bikes'),
+          ' — drop a quarter, get a hand-modeled lore cap (a Captain, a Big Mick, a Sasquatch Foot). The six freebies live on the ',
+          el('a', {
+            href: '/sixpack',
+            'data-link': '',
+            style: { color: 'var(--brand)', textDecoration: 'underline', fontWeight: 700 },
+          }, 'Sixpack page'),
+          ' if you can’t make it in.'
+        ),
         paymentsOff
           ? el(
               'p',
@@ -373,6 +391,13 @@ export function HomePage({ socket: _socket }) {
     )
   );
   root.appendChild(about);
+
+  // ── 4½. SIXPACK TEASER STRIP ───────────────────────────────────────
+  // Per CLAUDE_CODE_PLAN §8 — the landing should still surface a teaser
+  // strip of the 6 lore caps with a "See the lore →" CTA pointing at
+  // /sixpack. Tiny posters only, no Three.js — the full /sixpack route
+  // owns the heavy WebGL.
+  root.appendChild(sixpackTeaser());
 
   // ── 5. PRODUCT SPEC ────────────────────────────────────────────────
   // Pulled from ProductSpec.md §0 ("Locked decisions") + 3D_Pipeline.md
@@ -1217,7 +1242,157 @@ function architectureSvg() {
 </svg>`;
 }
 
-function stepCard(num, title, body, accent) {
+function sixpackTeaser() {
+  // 6 lore poster thumbnails + CTA. No Three.js, no fetches — just <img>
+  // tags pointing at the same /valve-models/thumbs/ assets the /sixpack
+  // route uses. Vite's publicDir serves them.
+  const slugs = [
+    { slug: 'professor', name: 'The Professor' },
+    { slug: 'captain', name: 'The Captain' },
+    { slug: 'big-mick', name: 'Big Mick' },
+    { slug: 'the-wooly', name: 'Little Space Bear' },
+    { slug: 'old-reliable', name: 'Old Reliable' },
+    { slug: 'the-cobra', name: 'Sasquatch Foot' },
+  ];
+  const grid = el(
+    'div',
+    {
+      style: {
+        display: 'grid',
+        gridTemplateColumns: 'repeat(6, 1fr)',
+        gap: '0.75rem',
+        marginTop: '1.5rem',
+      },
+    },
+    ...slugs.map((s) =>
+      el(
+        'a',
+        {
+          href: '/sixpack',
+          'data-link': '',
+          'aria-label': s.name + ' — open the Sixpack',
+          style: {
+            position: 'relative',
+            display: 'block',
+            aspectRatio: '1 / 1',
+            background: 'var(--ink)',
+            border: '2px solid var(--ink)',
+            overflow: 'hidden',
+            transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+            boxShadow: '4px 4px 0 var(--brand)',
+            textDecoration: 'none',
+          },
+          onMouseEnter: (e) => {
+            e.currentTarget.style.transform = 'translate(-2px, -2px)';
+            e.currentTarget.style.boxShadow = '6px 6px 0 var(--accent2)';
+          },
+          onMouseLeave: (e) => {
+            e.currentTarget.style.transform = 'none';
+            e.currentTarget.style.boxShadow = '4px 4px 0 var(--brand)';
+          },
+        },
+        el('img', {
+          src: '/valve-models/thumbs/' + s.slug + '.png',
+          alt: s.name,
+          loading: 'lazy',
+          decoding: 'async',
+          style: {
+            width: '100%',
+            height: '100%',
+            objectFit: 'contain',
+            padding: '6px',
+            filter: 'drop-shadow(2px 2px 0 rgba(0,0,0,0.4))',
+          },
+        }),
+      ),
+    ),
+  );
+
+  return el(
+    'section',
+    {
+      class: 'max-w-6xl mx-auto px-6 py-12 md:py-16',
+      style: { borderTop: '3px dashed var(--ink)' },
+    },
+    el(
+      'div',
+      {
+        class: 'grid md:grid-cols-[1fr_auto] gap-4 items-end mb-1',
+      },
+      el(
+        'div',
+        {},
+        el(
+          'span',
+          {
+            style: {
+              fontFamily: 'ui-monospace, monospace',
+              fontSize: '0.78rem',
+              fontWeight: '700',
+              letterSpacing: '0.16em',
+              textTransform: 'uppercase',
+              color: 'var(--brand)',
+            },
+          },
+          'Drop 002 · Sadie’s Sixpack',
+        ),
+        el(
+          'h2',
+          {
+            class: 'sdz-display',
+            style: {
+              fontSize: '2rem',
+              color: 'var(--ink)',
+              textShadow: '4px 4px 0 var(--accent3)',
+              margin: '0.25rem 0 0.5rem',
+            },
+          },
+          'Six caps. Six legends. All free.',
+        ),
+        el(
+          'p',
+          { style: { color: 'var(--ink-muted)', fontSize: '0.95rem', lineHeight: '1.5', maxWidth: '54ch' } },
+          'The freebies in the gumball machine, lifted out and put online. No checkout, no auth — drop a quarter or grab the STL.',
+        ),
+      ),
+      el(
+        'a',
+        {
+          class: 'sdz-cta',
+          href: '/sixpack',
+          'data-link': '',
+          style: { fontSize: '0.95rem', padding: '0.75rem 1.4rem', whiteSpace: 'nowrap' },
+        },
+        'See the lore  →',
+      ),
+    ),
+    grid,
+  );
+}
+
+function stepCard(num, title, body, accent, svgMarkup) {
+  // Optional inline SVG illustration (hand-drawn lift from the
+  // GumBall Assets prototype). Rendered in a 4:3 ink-bordered tile
+  // above the step number when provided.
+  const art = svgMarkup
+    ? (() => {
+        const tile = el('div', {
+          style: {
+            width: '100%',
+            aspectRatio: '4 / 3',
+            border: '2px solid var(--ink)',
+            background: accent,
+            marginBottom: '0.85rem',
+            display: 'grid',
+            placeItems: 'center',
+            position: 'relative',
+            overflow: 'hidden',
+          },
+        });
+        tile.innerHTML = svgMarkup;
+        return tile;
+      })()
+    : null;
   return el(
     'div',
     {
@@ -1231,6 +1406,7 @@ function stepCard(num, title, body, accent) {
         padding: '1.5rem',
       },
     },
+    art,
     el(
       'div',
       {
@@ -1259,6 +1435,107 @@ function stepCard(num, title, body, accent) {
     )
   );
 }
+
+// Hand-drawn step illustrations lifted verbatim from the GumBall Assets
+// prototype index.html. Each is a self-contained SVG with no external
+// dependencies; sized via the 4:3 .step__icon tile in stepCard.
+const STEP_ART_UPLOAD = `
+  <svg viewBox="0 0 200 150" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" aria-label="Drop a photo">
+    <defs><pattern id="dotsUp" x="0" y="0" width="8" height="8" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.1" fill="#0E0A12" opacity="0.18"/></pattern></defs>
+    <rect width="200" height="150" fill="url(#dotsUp)"/>
+    <rect x="22" y="92" width="156" height="38" rx="3" fill="#0E0A12"/>
+    <rect x="32" y="100" width="136" height="22" rx="2" fill="#7B2EFF"/>
+    <text x="100" y="116" text-anchor="middle" font-family="Anton, sans-serif" font-size="13" font-style="italic" fill="#F5F2E5" letter-spacing="2">DROP HERE</text>
+    <g transform="translate(100 60) rotate(-8)">
+      <rect x="-32" y="-38" width="64" height="76" fill="#F5F2E5" stroke="#0E0A12" stroke-width="3"/>
+      <rect x="-26" y="-32" width="52" height="48" fill="#FF2EAB"/>
+      <circle cx="0" cy="-10" r="14" fill="#FFD400" stroke="#0E0A12" stroke-width="2.5"/>
+      <circle cx="-5" cy="-12" r="2" fill="#0E0A12"/>
+      <circle cx="5" cy="-12" r="2" fill="#0E0A12"/>
+      <path d="M -6 -4 Q 0 1 6 -4" stroke="#0E0A12" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      <text x="0" y="32" text-anchor="middle" font-family="Permanent Marker, cursive" font-size="9" fill="#0E0A12">YOU</text>
+    </g>
+    <path d="M 70 22 L 78 40" stroke="#0E0A12" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M 130 22 L 122 40" stroke="#0E0A12" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M 100 12 L 100 32" stroke="#0E0A12" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M 30 30 l 4 0 M 32 28 l 0 4" stroke="#0E0A12" stroke-width="2"/>
+    <path d="M 170 35 l 5 0 M 172.5 32.5 l 0 5" stroke="#0E0A12" stroke-width="2"/>
+    <path d="M 25 60 l 4 0 M 27 58 l 0 4" stroke="#0E0A12" stroke-width="2"/>
+  </svg>`;
+
+const STEP_ART_SCULPT = `
+  <svg viewBox="0 0 200 150" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" aria-label="Generator turns photo into 3D mesh">
+    <g transform="translate(32 75) rotate(-4)">
+      <rect x="-22" y="-26" width="44" height="52" fill="#F5F2E5" stroke="#0E0A12" stroke-width="2.5"/>
+      <rect x="-18" y="-22" width="36" height="32" fill="#2EFF8C"/>
+      <circle cx="0" cy="-7" r="9" fill="#FFD400" stroke="#0E0A12" stroke-width="2"/>
+      <circle cx="-3" cy="-9" r="1.4" fill="#0E0A12"/>
+      <circle cx="3" cy="-9" r="1.4" fill="#0E0A12"/>
+      <path d="M -4 -3 Q 0 0 4 -3" stroke="#0E0A12" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+      <text x="0" y="22" text-anchor="middle" font-family="Permanent Marker, cursive" font-size="6" fill="#0E0A12">.JPG</text>
+    </g>
+    <path d="M 60 75 L 78 75" stroke="#0E0A12" stroke-width="3" stroke-linecap="round"/>
+    <polygon points="76,70 84,75 76,80" fill="#0E0A12"/>
+    <g>
+      <rect x="80" y="48" width="56" height="54" rx="3" fill="#FFD400" stroke="#0E0A12" stroke-width="3"/>
+      <rect x="84" y="52" width="48" height="14" fill="#0E0A12"/>
+      <text x="108" y="62" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="7" font-weight="700" fill="#2EFF8C" letter-spacing="1.2">TRELLIS</text>
+      <circle cx="93" cy="80" r="4.5" fill="#0E0A12"/><circle cx="93" cy="80" r="1.5" fill="#FFD400"/>
+      <circle cx="108" cy="86" r="6" fill="#FF2EAB" stroke="#0E0A12" stroke-width="2"/>
+      <circle cx="123" cy="80" r="4.5" fill="#0E0A12"/><circle cx="123" cy="80" r="1.5" fill="#FFD400"/>
+      <circle cx="84" cy="52" r="1.5" fill="#F5F2E5"/><circle cx="132" cy="52" r="1.5" fill="#F5F2E5"/>
+      <circle cx="84" cy="98" r="1.5" fill="#0E0A12"/><circle cx="132" cy="98" r="1.5" fill="#0E0A12"/>
+    </g>
+    <path d="M 90 38 l 0 8 M 86 42 l 8 0" stroke="#FF2EAB" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M 110 32 l 0 10 M 105 37 l 10 0" stroke="#2EFF8C" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M 128 40 l 0 7 M 124.5 43.5 l 7 0" stroke="#0E0A12" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M 138 75 L 156 75" stroke="#0E0A12" stroke-width="3" stroke-linecap="round"/>
+    <polygon points="154,70 162,75 154,80" fill="#0E0A12"/>
+    <g transform="translate(180 75)">
+      <ellipse cx="0" cy="0" rx="16" ry="20" fill="#7B2EFF" stroke="#0E0A12" stroke-width="2.5"/>
+      <path d="M -16 0 Q 0 -3 16 0" stroke="#2EFF8C" stroke-width="0.9" fill="none"/>
+      <path d="M -15 -8 Q 0 -10 15 -8" stroke="#2EFF8C" stroke-width="0.9" fill="none"/>
+      <path d="M -15 8 Q 0 10 15 8" stroke="#2EFF8C" stroke-width="0.9" fill="none"/>
+      <path d="M 0 -20 Q 3 0 0 20" stroke="#2EFF8C" stroke-width="0.9" fill="none"/>
+      <path d="M -8 -19 Q -5 0 -8 19" stroke="#2EFF8C" stroke-width="0.9" fill="none"/>
+      <path d="M 8 -19 Q 5 0 8 19" stroke="#2EFF8C" stroke-width="0.9" fill="none"/>
+      <circle cx="-5" cy="-4" r="1.5" fill="#0E0A12"/>
+      <circle cx="5" cy="-4" r="1.5" fill="#0E0A12"/>
+    </g>
+    <text x="180" y="125" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="6.5" font-weight="700" fill="#0E0A12">.STL</text>
+  </svg>`;
+
+const STEP_ART_PRINT = `
+  <svg viewBox="0 0 200 150" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" aria-label="3D printer extrudes valve cap">
+    <rect x="20" y="118" width="160" height="10" fill="#0E0A12"/>
+    <rect x="14" y="125" width="172" height="6" fill="#7B2EFF" stroke="#0E0A12" stroke-width="2"/>
+    <rect x="22" y="22" width="6" height="100" fill="#0E0A12"/>
+    <rect x="172" y="22" width="6" height="100" fill="#0E0A12"/>
+    <rect x="22" y="22" width="156" height="6" fill="#0E0A12"/>
+    <rect x="28" y="44" width="144" height="4" fill="#0E0A12"/>
+    <g transform="translate(118 46)">
+      <rect x="-14" y="0" width="28" height="18" fill="#FFD400" stroke="#0E0A12" stroke-width="2.5"/>
+      <polygon points="-6,18 6,18 0,30" fill="#0E0A12"/>
+      <path d="M 0 -8 L 0 0" stroke="#FF2EAB" stroke-width="3" stroke-linecap="round"/>
+      <text x="0" y="11" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="6" font-weight="700" fill="#0E0A12">HOT</text>
+    </g>
+    <path d="M 118 76 L 100 96" stroke="#FF2EAB" stroke-width="2" stroke-dasharray="2 2"/>
+    <g transform="translate(100 105)">
+      <ellipse cx="0" cy="8" rx="22" ry="4" fill="#2EFF8C" stroke="#0E0A12" stroke-width="2"/>
+      <rect x="-22" y="-2" width="44" height="10" fill="#2EFF8C" stroke="#0E0A12" stroke-width="2"/>
+      <path d="M -22 0 L 22 0 M -22 3 L 22 3 M -22 6 L 22 6" stroke="#0E0A12" stroke-width="0.6" opacity="0.5"/>
+      <ellipse cx="0" cy="-8" rx="14" ry="10" fill="#F5F2E5" stroke="#0E0A12" stroke-width="2"/>
+      <circle cx="-3" cy="-9" r="1.2" fill="#0E0A12"/>
+      <circle cx="3" cy="-9" r="1.2" fill="#0E0A12"/>
+      <path d="M -3 -5 Q 0 -3 3 -5" stroke="#0E0A12" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+      <path d="M -22 0 L -18 -4 L -14 0 L -10 -4 L -6 0 L -2 -4 L 2 0 L 6 -4 L 10 0 L 14 -4 L 18 0 L 22 -4" stroke="#0E0A12" stroke-width="1" fill="none" opacity="0.4"/>
+    </g>
+    <g transform="translate(160 65)">
+      <polygon points="0,-14 3,-4 14,-4 5,2 8,12 0,6 -8,12 -5,2 -14,-4 -3,-4" fill="#FF2EAB" stroke="#0E0A12" stroke-width="2"/>
+      <text x="0" y="2" text-anchor="middle" font-family="Anton, sans-serif" font-style="italic" font-size="7" fill="#F5F2E5">DING!</text>
+    </g>
+    <path d="M 38 60 l 8 0 M 38 66 l 12 0" stroke="#0E0A12" stroke-width="1.5" stroke-linecap="round"/>
+  </svg>`;
 
 function specTile(label, value, accent) {
   return el(

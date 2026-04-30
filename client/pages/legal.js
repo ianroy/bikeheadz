@@ -14,11 +14,14 @@ export const LEGAL_VERSION = '2026-04-30';
 function legalShell({ title, intro, sections }) {
   // Pinned-light shell mirroring the admin page's design cue:
   // paper background, beige cards (paper-soft), ink type, italic
-  // display heading with fluoro drop shadow.
+  // display heading with fluoro drop shadow. Plus a small radical-
+  // layer eyebrow chip + corner sticker so public-facing docs pick
+  // up the brand voice without compromising legibility.
   const wrap = el(
     'main.legal-page',
     {
       style: {
+        position: 'relative',
         maxWidth: '780px',
         margin: '48px auto',
         padding: '24px',
@@ -28,6 +31,18 @@ function legalShell({ title, intro, sections }) {
         border: '2px solid #D7CFB6',
       },
     },
+    el('span', {
+      style: {
+        fontFamily: 'ui-monospace, monospace',
+        fontSize: '0.72rem',
+        fontWeight: 700,
+        letterSpacing: '0.18em',
+        textTransform: 'uppercase',
+        color: '#7B2EFF',
+        display: 'inline-block',
+        marginBottom: '6px',
+      },
+    }, 'StemDomeZ · Public docs · v' + LEGAL_VERSION),
     el('h1', {
       class: 'sdz-display',
       style: {
@@ -37,6 +52,30 @@ function legalShell({ title, intro, sections }) {
         textShadow: '4px 4px 0 #2EFF8C',
       },
     }, title),
+    // Tiny "brand-of-record" sticker in the top-right corner. A static
+    // (non-draggable) sibling of .sdzr-sticker — namespaced styling
+    // pulled inline so we don't depend on the radical CSS being live
+    // here. Reads as a hand-stuck shop label, not navigation.
+    el('span', {
+      style: {
+        position: 'absolute',
+        top: '16px',
+        right: '16px',
+        background: '#FF2EAB',
+        color: '#FFFFFF',
+        border: '2px solid #0E0A12',
+        padding: '4px 10px',
+        fontFamily: 'Anton, sans-serif',
+        fontStyle: 'italic',
+        fontWeight: 900,
+        fontSize: '0.72rem',
+        letterSpacing: '0.1em',
+        textTransform: 'uppercase',
+        transform: 'rotate(8deg)',
+        boxShadow: '3px 3px 0 #0E0A12',
+        whiteSpace: 'nowrap',
+      },
+    }, 'OFFICIAL · ON FILE'),
     el('p', {
       style: {
         color: '#1F1A2E',
@@ -88,6 +127,41 @@ function legalShell({ title, intro, sections }) {
       )
     )
   );
+
+  // Always-visible quicklinks on every public-facing doc page.
+  const quicklinks = el('div', {
+    style: {
+      marginTop: '24px',
+      paddingTop: '14px',
+      borderTop: '2px dashed #0E0A12',
+      display: 'flex',
+      gap: '14px',
+      flexWrap: 'wrap',
+      fontFamily: 'ui-monospace, monospace',
+      fontSize: '0.85rem',
+      color: '#0E0A12',
+    },
+  },
+    el('a', {
+      href: '/stemdome-generator',
+      'data-link': '',
+      style: { color: '#0E0A12', textDecoration: 'underline', textUnderlineOffset: '3px', fontWeight: 700 },
+    }, '→ Open the generator'),
+    el('span', null, '·'),
+    el('a', {
+      href: '/account',
+      'data-link': '',
+      style: { color: '#0E0A12', textDecoration: 'underline', textUnderlineOffset: '3px', fontWeight: 700 },
+    }, '→ Your account'),
+    el('span', null, '·'),
+    el('a', {
+      href: '/sixpack',
+      'data-link': '',
+      style: { color: '#7B2EFF', textDecoration: 'underline', textUnderlineOffset: '3px', fontWeight: 700 },
+    }, '→ Sadie’s Sixpack'),
+  );
+  wrap.appendChild(quicklinks);
+
   return wrap;
 }
 
