@@ -425,3 +425,123 @@ If a rename does happen, the rebrand pipeline is:
 
 When in doubt, ask: *does the Z stay neon purple, italic, with a
 green drop shadow?* If yes, you're on brand. If no, fix it.
+
+---
+
+## 17. Operator + content page design cue (the "beige card" rule)
+
+Every operator-facing page (`/admin`, `/account`) and every
+content-heavy page (`/how-it-works`, `/showcase`, `/help`,
+`/terms`, `/privacy`, `/acceptable-use`, `/dmca`, `/cookies`,
+`/refunds`, `/photo-policy`) follows the same visual cue. The
+landing page (`/`) and generator (`/stemdome-generator`) keep
+their richer Memphis + halftone treatment; this rule is for
+everything else.
+
+### The recipe
+
+1. **Page wrapper** — pinned-literal cream ground.
+   ```
+   background: '#F5F2E5'   // paper
+   color:      '#0E0A12'   // ink
+   border:     '2px solid #D7CFB6'
+   borderRadius: '14px'
+   padding:    '24px'
+   maxWidth:   720–1100px
+   margin:     '32–48px auto'
+   ```
+   Pinned literals (not `var()`) so dark mode + AAA can't flip
+   the page ground to `#110A1E` and tank every literal `#3D2F4A`
+   text colour to ~2.8:1.
+
+2. **Cards / sections inside the page** — beige (paper-soft)
+   inset cards with a heavy ink border.
+   ```
+   background: '#E5E0CC'   // paper-soft
+   border:     '2px solid #0E0A12'
+   borderRadius: '12px'
+   padding:    '16–20px'
+   ```
+   Beige (not white) is the design cue — it visually unifies
+   each card with the cream page while still standing apart, and
+   it dodges the "white-on-cream" weak-edge that 1px paper-edge
+   borders produce.
+
+3. **Section headings** — italic uppercase with a fluoro
+   underline.
+   ```
+   fontSize:        '0.95rem'
+   fontWeight:      800
+   fontStyle:       italic
+   textTransform:   uppercase
+   letterSpacing:   '0.06em'
+   borderBottom:    '2px solid #2EFF8C'
+   paddingBottom:   '6px'
+   display:         'inline-block'
+   color:           '#0E0A12'
+   ```
+   The underline is decorative-only (3:1 floor doesn't apply)
+   but it grounds the heading in the brand palette.
+
+4. **Page heading** — italic display with fluoro drop shadow.
+   ```
+   class:      'sdz-display'
+   fontSize:   32–34px
+   color:      '#0E0A12'
+   textShadow: '4px 4px 0 #2EFF8C'
+   ```
+   The `.` at the end ("Help & FAQ.", "Privacy Policy.") is the
+   period detail.
+
+5. **Body copy** — full ink on the beige card.
+   ```
+   color:    '#0E0A12'   // not #3D2F4A
+   fontSize: '0.92–1rem'
+   lineHeight: 1.6–1.65
+   ```
+   Avoid `#3D2F4A` ink-muted on operator/content pages — passes
+   AA but reads as "secondary stuff" and the design cue is
+   "every word matters." Reserve ink-muted for genuine captions
+   (timestamps, attribution).
+
+6. **Tables** — pinned-dark header (mirrors the architecture-
+   diagram legend pill) + beige row separators on the white-
+   background body.
+   ```
+   thead bg: '#0E0A12'
+   thead color: '#2EFF8C'
+   thead style: italic uppercase 0.06em letter-spacing
+   tbody bg:   '#FFFFFF' (rows)
+   tbody color: '#0E0A12' weight 600+
+   row border-top: '1px solid #D7CFB6'
+   ```
+
+7. **Buttons inside these cards** — outlined with ink, italic.
+   ```
+   background: '#FFFFFF'
+   color:      '#0E0A12'
+   border:     '2px solid #0E0A12'
+   borderRadius: '6–8px'
+   fontWeight: 700
+   fontStyle:  italic
+   ```
+   Or use `.sdz-cta` for the primary action (pinned brand purple).
+
+### Don't do
+
+- Don't put white card backgrounds on these pages — that was
+  the legacy treatment. Use beige (`#E5E0CC`).
+- Don't use `var(--ink-muted)` for body type — pin to ink
+  (`#0E0A12`) so dark-mode flips don't tank contrast.
+- Don't use 1px `#D7CFB6` paper-edge borders for cards — too
+  thin against beige; use 2px ink.
+- Don't apply this cue to `/` or `/stemdome-generator` — those
+  pages keep their richer hero / Memphis / halftone treatment.
+
+### Where it ships
+
+`client/pages/admin.js` is the canonical implementation —
+look at the `card()` helper + tab render functions for working
+examples. The legal pages (`legalShell` in
+`client/pages/legal.js`) are the simplest version.
+

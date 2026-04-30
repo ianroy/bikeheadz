@@ -54,7 +54,7 @@ export function HowItWorksPage() {
         ' Works',
       ),
       el('p.max-w-xl.mx-auto', {
-        style: { color: '#3D2F4A', fontSize: '1rem' },
+        style: { color: '#0E0A12', fontSize: '1rem' },
       }, 'Four simple steps to turn your face into a 3D-printable Schrader valve stem cap. No 3D design experience needed.'),
     ),
   );
@@ -78,10 +78,10 @@ export function HowItWorksPage() {
         ),
         el('div.flex-1.rounded-2xl.p-5.border', {
           class: 'mb-4',
-          style: { background: '#FFFFFF', borderColor: '#D7CFB6' },
+          style: { background: '#E5E0CC', borderColor: '#0E0A12', borderWidth: '2px' },
         },
           el('h3.mb-2', { style: { fontWeight: 700 } }, step.title),
-          el('p', { style: { color: '#3D2F4A', fontSize: '0.88rem', lineHeight: 1.7 } }, step.desc),
+          el('p', { style: { color: '#0E0A12', fontSize: '0.88rem', lineHeight: 1.7 } }, step.desc),
           el('div', {
             class: 'mt-3 px-3 py-2 rounded-lg inline-flex items-center gap-1.5',
             style: { background: `${step.color}0f`, border: `1px solid ${step.color}25` },
@@ -100,7 +100,7 @@ export function HowItWorksPage() {
   root.appendChild(
     el('div', {
       class: 'rounded-2xl p-6 border mb-10',
-      style: { background: '#FFFFFF', borderColor: '#D7CFB6' },
+      style: { background: '#E5E0CC', borderColor: '#0E0A12', borderWidth: '2px' },
     },
       el('h2.mb-4', { style: { fontWeight: 700 } }, 'The Valve Stem Explained'),
       el('div.flex.flex-col.gap-6.items-start', { class: 'md:flex-row' },
@@ -110,7 +110,7 @@ export function HowItWorksPage() {
           class: 'rounded-xl w-full md:w-56 h-40 object-cover flex-shrink-0',
         }),
         el('div.flex.flex-col.gap-3', {
-          style: { color: '#3D2F4A', fontSize: '0.88rem', lineHeight: 1.7 },
+          style: { color: '#0E0A12', fontSize: '0.88rem', lineHeight: 1.7 },
         },
           el('p', {}, schraderPara()),
           el('p', {}, capPara()),
@@ -129,13 +129,13 @@ export function HowItWorksPage() {
       ...FAQ.map((item) =>
         el('div', {
           class: 'rounded-xl p-4 border',
-          style: { background: '#FFFFFF', borderColor: '#D7CFB6' },
+          style: { background: '#E5E0CC', borderColor: '#0E0A12', borderWidth: '2px' },
         },
           el('p.mb-1.5', {
             style: { color: '#0E0A12', fontWeight: 600, fontSize: '0.88rem' },
           }, item.q),
           el('p', {
-            style: { color: '#3D2F4A', fontSize: '0.82rem', lineHeight: 1.6 },
+            style: { color: '#0E0A12', fontSize: '0.82rem', lineHeight: 1.6 },
           }, item.a),
         )
       ),
@@ -160,7 +160,7 @@ export function HowItWorksPage() {
         style: { fontWeight: 800, fontSize: '1.5rem', zIndex: 10 },
       }, 'Ready to make yours?'),
       el('p.relative.mb-6', {
-        style: { color: '#3D2F4A', fontSize: '0.9rem', zIndex: 10 },
+        style: { color: '#0E0A12', fontSize: '0.9rem', zIndex: 10 },
       }, 'Takes less than a minute to generate your personalized valve stem.'),
       el('a', {
         href: '/',

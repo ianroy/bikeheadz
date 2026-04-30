@@ -3,15 +3,31 @@
 import { el } from '../dom.js';
 
 export function GalleryPage({ socket }) {
-  const root = el('main', { style: { maxWidth: '1100px', margin: '32px auto', padding: '0 24px' } });
+  const root = el('main', {
+    style: {
+      maxWidth: '1100px',
+      margin: '32px auto',
+      padding: '24px',
+      background: '#F5F2E5',
+      color: '#0E0A12',
+      borderRadius: '14px',
+      border: '2px solid #D7CFB6',
+    },
+  });
   const heading = el(
     'h1',
-    { style: { fontSize: '28px', marginBottom: '8px', color: '#7B2EFF' } },
-    'Showcase'
+    {
+      class: 'sdz-display',
+      style: {
+        fontSize: '32px', marginBottom: '8px', color: '#0E0A12',
+        textShadow: '4px 4px 0 #2EFF8C',
+      },
+    },
+    'Showcase.'
   );
   const sub = el(
     'p',
-    { style: { color: '#3D2F4A', marginBottom: '24px', lineHeight: 1.5 } },
+    { style: { color: '#0E0A12', marginBottom: '24px', lineHeight: 1.5, fontSize: '0.95rem' } },
     'Designs riders chose to share. Hit Remix on any tile to start a new design from those settings.'
   );
   const status = el('p', { 'aria-live': 'polite' });
@@ -48,8 +64,8 @@ export function GalleryPage({ socket }) {
         'data-link': true,
         style: {
           display: 'block',
-          background: '#FFFFFF',
-          border: '1px solid #D7CFB6',
+          background: '#E5E0CC',
+          border: '2px solid #0E0A12',
           borderRadius: '12px',
           padding: '12px',
           textDecoration: 'none',
@@ -71,7 +87,7 @@ export function GalleryPage({ socket }) {
       ),
       el(
         'div',
-        { style: { fontSize: '12px', color: '#3D2F4A' } },
+        { style: { fontSize: '12px', color: '#0E0A12' } },
         new Date(d.created_at).toLocaleDateString()
       )
     );
@@ -85,7 +101,7 @@ export function ShareDesignPage({ socket, designId }) {
     style: { maxWidth: '760px', margin: '32px auto', padding: '0 24px' },
   });
   const heading = el('h1', { style: { fontSize: '26px', color: '#7B2EFF', marginBottom: '8px' } }, '');
-  const sub = el('p', { style: { color: '#3D2F4A', marginBottom: '20px' } }, '');
+  const sub = el('p', { style: { color: '#0E0A12', marginBottom: '20px' } }, '');
   const ctaRow = el('div', { style: { display: 'flex', gap: '8px', marginTop: '16px' } });
   const placeholder = el('div', {
     style: {

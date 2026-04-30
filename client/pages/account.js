@@ -41,7 +41,7 @@ export function AccountPage({ socket }) {
 
   const profileHeader = el('div', {
     class: 'rounded-2xl p-6 border mb-6 flex items-center gap-5',
-    style: { background: '#FFFFFF', borderColor: '#D7CFB6' },
+    style: { background: '#E5E0CC', borderColor: '#0E0A12', borderWidth: '2px' },
   });
   root.appendChild(profileHeader);
 
@@ -414,7 +414,7 @@ export function AccountPage({ socket }) {
           'div',
           {
             class: 'rounded-xl border transition-colors',
-            style: { background: '#FFFFFF', borderColor: '#D7CFB6' },
+            style: { background: '#E5E0CC', borderColor: '#0E0A12', borderWidth: '2px' },
           },
           el(
             'div.flex.items-center.gap-4.p-4',
@@ -557,7 +557,7 @@ export function AccountPage({ socket }) {
       wrap.appendChild(
         el(
           'div',
-          { class: 'rounded-xl border p-4', style: { background: '#FFFFFF', borderColor: '#D7CFB6' } },
+          { class: 'rounded-xl border p-4', style: { background: '#E5E0CC', borderColor: '#0E0A12', borderWidth: '2px' } },
           el(
             'div.flex.items-start.justify-between.gap-3',
             el(
@@ -620,7 +620,7 @@ export function AccountPage({ socket }) {
         'div',
         {
           class: 'rounded-2xl border p-5',
-          style: { background: '#FFFFFF', borderColor: '#D7CFB6' },
+          style: { background: '#E5E0CC', borderColor: '#0E0A12', borderWidth: '2px' },
         },
         el('h3.mb-4', { style: { fontWeight: 700, fontSize: '0.95rem' } }, 'Profile'),
         el(
@@ -729,7 +729,7 @@ export function AccountPage({ socket }) {
     const pwdCard = el('div',
       {
         class: 'rounded-2xl border p-5',
-        style: { background: '#FFFFFF', borderColor: '#D7CFB6' },
+        style: { background: '#E5E0CC', borderColor: '#0E0A12', borderWidth: '2px' },
       },
       el('h3.mb-1', { style: { fontWeight: 700, fontSize: '0.95rem' } },
         hasPwd ? 'Change password' : 'Add a password (optional)'),
@@ -762,7 +762,7 @@ export function AccountPage({ socket }) {
       'div',
       {
         class: 'rounded-2xl border p-5',
-        style: { background: '#FFFFFF', borderColor: '#D7CFB6' },
+        style: { background: '#E5E0CC', borderColor: '#0E0A12', borderWidth: '2px' },
       },
       el('h3.mb-4', { style: { fontWeight: 700, fontSize: '0.95rem' } }, 'Email preferences')
     );
@@ -791,7 +791,7 @@ export function AccountPage({ socket }) {
           'div',
           {
             class: 'rounded-2xl border p-5',
-            style: { background: '#FFFFFF', borderColor: '#D7CFB6' },
+            style: { background: '#E5E0CC', borderColor: '#0E0A12', borderWidth: '2px' },
           },
           el('h3.mb-2', { style: { fontWeight: 700, fontSize: '0.95rem' } }, 'Privacy & data'),
           el(

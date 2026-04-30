@@ -149,7 +149,7 @@ export function AdminPage({ socket }) {
       'section',
       {
         style: {
-          background: '#FFFFFF',
+          background: '#E5E0CC',
           border: '2px solid #0E0A12',
           borderRadius: '12px',
           padding: '20px',
@@ -844,7 +844,7 @@ export function AdminPage({ socket }) {
     const wrap = el('div', {
       style: {
         display: 'inline-flex', gap: '4px',
-        background: '#FFFFFF', border: '2px solid #0E0A12',
+        background: '#E5E0CC', border: '2px solid #0E0A12',
         borderRadius: '10px', padding: '3px', marginBottom: '14px',
       },
     });
@@ -868,7 +868,7 @@ export function AdminPage({ socket }) {
   function statBox(label, value, sub) {
     return el('div', {
       style: {
-        background: '#FFFFFF', border: '2px solid #0E0A12',
+        background: '#E5E0CC', border: '2px solid #0E0A12',
         borderRadius: '12px', padding: '16px',
         flex: '1 1 180px', minWidth: '160px',
       },
@@ -898,7 +898,7 @@ export function AdminPage({ socket }) {
     const t = el('table', {
       style: {
         width: '100%', borderCollapse: 'collapse',
-        background: '#FFFFFF', border: '2px solid #0E0A12',
+        background: '#E5E0CC', border: '2px solid #0E0A12',
         borderRadius: '8px', overflow: 'hidden',
       },
     });
@@ -949,7 +949,7 @@ export function AdminPage({ socket }) {
   function emptyTabPlaceholder(title, msg) {
     return el('div', {
       style: {
-        background: '#FFFFFF', border: '2px solid #0E0A12',
+        background: '#E5E0CC', border: '2px solid #0E0A12',
         borderRadius: '12px', padding: '24px',
       },
     },
@@ -1124,7 +1124,7 @@ export function AdminPage({ socket }) {
     const grid = el('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' } });
     sections.forEach(([title, key, _kind, rows]) => {
       const card = el('div', {
-        style: { background: '#FFFFFF', border: '2px solid #0E0A12', borderRadius: '12px', padding: '16px' },
+        style: { background: '#E5E0CC', border: '2px solid #0E0A12', borderRadius: '12px', padding: '16px' },
       });
       card.appendChild(el('h3', {
         style: { fontSize: '0.9rem', fontWeight: 800, fontStyle: 'italic', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#0E0A12', marginBottom: '10px' },

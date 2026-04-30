@@ -59,22 +59,35 @@ const FAQ = [
 ];
 
 export function HelpPage() {
+  // Pinned-light shell matching the admin design cue (paper bg,
+  // beige cards, italic display heading with fluoro drop-shadow).
   const root = el('main', {
     style: {
       maxWidth: '760px',
       margin: '48px auto',
-      padding: '0 24px',
-      color: 'var(--ink, #0E0A12)',
+      padding: '24px',
+      background: '#F5F2E5',
+      color: '#0E0A12',
+      borderRadius: '14px',
+      border: '2px solid #D7CFB6',
     },
   });
 
   root.appendChild(
-    el('h1', { style: { fontSize: '32px', marginBottom: '8px', color: '#7B2EFF' } }, 'Help & FAQ')
+    el('h1', {
+      class: 'sdz-display',
+      style: {
+        fontSize: '34px',
+        marginBottom: '8px',
+        color: '#0E0A12',
+        textShadow: '4px 4px 0 #2EFF8C',
+      },
+    }, 'Help & FAQ.')
   );
   root.appendChild(
     el(
       'p',
-      { style: { color: '#3D2F4A', fontSize: '14px', marginBottom: '24px', lineHeight: 1.5 } },
+      { style: { color: '#0E0A12', fontSize: '14px', marginBottom: '24px', lineHeight: 1.5 } },
       'Common questions about printing, ordering, and the pipeline. Search by keyword — partial matches work.'
     )
   );
@@ -103,7 +116,7 @@ export function HelpPage() {
     {
       'aria-live': 'polite',
       style: {
-        color: '#3D2F4A',
+        color: '#0E0A12',
         fontSize: '13px',
         marginBottom: '20px',
         minHeight: '18px',
@@ -140,7 +153,7 @@ export function HelpPage() {
               background: '#FFFFFF',
               border: '1px dashed #D7CFB6',
               borderRadius: '10px',
-              color: '#3D2F4A',
+              color: '#0E0A12',
               textAlign: 'center',
             },
           },
@@ -156,8 +169,8 @@ export function HelpPage() {
           'details',
           {
             style: {
-              background: '#FFFFFF',
-              border: '1px solid #D7CFB6',
+              background: '#E5E0CC',
+              border: '2px solid #0E0A12',
               borderRadius: '10px',
               padding: '14px 18px',
               boxShadow: '0 2px 6px rgba(34, 24, 12, 0.04)',
