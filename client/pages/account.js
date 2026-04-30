@@ -18,7 +18,7 @@ export function AccountPage({ socket }) {
   const state = {
     activeTab: 'designs',
     user: null,
-    profile: { displayName: '', email: '', preferences: {}, emailPrefs: {} },
+    profile: { displayName: '', email: '', preferences: {}, emailPrefs: {}, hasPassword: false, passwordSetAt: null },
     designs: [],
     orders: [],
     photos: [],
@@ -536,6 +536,97 @@ export function AccountPage({ socket }) {
       )
     );
 
+    // Password section — opt-in to password login alongside the
+    // magic-link default. When the user already has a password, show
+    // a "current + new" change form; first-time set lets them pick
+    // a password directly (they're signed in via magic-link, so the
+    // session already proves account ownership).
+    const hasPwd = !!state.profile.hasPassword;
+    const newPwd = el('input', {
+      type: 'password',
+      autocomplete: 'new-password',
+      placeholder: 'at least 10 characters',
+      class: 'rounded-xl px-4 py-2.5 border',
+      style: {
+        background: '#FFFFFF', color: '#0E0A12',
+        borderColor: '#D7CFB6', fontSize: '0.9rem', outline: 'none',
+      },
+    });
+    const curPwd = el('input', {
+      type: 'password',
+      autocomplete: 'current-password',
+      placeholder: 'current password',
+      class: 'rounded-xl px-4 py-2.5 border',
+      style: {
+        background: '#FFFFFF', color: '#0E0A12',
+        borderColor: '#D7CFB6', fontSize: '0.9rem', outline: 'none',
+      },
+    });
+    const pwdStatus = el('p', {
+      style: { color: '#3D2F4A', fontSize: '0.8rem', minHeight: '18px' },
+    });
+    const pwdBtn = el('button', {
+      class: 'mt-3 px-5 py-2 rounded-xl transition-all',
+      style: {
+        background: '#7B2EFF', color: '#FFFFFF',
+        fontWeight: 700, fontStyle: 'italic', fontSize: '0.85rem',
+        border: '2px solid #0E0A12', cursor: 'pointer',
+      },
+      onClick: async () => {
+        const password = newPwd.value;
+        if (password.length < 10) {
+          pwdStatus.textContent = 'Password must be at least 10 characters.';
+          pwdStatus.style.color = '#CE1F8B';
+          return;
+        }
+        const payload = { password };
+        if (hasPwd) payload.currentPassword = curPwd.value;
+        pwdStatus.textContent = 'Saving…';
+        pwdStatus.style.color = '#3D2F4A';
+        try {
+          await socket.request('account.setPassword', payload);
+          pwdStatus.textContent = hasPwd ? 'Password updated.' : 'Password set. You can sign in with email + password from now on.';
+          pwdStatus.style.color = '#1FCE6E';
+          newPwd.value = '';
+          curPwd.value = '';
+          state.profile.hasPassword = true;
+          // Re-render so the form swaps to "change" mode.
+          renderContent();
+        } catch (err) {
+          pwdStatus.textContent = err?.message === 'wrong_current_password'
+            ? 'Current password is wrong.'
+            : `Error: ${err?.message || 'failed to save'}`;
+          pwdStatus.style.color = '#CE1F8B';
+        }
+      },
+    }, hasPwd ? 'Change password' : 'Set password');
+    const pwdCard = el('div',
+      {
+        class: 'rounded-2xl border p-5',
+        style: { background: '#FFFFFF', borderColor: '#D7CFB6' },
+      },
+      el('h3.mb-1', { style: { fontWeight: 700, fontSize: '0.95rem' } },
+        hasPwd ? 'Change password' : 'Add a password (optional)'),
+      el('p', {
+        style: { color: '#3D2F4A', fontSize: '0.82rem', marginBottom: '14px' },
+      },
+        hasPwd
+          ? `Last set ${state.profile.passwordSetAt ? new Date(state.profile.passwordSetAt).toLocaleDateString() : 'unknown'}. Magic-link sign-in still works either way.`
+          : 'Magic-link sign-in keeps working as the default. Set a password if you’d rather skip the email step.'
+      ),
+      hasPwd ? el('div', { class: 'flex flex-col gap-2 mb-3' },
+        el('label', { style: { color: '#3D2F4A', fontSize: '0.78rem', fontWeight: 600 } }, 'Current password'),
+        curPwd
+      ) : null,
+      el('div', { class: 'flex flex-col gap-2' },
+        el('label', { style: { color: '#3D2F4A', fontSize: '0.78rem', fontWeight: 600 } }, hasPwd ? 'New password' : 'Password'),
+        newPwd
+      ),
+      pwdBtn,
+      pwdStatus
+    );
+    wrap.appendChild(pwdCard);
+
     const prefs = [
       { key: 'order_updates', label: 'Email me when my print ships' },
       { key: 'design_reminders', label: 'Email me reminders to finish a design' },
@@ -761,6 +852,8 @@ export function AccountPage({ socket }) {
         state.profile.email = profile.email || '';
         state.profile.preferences = profile.preferences || {};
         state.profile.emailPrefs = profile.emailPrefs || {};
+        state.profile.hasPassword = !!profile.hasPassword;
+        state.profile.passwordSetAt = profile.passwordSetAt || null;
       }
     } catch {
       /* ignore */

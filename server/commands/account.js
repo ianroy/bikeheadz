@@ -72,6 +72,25 @@ export const accountCommands = {
   'account.get': async ({ socket }) => {
     const user = socket.data?.user;
     if (!user) return ANONYMOUS_PROFILE;
+    // Hydrate password_hash + password_set_at from the DB. The
+    // session-loaded user object intentionally omits the hash so it
+    // can't accidentally serialise; we re-read here to surface the
+    // hasPassword boolean for the Settings UI.
+    if (hasDb()) {
+      try {
+        const { rows } = await db.query(
+          `SELECT password_hash, password_set_at FROM accounts WHERE id = $1`,
+          [user.id]
+        );
+        if (rows[0]) {
+          return publicProfile({
+            ...user,
+            password_hash: rows[0].password_hash,
+            password_set_at: rows[0].password_set_at,
+          });
+        }
+      } catch { /* ignore — fall through to plain profile */ }
+    }
     return publicProfile(user);
   },
 
@@ -243,5 +262,9 @@ function publicProfile(u) {
     avatar: u.avatar || { kind: 'identicon' },
     username: u.username || null,
     locale: u.locale || 'en',
+    // Surface a boolean (NEVER the hash) so the SPA can render the
+    // "Set a password" vs "Change password" form variant.
+    hasPassword: !!u.password_hash,
+    passwordSetAt: u.password_set_at || null,
   };
 }
