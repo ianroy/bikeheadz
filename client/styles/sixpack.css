@@ -92,7 +92,7 @@
 }
 .sixcard[data-color="purple"]  .sixcard__corner { background: var(--brand); color: #FFFFFF; }
 .sixcard[data-color="green"]   .sixcard__corner { background: var(--accent2); color: var(--ink); }
-.sixcard[data-color="magenta"] .sixcard__corner { background: var(--accent3); color: #FFFFFF; }
+.sixcard[data-color="magenta"] .sixcard__corner { background: var(--accent3); color: #0E0A12; } /* a11y: ink-on-magenta = 5.31:1, AA pass */
 
 .sixcard__hero {
   position: relative;
@@ -277,7 +277,7 @@
 .sixpack-cta__lede strong { color: var(--accent2); font-weight: 800; }
 .sixpack-cta__lede code {
   background: var(--accent3);
-  color: #FFFFFF;
+  color: #0E0A12; /* a11y: was #FFFFFF on magenta (3.26:1, fails AA); ink-on-magenta = 5.31:1 */
   padding: 2px 8px;
   font-family: ui-monospace, monospace;
   font-weight: 700;

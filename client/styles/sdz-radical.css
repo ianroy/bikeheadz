@@ -288,7 +288,7 @@
 }
 .sdzr-sticker:active { cursor: grabbing; }
 .sdzr-sticker--green   { background: var(--sdzr-accent2); }
-.sdzr-sticker--magenta { background: var(--sdzr-accent3); color: #FFF; }
+.sdzr-sticker--magenta { background: var(--sdzr-accent3); color: var(--sdzr-ink); } /* a11y: ink-on-magenta = 5.31:1, AA pass; was #FFF (3.26:1, fail) */
 .sdzr-sticker--purple  { background: var(--sdzr-brand);   color: #FFF; }
 .sdzr-sticker--ink     { background: var(--sdzr-ink);     color: var(--sdzr-paper); }
 .sdzr-sticker--circle {
@@ -390,7 +390,7 @@
 .sdzr-card__corner {
   position: absolute; top: 8px; left: 8px;
   background: var(--sdzr-accent3);
-  color: #FFF;
+  color: var(--sdzr-ink); /* a11y: was #FFF (3.26:1 on magenta, fails AA) */
   border: 2px solid var(--sdzr-ink);
   padding: 2px 8px;
   font-style: italic;

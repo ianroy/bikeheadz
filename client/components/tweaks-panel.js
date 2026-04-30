@@ -200,9 +200,11 @@ export function mountTweaksPanel() {
           fontFamily: 'ui-monospace, monospace',
           fontSize: '0.7rem',
           background: 'var(--accent3)',
-          color: '#FFFFFF',
+          // a11y: ink-on-magenta = 5.31:1 (AA pass); was #FFFFFF (3.26:1 fail)
+          color: '#0E0A12',
           padding: '2px 6px',
           letterSpacing: '0.1em',
+          fontWeight: '700',
         },
       }, '?TWEAKS=1'),
     ));

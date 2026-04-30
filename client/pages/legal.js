@@ -62,7 +62,8 @@ function legalShell({ title, intro, sections }) {
         top: '16px',
         right: '16px',
         background: '#FF2EAB',
-        color: '#FFFFFF',
+        // a11y: ink-on-magenta = 5.31:1 (AA pass); was #FFFFFF (3.26:1 fail)
+        color: '#0E0A12',
         border: '2px solid #0E0A12',
         padding: '4px 10px',
         fontFamily: 'Anton, sans-serif',
