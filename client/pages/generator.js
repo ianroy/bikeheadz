@@ -753,7 +753,12 @@ export function GeneratorPage({ socket }) {
       unsafe_image: 'That image was rejected by our safety check.',
       minor_likeness: "We don't process likenesses of minors.",
       rate_limited: 'Whoa — slow down a touch. Try again in a minute.',
-      payment_required: 'Buy the STL to unlock the download.',
+      // In free-MVP mode, a payment_required error means the caller
+      // wasn't authenticated — surface the actual ask.
+      payment_required: paymentsOff
+        ? 'Sign in to download for free.'
+        : 'Buy the STL to unlock the download.',
+      auth_required: 'Sign in to download for free.',
       runpod_unreachable: "Our GPU service didn't answer. Try again shortly.",
       runpod_no_result: "Generation didn't finish. Try a different photo.",
       worker_failed: 'The worker had a wobble. Try again.',
@@ -814,7 +819,9 @@ export function GeneratorPage({ socket }) {
           }
         },
       });
-      announce('STL ready. Tap Buy STL to download.');
+      announce(paymentsOff
+        ? 'STL ready. Sign in and tap Download for your free file.'
+        : 'STL ready. Tap Buy STL to download.');
       state.designId = result.designId;
       state.designTriangles = result.triangles || 0;
       state.stlData = result.stl_b64 || null;
@@ -848,15 +855,19 @@ export function GeneratorPage({ socket }) {
           designId: state.designId,
         });
         triggerStlDownload(res);
+        announce('STL downloaded.');
       } catch (err) {
         if (err.message === 'auth_required') {
           // Stash the design id so /login can come back here.
           sessionStorage.setItem('stemdomez.designId', state.designId);
+          announce('Please sign in to download your free STL. Redirecting…', true);
+          alert('Please sign in to download your STL — it\'s free for the MVP launch.');
           const next = encodeURIComponent('/stemdome-generator');
           window.location.assign(`/login?next=${next}`);
           return;
         }
-        alert(`Could not download: ${err.message}`);
+        announce(`Download failed: ${friendlyError(err)}`, true);
+        alert(`Could not download: ${friendlyError(err)}`);
       } finally {
         state.checkoutPending = false;
         renderActions();

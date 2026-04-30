@@ -237,7 +237,8 @@ export function HomePage({ socket: _socket }) {
           : '$2 grabs the STL. $19.99 ships you a printed cap. $59.99 a pack of four for the crew.',
         'var(--accent2-dim)'
       )
-    )
+    ),
+    architectureBlock()
   );
   root.appendChild(how);
 
@@ -606,7 +607,10 @@ export function HomePage({ socket: _socket }) {
         { class: 'grid md:grid-cols-4 gap-8 mb-8' },
         footerCol('Product', [
           ['Make yours', '/stemdome-generator'],
-          ['Pricing', '/pricing'],
+          // When payments are off, the "Pricing" footer link inherits
+          // the graffiti treatment — magenta strike + fluoro tag —
+          // so the navigation reads consistent everywhere.
+          ['Pricing', '/pricing', paymentsOff ? { graffiti: 'free' } : null],
           ['Showcase', '/showcase'],
           ['How it works', '/how-it-works'],
         ]),
@@ -685,6 +689,219 @@ export function HomePage({ socket: _socket }) {
 }
 
 // ── Component helpers ────────────────────────────────────────────────
+
+// Brand-styled architecture diagram. Slots in under the "How it works"
+// 3-step cards. Captures the same four zones as architecture.svg
+// (Browser → DigitalOcean App Platform → Postgres → RunPod GPU)
+// + Stripe-as-external, but in the Mongoose-BMX palette + Memphis
+// offsets + italic display labels per brandstandards.MD §6. Inline
+// SVG so we don't ship an extra asset; halftone field backdrop
+// behind the diagram echoes the hero/spec sections.
+function architectureBlock() {
+  return el(
+    'div',
+    {
+      class: 'mt-16 relative overflow-hidden',
+      style: {
+        background: 'var(--paper-soft)',
+        border: '3px solid var(--ink)',
+        borderRadius: '18px',
+        padding: '2rem 1.5rem 2.5rem',
+      },
+    },
+    // Halftone backdrop — magenta dots fading off, period detail.
+    el('div', {
+      class: 'sdz-halftone absolute pointer-events-none',
+      style: { right: '0', top: '0', width: '50%', height: '100%', opacity: '0.35' },
+    }),
+    el('div', { class: 'relative' },
+      el(
+        'div',
+        { class: 'flex items-baseline justify-between flex-wrap gap-2 mb-2' },
+        el(
+          'h3',
+          {
+            class: 'sdz-display',
+            style: {
+              fontSize: '1.4rem',
+              color: 'var(--ink)',
+              textShadow: '3px 3px 0 var(--accent3)',
+            },
+          },
+          'How it really works.'
+        ),
+        el(
+          'span',
+          { class: 'sdz-chip sdz-chip-purple' },
+          'TECH STACK'
+        )
+      ),
+      el(
+        'p',
+        {
+          style: {
+            color: 'var(--ink-muted)',
+            fontStyle: 'italic',
+            fontSize: '0.92rem',
+            maxWidth: '60ch',
+            marginBottom: '1.25rem',
+          },
+        },
+        'Photo in, STL out — here is the whole pipeline. ',
+        'Browser fires a single socket.io command, the DO app dispatches it, RunPod’s GPU runs TRELLIS + a 7-stage CAD pipeline, the binary STL streams back in 700 KB chunks.'
+      ),
+      // The diagram itself — 1280×360 viewBox, scales down responsively.
+      el('div', {
+        style: {
+          background: 'var(--paper)',
+          border: '3px solid var(--ink)',
+          borderRadius: '14px',
+          padding: '1rem',
+          overflow: 'auto',
+        },
+        html: architectureSvg(),
+      }),
+      el(
+        'div',
+        {
+          class: 'flex flex-wrap gap-x-5 gap-y-2 mt-4',
+          style: { fontSize: '0.78rem', color: 'var(--ink-muted)', fontStyle: 'italic' },
+        },
+        legendDot('var(--brand)', 'socket.io · command pattern'),
+        legendDot('var(--accent3)', 'RunPod chunked-yield'),
+        legendDot('var(--accent2-dim)', 'Postgres TLS · 24h TTL'),
+        legendDot('var(--gold)', 'Build / release')
+      )
+    )
+  );
+}
+
+function legendDot(color, label) {
+  return el(
+    'span',
+    { class: 'flex items-center gap-1.5' },
+    el('span', {
+      style: {
+        width: '10px',
+        height: '10px',
+        borderRadius: '999px',
+        background: color,
+        border: '1.5px solid var(--ink)',
+        display: 'inline-block',
+      },
+    }),
+    label
+  );
+}
+
+// Inline SVG: 4 zones (Browser · Server · Postgres · GPU) + Stripe.
+// Mongoose-BMX palette only. Memphis-offset rects (a paper rect sits
+// on top of a slightly-shifted accent rect) so each box carries the
+// same period vocabulary as the rest of the site.
+function architectureSvg() {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 380" width="100%" preserveAspectRatio="xMidYMid meet" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif">
+  <defs>
+    <marker id="arrSdzBrand" markerWidth="11" markerHeight="11" refX="9" refY="3.2" orient="auto">
+      <path d="M0,0 L0,6.4 L9,3.2 z" fill="#7B2EFF"/>
+    </marker>
+    <marker id="arrSdzMagenta" markerWidth="11" markerHeight="11" refX="9" refY="3.2" orient="auto">
+      <path d="M0,0 L0,6.4 L9,3.2 z" fill="#FF2EAB"/>
+    </marker>
+    <marker id="arrSdzGreen" markerWidth="11" markerHeight="11" refX="9" refY="3.2" orient="auto">
+      <path d="M0,0 L0,6.4 L9,3.2 z" fill="#1FCE6E"/>
+    </marker>
+    <marker id="arrSdzGold" markerWidth="11" markerHeight="11" refX="9" refY="3.2" orient="auto">
+      <path d="M0,0 L0,6.4 L9,3.2 z" fill="#7C5E1F"/>
+    </marker>
+  </defs>
+
+  <!-- Memphis-offset zone backgrounds: shadow rect first, paper rect on top -->
+  <!-- Browser zone (brand purple shadow) -->
+  <rect x="34" y="44" width="270" height="280" rx="14" fill="#7B2EFF"/>
+  <rect x="28" y="38" width="270" height="280" rx="14" fill="#F5F2E5" stroke="#0E0A12" stroke-width="3"/>
+  <text x="48" y="68" font-style="italic" font-weight="800" font-size="13" fill="#7B2EFF" letter-spacing="0.06em">BROWSER</text>
+  <text x="48" y="86" font-style="italic" font-weight="900" font-size="18" fill="#0E0A12">Vanilla JS · SPA</text>
+
+  <rect x="48" y="100" width="230" height="60" rx="10" fill="#FFFFFF" stroke="#0E0A12" stroke-width="2"/>
+  <text x="163" y="124" text-anchor="middle" font-size="12" font-weight="700" fill="#0E0A12">Tailwind v4 + router</text>
+  <text x="163" y="142" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">command-pattern client</text>
+
+  <rect x="48" y="170" width="230" height="60" rx="10" fill="#FFFFFF" stroke="#0E0A12" stroke-width="2"/>
+  <text x="163" y="194" text-anchor="middle" font-size="12" font-weight="700" fill="#0E0A12">Three.js viewer</text>
+  <text x="163" y="212" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">STLLoader · OrbitControls</text>
+
+  <rect x="48" y="240" width="230" height="60" rx="10" fill="#FFFFFF" stroke="#0E0A12" stroke-width="2"/>
+  <text x="163" y="264" text-anchor="middle" font-size="12" font-weight="700" fill="#0E0A12">Stripe Checkout</text>
+  <text x="163" y="282" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">hosted redirect (when on)</text>
+
+  <!-- DO App Platform (fluoro-green shadow, the loud second) -->
+  <rect x="356" y="44" width="320" height="280" rx="14" fill="#2EFF8C"/>
+  <rect x="350" y="38" width="320" height="280" rx="14" fill="#F5F2E5" stroke="#0E0A12" stroke-width="3"/>
+  <text x="370" y="68" font-style="italic" font-weight="800" font-size="13" fill="#1FCE6E" letter-spacing="0.06em">DIGITALOCEAN APP</text>
+  <text x="370" y="86" font-style="italic" font-weight="900" font-size="18" fill="#0E0A12">Node 22 · Express · socket.io</text>
+
+  <rect x="370" y="100" width="280" height="62" rx="10" fill="#FFFFFF" stroke="#0E0A12" stroke-width="2"/>
+  <text x="510" y="124" text-anchor="middle" font-size="12" font-weight="700" fill="#0E0A12">command dispatcher</text>
+  <text x="510" y="142" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">stl · payments · designs · admin</text>
+
+  <rect x="370" y="172" width="280" height="62" rx="10" fill="#FFFFFF" stroke="#0E0A12" stroke-width="2"/>
+  <text x="510" y="196" text-anchor="middle" font-size="12" font-weight="700" fill="#0E0A12">runpod-client</text>
+  <text x="510" y="214" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">/run · /stream · 700 KB chunks</text>
+
+  <rect x="370" y="244" width="280" height="62" rx="10" fill="#FFFFFF" stroke="#0E0A12" stroke-width="2"/>
+  <text x="510" y="268" text-anchor="middle" font-size="12" font-weight="700" fill="#0E0A12">design-store</text>
+  <text x="510" y="286" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">BYTEA STL · 24h TTL · LRU fallback</text>
+
+  <!-- Postgres (accent2-dim green dashed pill) -->
+  <rect x="704" y="118" width="220" height="100" rx="14" fill="#2EFF8C"/>
+  <rect x="698" y="112" width="220" height="100" rx="14" fill="#F5F2E5" stroke="#0E0A12" stroke-width="3" stroke-dasharray="6 4"/>
+  <text x="808" y="142" text-anchor="middle" font-style="italic" font-weight="800" font-size="13" fill="#1FCE6E" letter-spacing="0.06em">POSTGRES 18</text>
+  <text x="808" y="166" text-anchor="middle" font-size="12" font-weight="700" fill="#0E0A12">accounts · designs</text>
+  <text x="808" y="184" text-anchor="middle" font-size="12" font-weight="700" fill="#0E0A12">purchases · feature_flags</text>
+  <text x="808" y="202" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">migrations PRE_DEPLOY</text>
+
+  <!-- RunPod GPU (magenta shadow, period highlight) -->
+  <rect x="976" y="44" width="280" height="280" rx="14" fill="#FF2EAB"/>
+  <rect x="970" y="38" width="280" height="280" rx="14" fill="#F5F2E5" stroke="#0E0A12" stroke-width="3"/>
+  <text x="990" y="68" font-style="italic" font-weight="800" font-size="13" fill="#FF2EAB" letter-spacing="0.06em">RUNPOD GPU</text>
+  <text x="990" y="86" font-style="italic" font-weight="900" font-size="18" fill="#0E0A12">handler.py · TRELLIS</text>
+
+  <rect x="990" y="100" width="240" height="100" rx="10" fill="#FFFFFF" stroke="#0E0A12" stroke-width="2"/>
+  <text x="1110" y="124" text-anchor="middle" font-size="12" font-weight="700" fill="#0E0A12">TRELLIS-image-large</text>
+  <text x="1110" y="142" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">~30s warm · ~5–10 min cold</text>
+  <text x="1110" y="160" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">~780k-tri raw head mesh</text>
+  <text x="1110" y="180" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">cached on /runpod-volume</text>
+
+  <rect x="990" y="210" width="240" height="100" rx="10" fill="#FFFFFF" stroke="#0E0A12" stroke-width="2"/>
+  <text x="1110" y="234" text-anchor="middle" font-size="12" font-weight="700" fill="#0E0A12">7-stage CAD pipeline</text>
+  <text x="1110" y="252" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">normalize · repair · crop</text>
+  <text x="1110" y="270" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">cavity · union cap · simplify</text>
+  <text x="1110" y="290" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">manifold3d · trimesh · pymeshlab</text>
+
+  <!-- Arrows -->
+  <!-- Browser ⇄ DO (brand purple, socket.io) -->
+  <path d="M298 168 L350 168" stroke="#7B2EFF" stroke-width="3" fill="none" marker-end="url(#arrSdzBrand)"/>
+  <text x="324" y="160" text-anchor="middle" font-size="11" fill="#7B2EFF" font-weight="800" font-style="italic">socket.io</text>
+
+  <path d="M350 200 L298 200" stroke="#7B2EFF" stroke-width="3" fill="none" marker-end="url(#arrSdzBrand)"/>
+  <text x="324" y="218" text-anchor="middle" font-size="11" fill="#7B2EFF" font-weight="800" font-style="italic">progress · result</text>
+
+  <!-- DO ⇄ Postgres (fluoro green dim, TLS) -->
+  <path d="M650 200 L700 162" stroke="#1FCE6E" stroke-width="3" fill="none" marker-end="url(#arrSdzGreen)"/>
+  <text x="690" y="195" text-anchor="end" font-size="11" fill="#1FCE6E" font-weight="800" font-style="italic">SQL · TLS</text>
+
+  <!-- DO ⇄ RunPod (magenta, chunked yield) -->
+  <path d="M650 130 L968 130" stroke="#FF2EAB" stroke-width="3" fill="none" marker-end="url(#arrSdzMagenta)"/>
+  <text x="809" y="120" text-anchor="middle" font-size="11" fill="#FF2EAB" font-weight="800" font-style="italic">POST /run</text>
+
+  <path d="M968 270 L650 270" stroke="#FF2EAB" stroke-width="3" fill="none" marker-end="url(#arrSdzMagenta)"/>
+  <text x="809" y="288" text-anchor="middle" font-size="11" fill="#FF2EAB" font-weight="800" font-style="italic">/stream · 700 KB chunks</text>
+
+  <!-- Build pipeline strip across the bottom (gold) -->
+  <line x1="48" y1="350" x2="1230" y2="350" stroke="#7C5E1F" stroke-width="2" stroke-dasharray="6 4"/>
+  <text x="48" y="368" font-size="11" fill="#7C5E1F" font-weight="800" font-style="italic">git push → GitHub Actions → GHCR → RunPod release · DO auto-deploys on main</text>
+</svg>`;
+}
 
 function stepCard(num, title, body, accent) {
   return el(
@@ -850,32 +1067,53 @@ function footerCol(title, links) {
           gap: '0.4rem',
         },
       },
-      ...links.map(([label, href]) =>
-        el(
-          'li',
-          {},
-          el(
-            'a',
-            {
-              href,
-              'data-link': '',
-              style: {
-                color: 'var(--paper)',
-                textDecoration: 'none',
-                fontSize: '0.95rem',
-                transition: 'color 0.15s ease',
-              },
-              onMouseenter: (e) => {
-                e.target.style.color = 'var(--brand-light)';
-              },
-              onMouseleave: (e) => {
-                e.target.style.color = 'var(--paper)';
-              },
+      ...links.map(([label, href, opts]) => {
+        const linkEl = el(
+          'a',
+          {
+            href,
+            'data-link': '',
+            style: {
+              color: 'var(--paper)',
+              textDecoration: 'none',
+              fontSize: '0.95rem',
+              transition: 'color 0.15s ease',
+              position: opts?.graffiti ? 'relative' : undefined,
+              paddingTop: opts?.graffiti ? '1.1rem' : undefined,
+              display: opts?.graffiti ? 'inline-block' : undefined,
             },
-            label
-          )
-        )
-      )
+            onMouseenter: (e) => {
+              e.target.style.color = 'var(--brand-light)';
+            },
+            onMouseleave: (e) => {
+              e.target.style.color = 'var(--paper)';
+            },
+          }
+        );
+        if (opts?.graffiti === 'free') {
+          linkEl.appendChild(el('span', { class: 'sdz-graffiti-strike' }, label));
+          linkEl.appendChild(
+            el(
+              'span',
+              {
+                class: 'sdz-graffiti-tag',
+                style: {
+                  position: 'absolute',
+                  top: '-0.1rem',
+                  left: '0',
+                  fontSize: '0.85rem',
+                  whiteSpace: 'nowrap',
+                  zIndex: 2,
+                },
+              },
+              'FREE!'
+            )
+          );
+        } else {
+          linkEl.appendChild(document.createTextNode(label));
+        }
+        return el('li', {}, linkEl);
+      })
     )
   );
 }

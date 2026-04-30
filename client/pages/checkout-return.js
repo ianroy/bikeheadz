@@ -1,8 +1,60 @@
 import { el, clear } from '../dom.js';
 import { icon } from '../icons.js';
+import { getCachedAppConfig } from '../util/app-config.js';
 
 export function CheckoutReturnPage({ socket, sessionId }) {
+  const cfg = getCachedAppConfig();
+  const paymentsOff = !cfg.paymentsEnabled;
   const root = el('div.max-w-2xl.mx-auto.px-4.py-14.text-center');
+
+  // Free-MVP mode: this page only exists to confirm Stripe sessions.
+  // If a stale link or back button drops a user here, walk them back
+  // to the generator with the "Free download" framing.
+  if (paymentsOff) {
+    root.appendChild(
+      el(
+        'div',
+        {
+          class: 'rounded-2xl p-8 border',
+          style: { background: '#FFFFFF', borderColor: '#D7CFB6' },
+        },
+        el('h1.mb-3', {
+          class: 'sdz-display',
+          style: { fontSize: '1.6rem', textShadow: '4px 4px 0 var(--accent2)' },
+        }, 'Checkout is closed for MVP launch.'),
+        el(
+          'div',
+          { style: { margin: '8px 0 18px' } },
+          el(
+            'span',
+            { class: 'sdz-graffiti-tag', style: { fontSize: '1.6rem' } },
+            'STL is FREE!'
+          )
+        ),
+        el(
+          'p',
+          { style: { color: 'var(--ink-muted)', fontSize: '0.95rem', marginBottom: '24px' } },
+          'No card needed — sign in and grab the STL.'
+        ),
+        el(
+          'div',
+          { class: 'flex justify-center gap-3 flex-wrap' },
+          el('a', {
+            href: '/stemdome-generator',
+            'data-link': '',
+            class: 'sdz-cta',
+          }, 'MAKE YOURS  →'),
+          el('a', {
+            href: '/account',
+            'data-link': '',
+            class: 'sdz-cta sdz-cta-secondary',
+          }, 'MY DESIGNS')
+        )
+      )
+    );
+    return { el: root };
+  }
+
   const card = el('div', {
     class: 'rounded-2xl p-8 border',
     style: { background: '#FFFFFF', borderColor: '#D7CFB6' },

@@ -1,5 +1,6 @@
 import { el, clear } from '../dom.js';
 import { icon } from '../icons.js';
+import { getCachedAppConfig } from '../util/app-config.js';
 
 const STATUS_COLORS = {
   Shipped: '#7B2EFF',
@@ -12,6 +13,8 @@ const STATUS_COLORS = {
 };
 
 export function AccountPage({ socket }) {
+  const cfg = getCachedAppConfig();
+  const paymentsOff = !cfg.paymentsEnabled;
   const state = {
     activeTab: 'designs',
     user: null,
@@ -254,7 +257,16 @@ export function AccountPage({ socket }) {
                       },
                       'PAID'
                     )
-                  : null,
+                  : paymentsOff
+                    ? el(
+                        'span',
+                        {
+                          class: 'px-1.5 py-0.5 rounded',
+                          style: { background: '#2EFF8C', color: '#0E0A12', fontSize: '0.65rem', fontWeight: 800 },
+                        },
+                        'FREE'
+                      )
+                    : null,
                 d.is_public
                   ? el(
                       'span',
@@ -269,7 +281,10 @@ export function AccountPage({ socket }) {
             ),
             el(
               'div.flex.gap-2',
-              d.paid
+              // Show download button for paid designs OR when payments
+              // are disabled (free MVP mode — every design owned by the
+              // logged-in user is downloadable via stl.downloadFree).
+              (d.paid || paymentsOff)
                 ? el(
                     'button',
                     {
@@ -565,8 +580,12 @@ export function AccountPage({ socket }) {
   }
 
   async function downloadStl(design) {
+    // In free-MVP mode the design has no purchase row, so the
+    // payment-gated stl.download command would 402. Use the
+    // login-gated stl.downloadFree command instead.
+    const command = paymentsOff ? 'stl.downloadFree' : 'stl.download';
     try {
-      const res = await socket.request('stl.download', { designId: design.id });
+      const res = await socket.request(command, { designId: design.id });
       const bytes = atob(res.stl_b64);
       const buf = new Uint8Array(bytes.length);
       for (let i = 0; i < bytes.length; i++) buf[i] = bytes.charCodeAt(i);
@@ -578,6 +597,11 @@ export function AccountPage({ socket }) {
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
+      if (err.message === 'auth_required') {
+        window.alert("Please sign in to download — it's free for the MVP launch.");
+        window.location.assign(`/login?next=${encodeURIComponent('/account')}`);
+        return;
+      }
       window.alert(err.message || 'Download failed');
     }
   }
