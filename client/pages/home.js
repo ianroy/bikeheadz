@@ -639,6 +639,10 @@ export function HomePage({ socket: _socket }) {
           ['Terms', '/terms'],
           ['Privacy', '/privacy'],
           ['Acceptable use', '/acceptable-use'],
+          ['DMCA', '/dmca'],
+          ['Photo policy', '/photo-policy'],
+          ['Cookies', '/cookies'],
+          ['Refunds', '/refunds'],
           ['Security', '/security'],
         ]),
         el(
