@@ -27,6 +27,7 @@ import {
 import { setupInstallPrompt } from './components/install-prompt.js';
 import { LocaleSwitcher } from './components/locale-switcher.js';
 import { ContrastToggle } from './components/contrast-toggle.js';
+import { getAppConfig, onAppConfigChange } from './util/app-config.js';
 
 const root = document.getElementById('root');
 Object.assign(root.style, {
@@ -113,6 +114,15 @@ router.render = function patchedRender(url) {
   }
   _origRender(url);
 };
+
+// Prime the runtime config (payments_enabled / printing_enabled) once,
+// then re-render the active route so pages branch on the resolved values.
+getAppConfig({ socket }).then(() => {
+  router.render(location.pathname + location.search);
+});
+onAppConfigChange(() => {
+  router.render(location.pathname + location.search);
+});
 
 router.start();
 

@@ -320,6 +320,88 @@
 .sdz-chip-magenta { background: #FF2EAB; color: #0E0A12; border-color: #0E0A12; }
 .sdz-chip-purple  { background: #7B2EFF; color: #FFFFFF; border-color: #0E0A12; }
 
+/* ── Graffiti / spraypaint utilities — MVP launch overlay ──────────────
+ *
+ * Used when the admin disables payments to visually X-out the legacy
+ * pricing copy and tag "Free!" / "Free download" / "Free for a limited
+ * time" over the top of it. Pure CSS + inline SVG so we don't ship any
+ * extra image assets. Magenta is the spray-paint color (matches accent3
+ * — the splatter / halftone / "alarm" surface in the brand). Fluoro
+ * green is the tag color so it pops against cream paper without falling
+ * to small-text against magenta. */
+
+/* Diagonal spraypaint slash through a piece of legacy copy. The
+ * pseudo-element is a magenta drop-shadowed wavy stroke, rotated and
+ * over-scaled so the ends bleed past the text like real cap-can
+ * residue. */
+.sdz-graffiti-strike {
+  position: relative;
+  display: inline-block;
+}
+.sdz-graffiti-strike::after {
+  content: '';
+  position: absolute;
+  left: -8%;
+  right: -8%;
+  top: 38%;
+  height: 0.55em;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 20' preserveAspectRatio='none'><path d='M2 13 Q 30 4 60 11 T 120 9 T 198 6' stroke='%23FF2EAB' stroke-width='6' fill='none' stroke-linecap='round' opacity='0.9'/><path d='M4 11 Q 35 18 70 13 T 130 14 T 196 10' stroke='%23FF2EAB' stroke-width='3' fill='none' stroke-linecap='round' opacity='0.6'/></svg>");
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  transform: rotate(-3deg);
+  pointer-events: none;
+  filter: drop-shadow(0 0 1px rgba(255, 46, 171, 0.7));
+}
+
+/* Big X scrawled across a card / box — used to nuke the legacy pricing
+ * tier blocks. Two crossed magenta SVG strokes, slightly rotated so
+ * they don't read as a plus-sign. */
+.sdz-graffiti-x {
+  position: relative;
+}
+.sdz-graffiti-x::after {
+  content: '';
+  position: absolute;
+  inset: -4%;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200' preserveAspectRatio='none'><path d='M14 18 Q 60 70 110 110 T 188 184' stroke='%23FF2EAB' stroke-width='10' fill='none' stroke-linecap='round' opacity='0.92'/><path d='M186 16 Q 130 70 90 110 T 16 188' stroke='%23FF2EAB' stroke-width='10' fill='none' stroke-linecap='round' opacity='0.92'/><path d='M22 28 Q 60 60 110 110 T 178 178' stroke='%23FF2EAB' stroke-width='4' fill='none' stroke-linecap='round' opacity='0.55'/></svg>");
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  transform: rotate(-2deg);
+  pointer-events: none;
+  z-index: 3;
+  filter: drop-shadow(2px 2px 0 rgba(0, 0, 0, 0.25));
+}
+
+/* Hand-tagged "Free!" / "Free download" / "Free for a limited time"
+ * stencil. Italic, super heavy, slightly rotated, fluoro-green fill on
+ * an ink stroke — reads as a real cap-can tag against cream paper. */
+.sdz-graffiti-tag {
+  display: inline-block;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, 'Inter', 'Helvetica Neue', sans-serif;
+  font-style: italic;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  color: #2EFF8C;                                  /* fluoro green fill */
+  -webkit-text-stroke: 2px #0E0A12;                /* ink outline */
+  text-shadow:
+    3px 3px 0 #0E0A12,                             /* hard ink shadow */
+    -1px -1px 0 #0E0A12,
+    0 0 14px rgba(46, 255, 140, 0.45);             /* spray halo */
+  transform: rotate(-6deg);
+  line-height: 0.95;
+  pointer-events: none;
+}
+
+/* Magenta variant — used over light surfaces where green would clash. */
+.sdz-graffiti-tag-magenta {
+  color: #FF2EAB;
+  text-shadow:
+    3px 3px 0 #0E0A12,
+    -1px -1px 0 #0E0A12,
+    0 0 14px rgba(255, 46, 171, 0.45);
+}
+
 /* Slide-down panel used for collapsible settings. */
 .collapse-panel {
   overflow: hidden;

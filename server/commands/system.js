@@ -12,8 +12,9 @@
 
 import { pingRunpod } from '../workers/runpod-client.js';
 import { hasDb, db } from '../db.js';
-import { webhookEnabled } from '../stripe-client.js';
+import { webhookEnabled, stripeEnabled } from '../stripe-client.js';
 import { logger } from '../logger.js';
+import { getAppConfig } from '../app-config.js';
 
 const CACHE_MS = 60_000;
 let cache = null; // { value, expiresAt }
@@ -54,5 +55,16 @@ export const systemCommands = {
     const value = await buildHealth();
     cache = { value, expiresAt: now + CACHE_MS };
     return value;
+  },
+
+  // Anonymous-callable runtime config so the SPA can branch on the
+  // MVP launch toggles without an extra round-trip per page.
+  'system.config': async () => {
+    const flags = await getAppConfig();
+    return {
+      paymentsEnabled: flags.paymentsEnabled,
+      printingEnabled: flags.printingEnabled,
+      stripeConfigured: stripeEnabled(),
+    };
   },
 };

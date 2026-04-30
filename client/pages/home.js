@@ -22,8 +22,12 @@
 // lean.
 
 import { el } from '../dom.js';
+import { getCachedAppConfig } from '../util/app-config.js';
 
 export function HomePage({ socket: _socket }) {
+  const cfg = getCachedAppConfig();
+  const paymentsOff = !cfg.paymentsEnabled;
+  const printingOff = !cfg.printingEnabled;
   const root = el('div', { class: 'flex flex-col gap-0' });
 
   // ── 1. HERO ───────────────────────────────────────────────────────
@@ -82,14 +86,55 @@ export function HomePage({ socket: _socket }) {
               color: 'var(--ink)',
               maxWidth: '34ch',
               lineHeight: '1.3',
+              position: 'relative',
             },
           },
           'Your face on a Schrader valve cap. ',
-          el(
-            'span',
-            { style: { color: 'var(--brand)' } },
-            '$2 STL · printable on any FDM/PLA setup.'
-          )
+          paymentsOff
+            ? el(
+                'span',
+                {
+                  style: {
+                    display: 'inline-block',
+                    position: 'relative',
+                    paddingRight: '0.4em',
+                  },
+                },
+                el(
+                  'span',
+                  { class: 'sdz-graffiti-strike', style: { color: 'var(--brand)' } },
+                  '$2 STL'
+                ),
+                el(
+                  'span',
+                  { style: { color: 'var(--brand)' } },
+                  ' · printable on any FDM/PLA setup.'
+                ),
+                // "Free download" tag, hand-sprayed across the
+                // strikethrough — sits absolute so it doesn't reflow
+                // surrounding copy.
+                el(
+                  'span',
+                  {
+                    class: 'sdz-graffiti-tag',
+                    style: {
+                      position: 'absolute',
+                      top: '-0.6em',
+                      left: '-0.2em',
+                      fontSize: '1.1em',
+                      whiteSpace: 'nowrap',
+                      zIndex: 2,
+                    },
+                    'aria-label': 'Free download',
+                  },
+                  'Free download!'
+                )
+              )
+            : el(
+                'span',
+                { style: { color: 'var(--brand)' } },
+                '$2 STL · printable on any FDM/PLA setup.'
+              )
         ),
         el(
           'div',
@@ -184,8 +229,12 @@ export function HomePage({ socket: _socket }) {
       ),
       stepCard(
         '03',
-        'Print or buy printed',
-        '$2 grabs the STL. $19.99 ships you a printed cap. $59.99 a pack of four for the crew.',
+        paymentsOff ? 'Print it free' : 'Print or buy printed',
+        paymentsOff
+          ? (printingOff
+              ? 'Sign in and grab the STL — free for a limited time. Print it on your own FDM/PLA setup.'
+              : 'Sign in and grab the STL — free for a limited time. Print it yourself, or order one printed and shipped soon.')
+          : '$2 grabs the STL. $19.99 ships you a printed cap. $59.99 a pack of four for the crew.',
         'var(--accent2-dim)'
       )
     )
@@ -287,17 +336,34 @@ export function HomePage({ socket: _socket }) {
           ),
           ' but the trails are now and the printer is the one in your garage.'
         ),
-        el(
-          'p',
-          {},
-          'No subscriptions. No upsells. ',
-          el('strong', {}, '$2 STL'),
-          ' if you print it yourself, ',
-          el('strong', {}, '$19.99'),
-          ' if you want it shipped, ',
-          el('strong', {}, '$59.99'),
-          ' for the four-pack.'
-        )
+        paymentsOff
+          ? el(
+              'p',
+              {},
+              'No subscriptions. No upsells. ',
+              el('strong', { class: 'sdz-graffiti-strike' }, '$2 STL'),
+              ' ',
+              el(
+                'span',
+                {
+                  class: 'sdz-graffiti-tag sdz-graffiti-tag-magenta',
+                  style: { fontSize: '1.05em', display: 'inline-block', verticalAlign: 'baseline' },
+                },
+                'Free!'
+              ),
+              ' for a limited time — sign in and the STL is yours.'
+            )
+          : el(
+              'p',
+              {},
+              'No subscriptions. No upsells. ',
+              el('strong', {}, '$2 STL'),
+              ' if you print it yourself, ',
+              el('strong', {}, '$19.99'),
+              ' if you want it shipped, ',
+              el('strong', {}, '$59.99'),
+              ' for the four-pack.'
+            )
       )
     )
   );
@@ -375,9 +441,9 @@ export function HomePage({ socket: _socket }) {
   root.appendChild(spec);
 
   // ── 6. PRICING TEASE ───────────────────────────────────────────────
-  const pricing = el(
-    'section',
-    { class: 'max-w-6xl mx-auto px-6 py-16 md:py-20' },
+  const pricingSection = el('section', { class: 'max-w-6xl mx-auto px-6 py-16 md:py-20 relative' });
+
+  pricingSection.appendChild(
     el(
       'h2',
       {
@@ -387,32 +453,99 @@ export function HomePage({ socket: _socket }) {
           color: 'var(--ink)',
           textShadow: '4px 4px 0 var(--brand)',
           marginBottom: '2rem',
+          position: 'relative',
+          display: 'inline-block',
         },
       },
-      'Pricing.'
-    ),
-    el(
-      'div',
-      { class: 'grid md:grid-cols-3 gap-6' },
-      tierCard('STL', '$2', 'Just the file. Print it yourself.'),
-      tierCard('PRINTED', '$19.99', 'One cap, printed + shipped.', true),
-      tierCard('PACK OF 4', '$59.99', 'Your crew on four valves.')
-    ),
-    el(
-      'div',
-      { class: 'mt-8 flex justify-center' },
-      el(
-        'a',
-        {
-          href: '/pricing',
-          'data-link': '',
-          class: 'sdz-cta sdz-cta-secondary',
-        },
-        'VIEW PRICING DETAIL  →'
-      )
+      paymentsOff
+        ? el(
+            'span',
+            { style: { position: 'relative' } },
+            el('span', { class: 'sdz-graffiti-strike' }, 'Pricing.')
+          )
+        : 'Pricing.'
     )
   );
-  root.appendChild(pricing);
+
+  // Tiers — conditionally hide printing-only tiers, and X them out
+  // when payments are off so the user sees what *was* charged.
+  const tiers = [];
+  tiers.push({ label: 'STL', price: '$2', body: 'Just the file. Print it yourself.', primary: false });
+  if (!printingOff) {
+    tiers.push({ label: 'PRINTED', price: '$19.99', body: 'One cap, printed + shipped.', primary: true });
+    tiers.push({ label: 'PACK OF 4', price: '$59.99', body: 'Your crew on four valves.', primary: false });
+  }
+  const tierGrid = el(
+    'div',
+    {
+      class:
+        tiers.length === 3 ? 'grid md:grid-cols-3 gap-6' : tiers.length === 2 ? 'grid md:grid-cols-2 gap-6' : 'grid md:grid-cols-1 gap-6',
+    },
+    ...tiers.map((t) => {
+      const card = tierCard(t.label, t.price, t.body, t.primary);
+      if (paymentsOff) {
+        // Wrap the card so we can layer the graffiti X on top of it
+        // without disturbing its internal Memphis-shadow geometry.
+        return el(
+          'div',
+          { class: 'sdz-graffiti-x', style: { position: 'relative' } },
+          card
+        );
+      }
+      return card;
+    })
+  );
+  pricingSection.appendChild(tierGrid);
+
+  if (paymentsOff) {
+    // "Free for a limited time" graffiti tag, sprayed across the tier
+    // grid like a hand-tagged stencil. Sits in the corner above the
+    // X'd-out cards so the eye lands on it before reading the prices.
+    pricingSection.appendChild(
+      el(
+        'div',
+        {
+          style: {
+            display: 'flex',
+            justifyContent: 'center',
+            marginTop: '2rem',
+            position: 'relative',
+            zIndex: 4,
+          },
+        },
+        el(
+          'span',
+          {
+            class: 'sdz-graffiti-tag',
+            style: {
+              fontSize: 'clamp(1.6rem, 4vw, 2.4rem)',
+              padding: '0.25em 0.5em',
+            },
+            role: 'img',
+            'aria-label': 'Free for a limited time',
+          },
+          'Free for a limited time!'
+        )
+      )
+    );
+  } else {
+    pricingSection.appendChild(
+      el(
+        'div',
+        { class: 'mt-8 flex justify-center' },
+        el(
+          'a',
+          {
+            href: '/pricing',
+            'data-link': '',
+            class: 'sdz-cta sdz-cta-secondary',
+          },
+          'VIEW PRICING DETAIL  →'
+        )
+      )
+    );
+  }
+  root.appendChild(pricingSection);
 
   // ── 7. SHOWCASE TEASE ──────────────────────────────────────────────
   const showcase = el(

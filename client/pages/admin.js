@@ -109,6 +109,12 @@ export function AdminPage({ socket }) {
 
   function renderOverview() {
     const wrap = el('div');
+
+    // MVP launch toggles — payments + 3rd-party printing options.
+    // Sit at the top of the overview because they materially change
+    // what the rest of the site looks like.
+    wrap.appendChild(card('MVP launch toggles', mvpToggles()));
+
     if (!state.summary) {
       wrap.appendChild(el('p', { style: { color: '#3D2F4A' } }, state.loaded ? 'No data yet.' : 'Loading…'));
       return wrap;
@@ -132,6 +138,103 @@ export function AdminPage({ socket }) {
       )
     );
     return wrap;
+  }
+
+  function mvpToggles() {
+    return el(
+      'div',
+      { style: { display: 'flex', flexDirection: 'column', gap: '14px' } },
+      toggleRow({
+        flagKey: 'payments_enabled',
+        title: 'Payments',
+        onLabel: 'Stripe checkout active — site looks normal',
+        offLabel: 'Free MVP mode — Stripe disabled, login-gated free downloads, graffiti graphics',
+      }),
+      toggleRow({
+        flagKey: 'printing_enabled',
+        title: '3rd-party printing options',
+        onLabel: 'Printed Stem + Pack of 4 visible on the site',
+        offLabel: 'Printed Stem + Pack of 4 hidden everywhere',
+      })
+    );
+  }
+
+  function toggleRow({ flagKey, title, onLabel, offLabel }) {
+    const flag = state.flags.find((f) => f.key === flagKey);
+    const enabled = flag ? !!flag.enabled : true;
+    const checkbox = el('input', {
+      type: 'checkbox',
+      checked: enabled,
+      style: {
+        width: '22px',
+        height: '22px',
+        accentColor: '#7B2EFF',
+        cursor: 'pointer',
+      },
+      onChange: async (e) => {
+        const next = !!e.target.checked;
+        try {
+          await socket.request('flags.set', {
+            key: flagKey,
+            enabled: next,
+            percent: flag?.percent || 100,
+          });
+          await loadInitial();
+          renderContent();
+        } catch (err) {
+          window.alert(err.message);
+          e.target.checked = enabled;
+        }
+      },
+    });
+    return el(
+      'label',
+      {
+        style: {
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: '12px',
+          padding: '10px 12px',
+          background: '#F5F2E5',
+          border: '1px solid #D7CFB6',
+          borderRadius: '10px',
+          cursor: 'pointer',
+        },
+      },
+      checkbox,
+      el(
+        'div',
+        { style: { display: 'flex', flexDirection: 'column', gap: '2px' } },
+        el(
+          'span',
+          { style: { color: '#0E0A12', fontWeight: 700, fontSize: '0.92rem' } },
+          title,
+          ' ',
+          el(
+            'span',
+            {
+              style: {
+                marginLeft: '6px',
+                background: enabled ? '#2EFF8C' : '#FF2EAB',
+                color: '#0E0A12',
+                fontSize: '0.7rem',
+                padding: '1px 6px',
+                borderRadius: '6px',
+                fontWeight: 800,
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+              },
+            },
+            enabled ? 'On' : 'Off'
+          )
+        ),
+        el(
+          'span',
+          { style: { color: '#3D2F4A', fontSize: '0.78rem', lineHeight: 1.4 } },
+          enabled ? onLabel : offLabel
+        )
+      )
+    );
   }
 
   function renderUsers() {

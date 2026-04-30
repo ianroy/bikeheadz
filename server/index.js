@@ -14,6 +14,8 @@ import { attachUserFromCookie, consumeForHttpRedirect } from './commands/auth.js
 import { seedAdmins } from './auth.js';
 import { runpodEnabled, pingRunpod } from './workers/runpod-client.js';
 import { sendEmail } from './email.js';
+import { setFlag, listFlags } from './flags.js';
+import { invalidateAppConfigCache } from './app-config.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -488,6 +490,23 @@ async function handleStripeEvent(event) {
   }
 }
 
+// Seed the two MVP launch toggle rows so the admin panel always shows
+// them. Defaults: payments ON (current ship behavior), printing OFF —
+// MVP-launch posture, third-party printing fulfilment isn't wired yet.
+// Idempotent: only INSERTs when the row is absent, so admin overrides
+// stick across restarts.
+async function seedMvpFlags() {
+  if (!hasDb()) return;
+  const existing = new Set((await listFlags()).map((f) => f.key));
+  if (!existing.has('payments_enabled')) {
+    await setFlag({ key: 'payments_enabled', enabled: true, percent: 100 });
+  }
+  if (!existing.has('printing_enabled')) {
+    await setFlag({ key: 'printing_enabled', enabled: false, percent: 0 });
+  }
+  invalidateAppConfigCache();
+}
+
 let stopExpiry = null;
 
 async function start() {
@@ -495,6 +514,7 @@ async function start() {
     await initSentry();
     await initDb();
     await seedAdmins().catch((err) => logger.warn({ msg: 'auth.seed_admins_failed', err: err.message }));
+    await seedMvpFlags().catch((err) => logger.warn({ msg: 'flags.seed_failed', err: err.message }));
     logStripeConfig();
     if (webhookEnabled()) logger.info({ msg: 'stripe.webhook_enabled' });
     if (stripeEnabled()) logger.info({ msg: 'stripe.live', tax: process.env.STRIPE_TAX_ENABLED === 'true' });

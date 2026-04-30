@@ -1,5 +1,6 @@
 import { el, clear } from '../dom.js';
 import { icon } from '../icons.js';
+import { getCachedAppConfig } from '../util/app-config.js';
 
 const COPY = {
   highlight: 'Most popular',
@@ -13,6 +14,8 @@ const COPY = {
 };
 
 export function PricingPage({ socket, designId: initialDesignId = null, cancelled = false } = {}) {
+  const cfg = getCachedAppConfig();
+  const paymentsOff = !cfg.paymentsEnabled;
   const root = el('div.max-w-xl.mx-auto.px-4.py-10');
   const state = {
     designId: initialDesignId || sessionStorage.getItem('stemdomez.designId'),
@@ -21,6 +24,67 @@ export function PricingPage({ socket, designId: initialDesignId = null, cancelle
     busy: false,
     error: null,
   };
+
+  if (paymentsOff) {
+    // Free MVP mode — replace the Stripe-tier card with a "Free for a
+    // limited time" tag + sign-in CTA. Keeps the page reachable from
+    // graffiti'd nav links without dead-ending the user.
+    root.appendChild(
+      el(
+        'div.text-center',
+        { class: 'mb-8' },
+        el(
+          'h1.mb-3',
+          {
+            class: 'sdz-display',
+            style: {
+              fontSize: '2.4rem',
+              color: 'var(--ink)',
+              textShadow: '4px 4px 0 var(--accent2)',
+              position: 'relative',
+              display: 'inline-block',
+            },
+          },
+          el('span', { class: 'sdz-graffiti-strike' }, 'Pricing')
+        ),
+        el(
+          'div',
+          { style: { marginTop: '0.5rem' } },
+          el(
+            'span',
+            {
+              class: 'sdz-graffiti-tag',
+              style: { fontSize: 'clamp(2rem, 5vw, 3rem)', display: 'inline-block' },
+            },
+            'Free for a limited time!'
+          )
+        ),
+        el(
+          'p.mt-6',
+          { style: { color: 'var(--ink-muted)', fontSize: '1rem', maxWidth: '40ch', margin: '1.5rem auto 0' } },
+          'MVP launch — STL downloads are free while we test. ',
+          'Sign in, generate a cap, and the file is yours.'
+        )
+      )
+    );
+    root.appendChild(
+      el(
+        'div',
+        { class: 'flex justify-center gap-3 flex-wrap mt-2' },
+        el(
+          'a',
+          { href: '/stemdome-generator', 'data-link': '', class: 'sdz-cta' },
+          'MAKE YOURS  →'
+        ),
+        el(
+          'a',
+          { href: '/login', 'data-link': '', class: 'sdz-cta sdz-cta-secondary' },
+          'SIGN IN'
+        )
+      )
+    );
+    return { el: root };
+  }
 
   root.appendChild(
     el('div.text-center', { class: 'mb-10' },

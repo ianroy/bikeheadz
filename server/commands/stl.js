@@ -11,7 +11,8 @@ import { designStore } from '../design-store.js';
 import { runpodEnabled, runRunpod } from '../workers/runpod-client.js';
 import { stlGenerateLimiter } from '../rate-limit.js';
 import { CommandError, ErrorCode } from '../errors.js';
-import { maybeUser } from '../auth.js';
+import { maybeUser, requireAuth } from '../auth.js';
+import { paymentsEnabled } from '../app-config.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const WORKER = path.resolve(__dirname, '..', 'workers', 'trellis_generate.py');
@@ -229,6 +230,29 @@ export const stlCommands = {
 
     const cached = await designStore.get(designId);
     if (!cached) throw new CommandError(ErrorCode.DESIGN_EXPIRED, 'design_expired');
+    return { filename: cached.filename, stl_b64: cached.stl.toString('base64') };
+  },
+
+  // MVP launch — free STL download for logged-in users when the
+  // payments_enabled flag is OFF. Refuses unless (a) the admin has
+  // disabled payments, (b) the caller is logged in, and (c) the design
+  // belongs to that account.
+  'stl.downloadFree': async ({ socket, payload }) => {
+    if (await paymentsEnabled()) {
+      throw new CommandError(ErrorCode.PAYMENT_REQUIRED, 'payments_enabled');
+    }
+    const user = requireAuth({ socket });
+    const Schema = z.object({ designId: z.string().uuid() });
+    const parsed = Schema.safeParse(payload || {});
+    if (!parsed.success) {
+      throw new CommandError(ErrorCode.INVALID_PAYLOAD, 'invalid_download_payload', parsed.error.issues);
+    }
+    const { designId } = parsed.data;
+    const cached = await designStore.get(designId);
+    if (!cached) throw new CommandError(ErrorCode.DESIGN_NOT_FOUND, 'design_not_found');
+    if (cached.accountId != null && cached.accountId !== user.id) {
+      throw new CommandError(ErrorCode.AUTH_REQUIRED, 'design_belongs_to_other_user');
+    }
     return { filename: cached.filename, stl_b64: cached.stl.toString('base64') };
   },
 
