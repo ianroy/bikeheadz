@@ -16,6 +16,7 @@ export function GeneratorPage({ socket }) {
     progress: 0,
     processingStep: '',
     stlReady: false,
+    lastError: null,
     stlData: null,
     headScale: 0.85,
     headTilt: 0,              // v1: pitch about X (chin up/down), -30..+30
@@ -531,6 +532,38 @@ export function GeneratorPage({ socket }) {
     downloadBtn.disabled = !canPurchase;
 
     clear(readyBanner);
+    // Visible error banner — when the last generate attempt errored,
+    // surface it loudly. Previously the only error path was an
+    // aria-live announcement + the button's progress text, so users
+    // saw the loading bar finish and assumed success without a model.
+    if (state.lastError && !state.processing) {
+      readyBanner.appendChild(el('div', {
+        class: 'fade-up rounded-xl px-4 py-3 border-2 flex items-start gap-3',
+        style: {
+          background: '#FFFFFF',
+          borderColor: '#FF2EAB',
+          color: '#0E0A12',
+        },
+      },
+        el('span', { style: { fontSize: '1.4rem' } }, '⚠️'),
+        el('div', { style: { flex: 1 } },
+          el('p', {
+            style: {
+              color: '#0E0A12',
+              fontWeight: 800,
+              fontSize: '0.92rem',
+              fontStyle: 'italic',
+            },
+          }, 'Generation failed.'),
+          el('p', {
+            style: { color: '#0E0A12', fontSize: '0.85rem', marginTop: '4px', lineHeight: 1.45 },
+          }, state.lastError),
+          el('p', {
+            style: { color: '#3D2F4A', fontSize: '0.78rem', marginTop: '6px', fontStyle: 'italic' },
+          }, 'Tap Generate again, or try a different photo. Recurring failures usually mean the GPU image needs the latest release.')
+        )
+      ));
+    }
     if (state.stlReady) {
       readyBanner.appendChild(el('div', {
         class: 'fade-up rounded-xl px-4 py-3 border flex items-center gap-3',
@@ -814,6 +847,7 @@ export function GeneratorPage({ socket }) {
     state.progress = 0;
     state.processingStep = '';
     state.designId = null;
+    state.lastError = null; // clear any previous error banner
     renderActions();
     renderViewerHeader();
     pushViewer();
@@ -860,7 +894,8 @@ export function GeneratorPage({ socket }) {
     } catch (err) {
       console.error('stl.generate failed', err);
       state.processingStep = `Error: ${err.message}`;
-      announce(`Generation failed: ${friendlyError(err)}`, true);
+      state.lastError = friendlyError(err);
+      announce(`Generation failed: ${state.lastError}`, true);
     } finally {
       state.processing = false;
       state.progress = 0;

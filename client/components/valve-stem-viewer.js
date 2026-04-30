@@ -293,8 +293,10 @@ export function createValveStemViewer({ container, initial = {} }) {
     lastStlKey = key;
 
     const arrayBuffer = toArrayBuffer(data);
-    if (!arrayBuffer) {
-      console.warn('valve-stem-viewer: unsupported stlData type');
+    if (!arrayBuffer || arrayBuffer.byteLength < 84) {
+      console.warn('valve-stem-viewer: unsupported or empty stlData', {
+        type: typeof data, bytes: arrayBuffer?.byteLength ?? 0,
+      });
       return;
     }
 
@@ -308,8 +310,16 @@ export function createValveStemViewer({ container, initial = {} }) {
     geo.computeVertexNormals();
     geo.center();
     geo.computeBoundingSphere();
-    const r = geo.boundingSphere?.radius || 1;
-    const scale = 1.5 / r;
+    // Defensive: a degenerate mesh (NaN vertices, zero-volume) leaves
+    // boundingSphere.radius as 0 or NaN, which makes 1.5 / r produce
+    // Infinity → mesh paints at infinite scale and is entirely outside
+    // the camera frustum (the "STL is there but I see nothing" mobile
+    // bug). Fall back to scale=1 and warn so the failure is visible.
+    const r = geo.boundingSphere?.radius;
+    const scale = (Number.isFinite(r) && r > 0.0001) ? 1.5 / r : 1;
+    if (!Number.isFinite(r) || r <= 0.0001) {
+      console.warn('valve-stem-viewer: STL boundingSphere invalid', { radius: r });
+    }
 
     disposeGroup(placeholderGroup);
     placeholderGroup = null;
@@ -329,6 +339,15 @@ export function createValveStemViewer({ container, initial = {} }) {
     controls.target.set(0, 0, 0);
     camera.position.set(0, 1.4, 6);
     controls.update();
+
+    // Force-resize the renderer to the current container dimensions.
+    // Mobile Safari often has a 0-tall container on first viewer mount
+    // (we get the 320×380 fallback) and ResizeObserver doesn't always
+    // fire when the layout reflows after the post-generate re-render.
+    // Without this, the renderer stays sized to the fallback and the
+    // canvas paints into a tiny corner — the "STL doesn't show on
+    // mobile" reproducer.
+    fitToContainer();
   }
 
   function clearStl() {

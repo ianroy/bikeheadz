@@ -307,11 +307,36 @@ def stage1_5_repair(head: trimesh.Trimesh, C: Constants) -> trimesh.Trimesh:
         }) + "\n"
     )
     if n_tris > cap:
-        raise PipelineError(
-            code=ErrorCode.MESH_TOO_LARGE,
-            stage="stage1.5",
-            detail=f"tris={n_tris} cap={cap}",
-        )
+        # Per the project's TRELLIS-output memory + the iPhone-photo
+        # robustness initiative: pipeline gates warn-and-continue, never
+        # raise. Try fast-simplification to fit the cap; if that fails
+        # ship the over-cap mesh anyway — stage 5 will decimate to 70K
+        # before the STL leaves the worker, and the alternative
+        # (failing every generation when TRELLIS hits its routine
+        # 750K+ output) is unacceptable for the launch.
+        try:
+            if _fs is not None:
+                target = max(int(cap * 0.95), 200_000)
+                v = np.asarray(head.vertices, dtype=np.float32)
+                f = np.asarray(head.faces, dtype=np.uint32)
+                v_dec, f_dec = _fs.simplify_mesh(v, f, target_count=target)
+                head = trimesh.Trimesh(vertices=v_dec, faces=f_dec, process=True)
+                sys.stderr.write(
+                    f"[stage1.5] WARNING: mesh exceeded cap (tris={n_tris} cap={cap}); "
+                    f"auto-decimated to {len(head.faces)} tris and shipping to stage 2.\n"
+                )
+            else:
+                sys.stderr.write(
+                    f"[stage1.5] WARNING: mesh exceeded cap (tris={n_tris} cap={cap}) "
+                    f"and fast-simplification is unavailable; shipping over-cap to stage 2. "
+                    f"Stage 5 will decimate to 70K before STL export.\n"
+                )
+        except Exception as exc:  # noqa: BLE001
+            sys.stderr.write(
+                f"[stage1.5] WARNING: mesh exceeded cap (tris={n_tris} cap={cap}); "
+                f"auto-decimation failed ({type(exc).__name__}: {exc}); "
+                f"shipping over-cap to stage 2.\n"
+            )
     return head
 
 
