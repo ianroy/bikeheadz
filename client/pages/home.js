@@ -758,14 +758,17 @@ function architectureBlock() {
             color: 'var(--ink-muted)',
             fontStyle: 'italic',
             fontSize: '0.92rem',
-            maxWidth: '60ch',
+            maxWidth: '64ch',
             marginBottom: '1.25rem',
           },
         },
         'Photo in, STL out — here is the whole pipeline. ',
-        'Browser fires a single socket.io command, the DO app dispatches it, RunPod’s GPU runs TRELLIS + a 7-stage CAD pipeline, the binary STL streams back in 700 KB chunks.'
+        'Browser fires a single socket.io command, the DO app dispatches it, RunPod’s GPU runs TRELLIS + a 7-stage CAD pipeline, the binary STL streams back in 700 KB chunks. ',
+        'Build → release lifecycle runs out of GitHub Actions → GHCR → RunPod releases.'
       ),
-      // The diagram itself — 1280×360 viewBox, scales down responsively.
+      // The diagram itself — 1280×940 viewBox, full architecture.svg
+      // detail in the brand palette. Wrapper has overflow:auto so the
+      // diagram scrolls horizontally on phones.
       el('div', {
         style: {
           background: 'var(--paper)',
@@ -785,8 +788,157 @@ function architectureBlock() {
         legendDot('var(--brand)', 'socket.io · command pattern'),
         legendDot('var(--accent3)', 'RunPod chunked-yield'),
         legendDot('var(--accent2-dim)', 'Postgres TLS · 24h TTL'),
-        legendDot('var(--gold)', 'Build / release')
-      )
+        legendDot('var(--gold)', 'Build / release lifecycle')
+      ),
+      // Logo strip — clickable Memphis-offset chips for every major
+      // tech in the stack. Each chip opens the project's homepage in
+      // a new tab so the architecture is browsable from the diagram.
+      architectureLogos()
+    )
+  );
+}
+
+// Hand-authored inline-SVG glyphs for each component in the stack.
+// Single-color so they unify under whatever fill the chip passes in
+// (always var(--ink) so the row reads as one piece). Geometry is
+// abstracted enough to read as recognisable silhouettes without
+// reproducing official trademarks.
+function brandGlyph(kind, color) {
+  const c = color || '#0E0A12';
+  const wrap = (body) =>
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28" width="28" height="28" aria-hidden="true">${body}</svg>`;
+  switch (kind) {
+    case 'vite': // lightning bolt
+      return wrap(`<path d="M15 3 L6 16 L12 16 L11 25 L22 11 L16 11 L17 3 z" fill="${c}"/>`);
+    case 'three': // triangle (Three.js)
+      return wrap(`<polygon points="14,4 25,22 3,22" fill="none" stroke="${c}" stroke-width="2.4" stroke-linejoin="round"/>`);
+    case 'tailwind': // two stacked waves
+      return wrap(`<path d="M3 11 Q8 6 14 11 T25 11" fill="none" stroke="${c}" stroke-width="2.4" stroke-linecap="round"/><path d="M3 18 Q8 13 14 18 T25 18" fill="none" stroke="${c}" stroke-width="2.4" stroke-linecap="round"/>`);
+    case 'socketio': // arrow-in-circle (request/response)
+      return wrap(`<circle cx="14" cy="14" r="10" fill="none" stroke="${c}" stroke-width="2.4"/><path d="M9 12 L14 8 L14 13 L19 13 L19 18 L14 18 L14 23" fill="none" stroke="${c}" stroke-width="2" stroke-linejoin="round"/>`);
+    case 'node': // hexagon
+      return wrap(`<polygon points="14,3 24,9 24,19 14,25 4,19 4,9" fill="none" stroke="${c}" stroke-width="2.4"/><text x="14" y="18" text-anchor="middle" font-family="-apple-system,system-ui,sans-serif" font-size="10" font-weight="900" font-style="italic" fill="${c}">N</text>`);
+    case 'express': // italic { e }
+      return wrap(`<text x="14" y="22" text-anchor="middle" font-family="-apple-system,system-ui,sans-serif" font-size="22" font-weight="900" font-style="italic" fill="${c}">{e}</text>`);
+    case 'do': // droplet
+      return wrap(`<path d="M14 3 C19 11 22 14 22 18 A8 8 0 0 1 6 18 C6 14 9 11 14 3 z" fill="none" stroke="${c}" stroke-width="2.4" stroke-linejoin="round"/>`);
+    case 'postgres': // simplified elephant silhouette
+      return wrap(`<path d="M6 22 Q3 16 5 10 Q8 5 14 5 Q20 5 22 10 Q24 15 22 20 Q22 24 19 24 Q17 24 16 22 Q15 25 12 25 Q9 25 9 22 Q7 24 6 22 z M11 12 Q14 10 17 12" fill="none" stroke="${c}" stroke-width="2"/>`);
+    case 'runpod': // pod / capsule
+      return wrap(`<rect x="5" y="6" width="18" height="16" rx="7" fill="none" stroke="${c}" stroke-width="2.4"/><circle cx="14" cy="14" r="3" fill="${c}"/><path d="M14 6 L14 22" stroke="${c}" stroke-width="1" stroke-dasharray="2 2"/>`);
+    case 'trellis': // 4-square (Microsoft origin)
+      return wrap(`<rect x="3" y="3" width="10" height="10" fill="${c}"/><rect x="15" y="3" width="10" height="10" fill="none" stroke="${c}" stroke-width="2"/><rect x="3" y="15" width="10" height="10" fill="none" stroke="${c}" stroke-width="2"/><rect x="15" y="15" width="10" height="10" fill="${c}"/>`);
+    case 'manifold': // wireframe cube
+      return wrap(`<polygon points="14,3 24,8 24,20 14,25 4,20 4,8" fill="none" stroke="${c}" stroke-width="1.6"/><line x1="14" y1="3" x2="14" y2="25" stroke="${c}" stroke-width="1.6"/><line x1="4" y1="8" x2="24" y2="8" stroke="${c}" stroke-width="1.6"/><line x1="4" y1="20" x2="24" y2="20" stroke="${c}" stroke-width="1.6"/>`);
+    case 'trimesh': // triangulated mesh
+      return wrap(`<polygon points="14,4 24,22 4,22" fill="none" stroke="${c}" stroke-width="1.6"/><polygon points="14,4 24,22 14,14" fill="none" stroke="${c}" stroke-width="1.6"/><polygon points="14,4 4,22 14,14" fill="none" stroke="${c}" stroke-width="1.6"/>`);
+    case 'pymeshlab': // sliced sphere
+      return wrap(`<circle cx="14" cy="14" r="10" fill="none" stroke="${c}" stroke-width="2"/><line x1="6" y1="11" x2="22" y2="11" stroke="${c}" stroke-width="1.6"/><line x1="6" y1="17" x2="22" y2="17" stroke="${c}" stroke-width="1.6"/>`);
+    case 'github': // circle with branch fork
+      return wrap(`<circle cx="14" cy="14" r="10" fill="none" stroke="${c}" stroke-width="2.4"/><circle cx="11" cy="9" r="2" fill="${c}"/><circle cx="11" cy="19" r="2" fill="${c}"/><circle cx="18" cy="14" r="2" fill="${c}"/><path d="M11 11 L11 17 M11 14 Q15 14 16 13" fill="none" stroke="${c}" stroke-width="1.6"/>`);
+    case 'ghcr': // package box
+      return wrap(`<polygon points="14,4 24,9 24,20 14,25 4,20 4,9" fill="none" stroke="${c}" stroke-width="2"/><polyline points="4,9 14,14 24,9" fill="none" stroke="${c}" stroke-width="2"/><line x1="14" y1="14" x2="14" y2="25" stroke="${c}" stroke-width="2"/>`);
+    case 'stripe': // italic S
+      return wrap(`<text x="14" y="22" text-anchor="middle" font-family="-apple-system,system-ui,sans-serif" font-size="22" font-weight="900" font-style="italic" fill="${c}">S</text>`);
+    default:
+      return wrap(`<rect x="5" y="5" width="18" height="18" rx="3" fill="none" stroke="${c}" stroke-width="2"/>`);
+  }
+}
+
+function logoChip({ name, href, kind, accent }) {
+  const wrapper = el(
+    'a',
+    {
+      href,
+      target: '_blank',
+      rel: 'noopener noreferrer',
+      class: 'sdz-memphis',
+      style: {
+        '--memphis-offset': '4px',
+        '--memphis-color': accent,
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.5rem',
+        padding: '0.5rem 0.75rem',
+        background: 'var(--paper)',
+        color: 'var(--ink)',
+        border: '2px solid var(--ink)',
+        borderRadius: '10px',
+        textDecoration: 'none',
+        fontSize: '0.78rem',
+        fontWeight: 700,
+        fontStyle: 'italic',
+        letterSpacing: '0.02em',
+        transition: 'transform 0.08s ease',
+      },
+      onMouseenter: (e) => { e.currentTarget.style.transform = 'translate(-2px, -2px)'; },
+      onMouseleave: (e) => { e.currentTarget.style.transform = 'translate(0, 0)'; },
+    },
+    el('span', {
+      style: { display: 'inline-flex', flexShrink: 0 },
+      html: brandGlyph(kind, '#0E0A12'),
+    }),
+    el('span', {}, name)
+  );
+  return wrapper;
+}
+
+function architectureLogos() {
+  // Grouped in stack-order so the row reads roughly left-to-right
+  // matching the diagram above (Browser → Server → Hosting/DB → GPU
+  // → Mesh tools → Build → Pay). Memphis-shadow accents alternate
+  // through the brand trio.
+  const logos = [
+    // Browser / client
+    { name: 'Vite',          href: 'https://vitejs.dev',                      kind: 'vite',       accent: 'var(--accent2)' },
+    { name: 'Three.js',      href: 'https://threejs.org',                     kind: 'three',      accent: 'var(--accent3)' },
+    { name: 'Tailwind CSS',  href: 'https://tailwindcss.com',                 kind: 'tailwind',   accent: 'var(--brand)'   },
+    { name: 'Socket.IO',     href: 'https://socket.io',                       kind: 'socketio',   accent: 'var(--accent2)' },
+    // Server runtime
+    { name: 'Node.js',       href: 'https://nodejs.org',                      kind: 'node',       accent: 'var(--accent3)' },
+    { name: 'Express',       href: 'https://expressjs.com',                   kind: 'express',    accent: 'var(--brand)'   },
+    // Hosting + DB
+    { name: 'DigitalOcean',  href: 'https://www.digitalocean.com/products/app-platform', kind: 'do', accent: 'var(--accent2)' },
+    { name: 'PostgreSQL',    href: 'https://www.postgresql.org',              kind: 'postgres',   accent: 'var(--accent3)' },
+    // GPU + model
+    { name: 'RunPod',        href: 'https://www.runpod.io',                   kind: 'runpod',     accent: 'var(--brand)'   },
+    { name: 'Microsoft TRELLIS', href: 'https://github.com/microsoft/TRELLIS', kind: 'trellis',   accent: 'var(--accent2)' },
+    // Mesh tooling
+    { name: 'manifold3d',    href: 'https://github.com/elalish/manifold',     kind: 'manifold',   accent: 'var(--accent3)' },
+    { name: 'trimesh',       href: 'https://trimesh.org',                     kind: 'trimesh',    accent: 'var(--brand)'   },
+    { name: 'PyMeshLab',     href: 'https://pymeshlab.readthedocs.io',        kind: 'pymeshlab',  accent: 'var(--accent2)' },
+    // Build / payments
+    { name: 'GitHub Actions',href: 'https://github.com/features/actions',     kind: 'github',     accent: 'var(--accent3)' },
+    { name: 'GHCR',          href: 'https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry', kind: 'ghcr', accent: 'var(--brand)' },
+    { name: 'Stripe',        href: 'https://stripe.com',                      kind: 'stripe',     accent: 'var(--accent2)' },
+  ];
+  return el(
+    'div',
+    {
+      class: 'mt-6',
+      style: { borderTop: '2px solid var(--paper-edge)', paddingTop: '1rem' },
+    },
+    el(
+      'div',
+      {
+        style: {
+          fontSize: '0.7rem',
+          fontWeight: 800,
+          fontStyle: 'italic',
+          textTransform: 'uppercase',
+          letterSpacing: '0.12em',
+          color: 'var(--ink-muted)',
+          marginBottom: '0.75rem',
+        },
+      },
+      'Built with — tap any chip to open the project ↗'
+    ),
+    el(
+      'div',
+      {
+        class: 'flex flex-wrap gap-3',
+      },
+      ...logos.map(logoChip)
     )
   );
 }
@@ -809,112 +961,217 @@ function legendDot(color, label) {
   );
 }
 
-// Inline SVG: 4 zones (Browser · Server · Postgres · GPU) + Stripe.
-// Mongoose-BMX palette only. Memphis-offset rects (a paper rect sits
-// on top of a slightly-shifted accent rect) so each box carries the
-// same period vocabulary as the rest of the site.
+// Full-detail inline SVG architecture diagram. Faithful port of
+// architecture.svg in the Mongoose-BMX palette. 1280×940 viewBox so
+// the parent's overflow:auto wrapper handles horizontal scrolling on
+// phones; on desktop it scales down to fit naturally.
+//
+// Zone palette mapping from architecture.svg:
+//   Browser (was green)   → brand purple shadow + ink stroke
+//   DO server (was blue)  → fluoro-green shadow + ink stroke
+//   Postgres (dashed)     → fluoro-green dashed pill
+//   RunPod GPU (purple)   → hot-magenta shadow + ink stroke
+//   Build (yellow)        → gold border, paper-soft fill
+//   Stripe (gray dashed)  → ink-muted dashed
+// Arrow palette:
+//   socket.io (was green) → brand purple
+//   POST /run · /stream   → magenta
+//   SQL/TLS               → fluoro-green dim
+//   build chain           → gold
+//   generic               → ink-muted
 function architectureSvg() {
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 380" width="100%" preserveAspectRatio="xMidYMid meet" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif">
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 940" width="100%" preserveAspectRatio="xMidYMid meet" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif">
   <defs>
-    <marker id="arrSdzBrand" markerWidth="11" markerHeight="11" refX="9" refY="3.2" orient="auto">
-      <path d="M0,0 L0,6.4 L9,3.2 z" fill="#7B2EFF"/>
-    </marker>
-    <marker id="arrSdzMagenta" markerWidth="11" markerHeight="11" refX="9" refY="3.2" orient="auto">
-      <path d="M0,0 L0,6.4 L9,3.2 z" fill="#FF2EAB"/>
-    </marker>
-    <marker id="arrSdzGreen" markerWidth="11" markerHeight="11" refX="9" refY="3.2" orient="auto">
-      <path d="M0,0 L0,6.4 L9,3.2 z" fill="#1FCE6E"/>
-    </marker>
-    <marker id="arrSdzGold" markerWidth="11" markerHeight="11" refX="9" refY="3.2" orient="auto">
-      <path d="M0,0 L0,6.4 L9,3.2 z" fill="#7C5E1F"/>
-    </marker>
+    <marker id="arrSdzBrand"    markerWidth="11" markerHeight="11" refX="9" refY="3.2" orient="auto"><path d="M0,0 L0,6.4 L9,3.2 z" fill="#7B2EFF"/></marker>
+    <marker id="arrSdzMagenta"  markerWidth="11" markerHeight="11" refX="9" refY="3.2" orient="auto"><path d="M0,0 L0,6.4 L9,3.2 z" fill="#FF2EAB"/></marker>
+    <marker id="arrSdzGreen"    markerWidth="11" markerHeight="11" refX="9" refY="3.2" orient="auto"><path d="M0,0 L0,6.4 L9,3.2 z" fill="#1FCE6E"/></marker>
+    <marker id="arrSdzGold"     markerWidth="11" markerHeight="11" refX="9" refY="3.2" orient="auto"><path d="M0,0 L0,6.4 L9,3.2 z" fill="#7C5E1F"/></marker>
+    <marker id="arrSdzMuted"    markerWidth="11" markerHeight="11" refX="9" refY="3.2" orient="auto"><path d="M0,0 L0,6.4 L9,3.2 z" fill="#3D2F4A"/></marker>
   </defs>
 
-  <!-- Memphis-offset zone backgrounds: shadow rect first, paper rect on top -->
-  <!-- Browser zone (brand purple shadow) -->
-  <rect x="34" y="44" width="270" height="280" rx="14" fill="#7B2EFF"/>
-  <rect x="28" y="38" width="270" height="280" rx="14" fill="#F5F2E5" stroke="#0E0A12" stroke-width="3"/>
-  <text x="48" y="68" font-style="italic" font-weight="800" font-size="13" fill="#7B2EFF" letter-spacing="0.06em">BROWSER</text>
-  <text x="48" y="86" font-style="italic" font-weight="900" font-size="18" fill="#0E0A12">Vanilla JS · SPA</text>
+  <!-- ── TITLE ─────────────────────────────────────────────────────── -->
+  <text x="640" y="36" text-anchor="middle" font-size="22" font-weight="900" font-style="italic" fill="#0E0A12">StemDomeZ — full system architecture</text>
+  <text x="640" y="58" text-anchor="middle" font-size="13" font-style="italic" fill="#3D2F4A">photo → TRELLIS → 7-stage CAD pipeline → chunked-yield delivery → Three.js viewer → Stripe Checkout → STL download</text>
 
-  <rect x="48" y="100" width="230" height="60" rx="10" fill="#FFFFFF" stroke="#0E0A12" stroke-width="2"/>
-  <text x="163" y="124" text-anchor="middle" font-size="12" font-weight="700" fill="#0E0A12">Tailwind v4 + router</text>
-  <text x="163" y="142" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">command-pattern client</text>
+  <!-- ── BROWSER (CLIENT) ──────────────────────────────────────────── -->
+  <rect x="46" y="96"  width="380" height="240" rx="14" fill="#7B2EFF"/>
+  <rect x="40" y="90"  width="380" height="240" rx="14" fill="#F5F2E5" stroke="#0E0A12" stroke-width="3"/>
+  <text x="60" y="115" font-size="14" font-weight="900" font-style="italic" fill="#7B2EFF" letter-spacing="0.06em">BROWSER (CLIENT)</text>
 
-  <rect x="48" y="170" width="230" height="60" rx="10" fill="#FFFFFF" stroke="#0E0A12" stroke-width="2"/>
-  <text x="163" y="194" text-anchor="middle" font-size="12" font-weight="700" fill="#0E0A12">Three.js viewer</text>
-  <text x="163" y="212" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">STLLoader · OrbitControls</text>
+  <rect x="60"  y="130" width="160" height="60" rx="8" fill="#FFFFFF" stroke="#0E0A12" stroke-width="1.6"/>
+  <text x="140" y="152" text-anchor="middle" font-size="12" font-weight="700" fill="#0E0A12">Vanilla JS UI</text>
+  <text x="140" y="170" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">Tailwind v4 · router</text>
+  <text x="140" y="184" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">command pattern</text>
 
-  <rect x="48" y="240" width="230" height="60" rx="10" fill="#FFFFFF" stroke="#0E0A12" stroke-width="2"/>
-  <text x="163" y="264" text-anchor="middle" font-size="12" font-weight="700" fill="#0E0A12">Stripe Checkout</text>
-  <text x="163" y="282" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">hosted redirect (when on)</text>
+  <rect x="240" y="130" width="160" height="60" rx="8" fill="#FFFFFF" stroke="#0E0A12" stroke-width="1.6"/>
+  <text x="320" y="152" text-anchor="middle" font-size="12" font-weight="700" fill="#0E0A12">Three.js viewer</text>
+  <text x="320" y="170" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">STLLoader</text>
+  <text x="320" y="184" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">OrbitControls</text>
 
-  <!-- DO App Platform (fluoro-green shadow, the loud second) -->
-  <rect x="356" y="44" width="320" height="280" rx="14" fill="#2EFF8C"/>
-  <rect x="350" y="38" width="320" height="280" rx="14" fill="#F5F2E5" stroke="#0E0A12" stroke-width="3"/>
-  <text x="370" y="68" font-style="italic" font-weight="800" font-size="13" fill="#1FCE6E" letter-spacing="0.06em">DIGITALOCEAN APP</text>
-  <text x="370" y="86" font-style="italic" font-weight="900" font-size="18" fill="#0E0A12">Node 22 · Express · socket.io</text>
+  <rect x="60"  y="200" width="340" height="56" rx="8" fill="#FFFFFF" stroke="#0E0A12" stroke-width="1.6"/>
+  <text x="230" y="222" text-anchor="middle" font-size="12" font-weight="700" fill="#0E0A12">socket.io client — single "command" event</text>
+  <text x="230" y="240" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">{ id, name, payload } · request/response correlated by id</text>
 
-  <rect x="370" y="100" width="280" height="62" rx="10" fill="#FFFFFF" stroke="#0E0A12" stroke-width="2"/>
-  <text x="510" y="124" text-anchor="middle" font-size="12" font-weight="700" fill="#0E0A12">command dispatcher</text>
-  <text x="510" y="142" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">stl · payments · designs · admin</text>
+  <rect x="60"  y="266" width="340" height="50" rx="8" fill="#FFFFFF" stroke="#0E0A12" stroke-width="1.6"/>
+  <text x="230" y="287" text-anchor="middle" font-size="12" font-weight="700" fill="#0E0A12">Stripe Checkout (hosted redirect)</text>
+  <text x="230" y="304" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">verified server-side on redirect-return — no webhook required</text>
 
-  <rect x="370" y="172" width="280" height="62" rx="10" fill="#FFFFFF" stroke="#0E0A12" stroke-width="2"/>
-  <text x="510" y="196" text-anchor="middle" font-size="12" font-weight="700" fill="#0E0A12">runpod-client</text>
-  <text x="510" y="214" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">/run · /stream · 700 KB chunks</text>
+  <!-- ── STRIPE (EXTERNAL) ─────────────────────────────────────────── -->
+  <rect x="40" y="350" width="380" height="80" rx="14" fill="#FFFFFF" stroke="#3D2F4A" stroke-width="2" stroke-dasharray="4 3"/>
+  <text x="230" y="375" text-anchor="middle" font-size="14" font-weight="900" font-style="italic" fill="#0E0A12">Stripe (external)</text>
+  <text x="230" y="395" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">hosted Checkout · server-side verify on return</text>
+  <text x="230" y="412" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">flag-gated by payments_enabled — off in MVP launch</text>
 
-  <rect x="370" y="244" width="280" height="62" rx="10" fill="#FFFFFF" stroke="#0E0A12" stroke-width="2"/>
-  <text x="510" y="268" text-anchor="middle" font-size="12" font-weight="700" fill="#0E0A12">design-store</text>
-  <text x="510" y="286" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">BYTEA STL · 24h TTL · LRU fallback</text>
+  <!-- ── DIGITALOCEAN APP PLATFORM ─────────────────────────────────── -->
+  <rect x="466" y="96"  width="380" height="540" rx="14" fill="#2EFF8C"/>
+  <rect x="460" y="90"  width="380" height="540" rx="14" fill="#F5F2E5" stroke="#0E0A12" stroke-width="3"/>
+  <text x="480" y="115" font-size="14" font-weight="900" font-style="italic" fill="#1FCE6E" letter-spacing="0.06em">DIGITALOCEAN APP PLATFORM</text>
+  <text x="480" y="131" font-size="11" font-style="italic" fill="#3D2F4A">Node 22 · Express · socket.io · helmet CSP · graceful SIGTERM</text>
 
-  <!-- Postgres (accent2-dim green dashed pill) -->
-  <rect x="704" y="118" width="220" height="100" rx="14" fill="#2EFF8C"/>
-  <rect x="698" y="112" width="220" height="100" rx="14" fill="#F5F2E5" stroke="#0E0A12" stroke-width="3" stroke-dasharray="6 4"/>
-  <text x="808" y="142" text-anchor="middle" font-style="italic" font-weight="800" font-size="13" fill="#1FCE6E" letter-spacing="0.06em">POSTGRES 18</text>
-  <text x="808" y="166" text-anchor="middle" font-size="12" font-weight="700" fill="#0E0A12">accounts · designs</text>
-  <text x="808" y="184" text-anchor="middle" font-size="12" font-weight="700" fill="#0E0A12">purchases · feature_flags</text>
-  <text x="808" y="202" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">migrations PRE_DEPLOY</text>
+  <rect x="480" y="148" width="340" height="92" rx="8" fill="#FFFFFF" stroke="#0E0A12" stroke-width="1.6"/>
+  <text x="650" y="170" text-anchor="middle" font-size="12" font-weight="700" fill="#0E0A12">server/index.js</text>
+  <text x="650" y="188" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">Express + socket.io · GET /health · /metrics</text>
+  <text x="650" y="206" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">command dispatcher (single 'command' event)</text>
+  <text x="650" y="224" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">stl · payments · designs · orders · account · admin · flags</text>
 
-  <!-- RunPod GPU (magenta shadow, period highlight) -->
-  <rect x="976" y="44" width="280" height="280" rx="14" fill="#FF2EAB"/>
-  <rect x="970" y="38" width="280" height="280" rx="14" fill="#F5F2E5" stroke="#0E0A12" stroke-width="3"/>
-  <text x="990" y="68" font-style="italic" font-weight="800" font-size="13" fill="#FF2EAB" letter-spacing="0.06em">RUNPOD GPU</text>
-  <text x="990" y="86" font-style="italic" font-weight="900" font-size="18" fill="#0E0A12">handler.py · TRELLIS</text>
+  <rect x="480" y="252" width="340" height="92" rx="8" fill="#FFFFFF" stroke="#0E0A12" stroke-width="1.6"/>
+  <text x="650" y="274" text-anchor="middle" font-size="12" font-weight="700" fill="#0E0A12">workers/runpod-client.js</text>
+  <text x="650" y="292" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">POST /run · GET /stream/&lt;id&gt; (1.5s polling, 12 min cap)</text>
+  <text x="650" y="308" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">indexes result_chunk frames; reassembles base64</text>
+  <text x="650" y="326" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">/status fallback for dropped streams</text>
 
-  <rect x="990" y="100" width="240" height="100" rx="10" fill="#FFFFFF" stroke="#0E0A12" stroke-width="2"/>
-  <text x="1110" y="124" text-anchor="middle" font-size="12" font-weight="700" fill="#0E0A12">TRELLIS-image-large</text>
-  <text x="1110" y="142" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">~30s warm · ~5–10 min cold</text>
-  <text x="1110" y="160" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">~780k-tri raw head mesh</text>
-  <text x="1110" y="180" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">cached on /runpod-volume</text>
+  <rect x="480" y="356" width="340" height="64" rx="8" fill="#FFFFFF" stroke="#0E0A12" stroke-width="1.6"/>
+  <text x="650" y="378" text-anchor="middle" font-size="12" font-weight="700" fill="#0E0A12">design-store.js</text>
+  <text x="650" y="396" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">stl_bytes BYTEA in Postgres · 24h TTL · in-memory fallback</text>
+  <text x="650" y="412" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">prune job runs every 15 min</text>
 
-  <rect x="990" y="210" width="240" height="100" rx="10" fill="#FFFFFF" stroke="#0E0A12" stroke-width="2"/>
-  <text x="1110" y="234" text-anchor="middle" font-size="12" font-weight="700" fill="#0E0A12">7-stage CAD pipeline</text>
-  <text x="1110" y="252" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">normalize · repair · crop</text>
-  <text x="1110" y="270" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">cavity · union cap · simplify</text>
-  <text x="1110" y="290" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">manifold3d · trimesh · pymeshlab</text>
+  <rect x="480" y="432" width="340" height="64" rx="8" fill="#FFFFFF" stroke="#0E0A12" stroke-width="1.6"/>
+  <text x="650" y="454" text-anchor="middle" font-size="12" font-weight="700" fill="#0E0A12">stripe-client.js · app-config.js</text>
+  <text x="650" y="472" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">SDK factory · pricing catalogue</text>
+  <text x="650" y="488" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">payments_enabled / printing_enabled / aaa_toggle_enabled</text>
 
-  <!-- Arrows -->
+  <rect x="480" y="508" width="340" height="92" rx="10" fill="#F5F2E5" stroke="#1FCE6E" stroke-width="2.5" stroke-dasharray="6 4"/>
+  <text x="650" y="530" text-anchor="middle" font-size="12" font-weight="900" font-style="italic" fill="#1FCE6E" letter-spacing="0.04em">MANAGED POSTGRES 18</text>
+  <text x="650" y="548" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">accounts · generated_designs · purchases · feature_flags</text>
+  <text x="650" y="566" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">migrations applied PRE_DEPLOY</text>
+  <text x="650" y="584" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">TLS connection · BYTEA STL with 24h TTL</text>
+
+  <!-- ── RUNPOD SERVERLESS GPU ─────────────────────────────────────── -->
+  <rect x="886" y="96"  width="360" height="700" rx="14" fill="#FF2EAB"/>
+  <rect x="880" y="90"  width="360" height="700" rx="14" fill="#F5F2E5" stroke="#0E0A12" stroke-width="3"/>
+  <text x="900" y="115" font-size="14" font-weight="900" font-style="italic" fill="#FF2EAB" letter-spacing="0.06em">RUNPOD SERVERLESS GPU</text>
+  <text x="900" y="131" font-size="11" font-style="italic" fill="#3D2F4A">image: ghcr.io/&lt;owner&gt;/&lt;repo&gt;:vX.Y.Z</text>
+
+  <rect x="900" y="148" width="320" height="120" rx="8" fill="#FFFFFF" stroke="#0E0A12" stroke-width="1.6"/>
+  <text x="1060" y="170" text-anchor="middle" font-size="12" font-weight="900" font-style="italic" fill="#0E0A12">handler.py (generator)</text>
+  <text x="1060" y="190" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">[stemdomez] handler.py vX.Y.Z booting</text>
+  <text x="1060" y="207" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">module-load probes · failure corpus</text>
+  <text x="1060" y="225" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">return_aggregate_stream=False ✓</text>
+  <text x="1060" y="243" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">yields: progress · result_chunk × N · result</text>
+  <text x="1060" y="261" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">CHUNK_SIZE = 700 KB</text>
+
+  <rect x="900" y="280" width="320" height="76" rx="8" fill="#FFFFFF" stroke="#0E0A12" stroke-width="1.6"/>
+  <text x="1060" y="300" text-anchor="middle" font-size="12" font-weight="700" fill="#0E0A12">TRELLIS-image-large</text>
+  <text x="1060" y="318" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">~30s warm · ~5–10 min cold</text>
+  <text x="1060" y="334" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">~780k-tri head mesh, often non-manifold</text>
+  <text x="1060" y="350" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">cached on /runpod-volume/cache/trellis/</text>
+
+  <rect x="900" y="368" width="320" height="232" rx="8" fill="#FFFFFF" stroke="#0E0A12" stroke-width="1.6"/>
+  <text x="1060" y="390" text-anchor="middle" font-size="12" font-weight="900" font-style="italic" fill="#0E0A12">v1 mesh pipeline (pipeline/stages.py)</text>
+  <line x1="916" y1="400" x2="1204" y2="400" stroke="#FF2EAB" stroke-width="1"/>
+  <text x="916"  y="418" font-size="11" fill="#0E0A12"><tspan font-weight="800">stage 1</tspan> · normalize: orient Z-up, rescale to 30 mm</text>
+  <text x="916"  y="436" font-size="11" fill="#0E0A12"><tspan font-weight="800">stage 1.5</tspan> · repair: pymeshlab close holes (warns)</text>
+  <text x="916"  y="454" font-size="11" fill="#0E0A12"><tspan font-weight="800">stage 2</tspan> · crop to neck (boolean cut, CDT triangulate)</text>
+  <text x="916"  y="472" font-size="11" fill="#0E0A12"><tspan font-weight="800">stage 3</tspan> · subtract negative_core.stl (carve cavity)</text>
+  <text x="916"  y="490" font-size="11" fill="#0E0A12"><tspan font-weight="800">stage 4</tspan> · union valve_cap.stl (fall back to concat)</text>
+  <text x="916"  y="508" font-size="11" fill="#0E0A12"><tspan font-weight="800">stage 5</tspan> · simplify 50–80k tris · Taubin smooth · STL</text>
+  <line x1="916" y1="518" x2="1204" y2="518" stroke="#FF2EAB" stroke-width="1"/>
+  <text x="1060" y="538" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">user sliders: Crop Tightness · Head Pitch</text>
+  <text x="1060" y="556" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">Head Height · Cap Protrusion</text>
+  <text x="1060" y="576" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">manifold3d 3.4 · trimesh 4.x · pymeshlab</text>
+  <text x="1060" y="592" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">fast-simplification</text>
+
+  <rect x="900" y="612" width="320" height="92" rx="10" fill="#F5F2E5" stroke="#FF2EAB" stroke-width="2.5" stroke-dasharray="6 4"/>
+  <text x="1060" y="634" text-anchor="middle" font-size="12" font-weight="900" font-style="italic" fill="#FF2EAB" letter-spacing="0.04em">/RUNPOD-VOLUME (NETWORK)</text>
+  <text x="1060" y="652" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">hf/ — TRELLIS + dinov2 + u2net weights</text>
+  <text x="1060" y="668" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">torch/ — torch.hub cache</text>
+  <text x="1060" y="684" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">cache/trellis/ — slider-tweak fast path</text>
+  <text x="1060" y="700" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">failures/&lt;date&gt;/&lt;jobId&gt;/ — corpus</text>
+
+  <rect x="900" y="716" width="320" height="64" rx="8" fill="#FFFFFF" stroke="#0E0A12" stroke-width="1.6"/>
+  <text x="1060" y="738" text-anchor="middle" font-size="12" font-weight="700" fill="#0E0A12">assets baked into image</text>
+  <text x="1060" y="755" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">/app/valve_cap.stl · /app/negative_core.stl</text>
+  <text x="1060" y="772" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">/app/pipeline/pipeline_constants.json</text>
+
+  <!-- ── BUILD &amp; RELEASE PIPELINE ──────────────────────────────────── -->
+  <rect x="40" y="660" width="800" height="130" rx="14" fill="#F5F2E5" stroke="#7C5E1F" stroke-width="2.5"/>
+  <text x="60" y="685" font-size="14" font-weight="900" font-style="italic" fill="#7C5E1F">Build &amp; release pipeline</text>
+
+  <rect x="60"  y="700" width="190" height="74" rx="8" fill="#FFFFFF" stroke="#7C5E1F" stroke-width="1.5"/>
+  <text x="155" y="722" text-anchor="middle" font-size="12" font-weight="700" fill="#0E0A12">git push + gh release</text>
+  <text x="155" y="740" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">vX.Y.Z tag triggers GHA</text>
+  <text x="155" y="756" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">bump HANDLER_VERSION</text>
+  <text x="155" y="770" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">in same commit</text>
+
+  <rect x="270" y="700" width="180" height="74" rx="8" fill="#FFFFFF" stroke="#7C5E1F" stroke-width="1.5"/>
+  <text x="360" y="722" text-anchor="middle" font-size="12" font-weight="700" fill="#0E0A12">GitHub Actions</text>
+  <text x="360" y="740" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">build-runpod-image.yml</text>
+  <text x="360" y="756" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">~17–25 min cold</text>
+  <text x="360" y="770" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">cache-from: type=gha</text>
+
+  <rect x="470" y="700" width="170" height="74" rx="8" fill="#FFFFFF" stroke="#7C5E1F" stroke-width="1.5"/>
+  <text x="555" y="722" text-anchor="middle" font-size="12" font-weight="700" fill="#0E0A12">GHCR registry</text>
+  <text x="555" y="740" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">ghcr.io/&lt;owner&gt;/&lt;repo&gt;</text>
+  <text x="555" y="756" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">:vX.Y.Z + :latest</text>
+  <text x="555" y="770" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">multi-GB image</text>
+
+  <rect x="660" y="700" width="170" height="74" rx="8" fill="#FFFFFF" stroke="#7C5E1F" stroke-width="1.5"/>
+  <text x="745" y="722" text-anchor="middle" font-size="12" font-weight="700" fill="#0E0A12">RunPod release</text>
+  <text x="745" y="740" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">Manage → New Release</text>
+  <text x="745" y="756" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">paste GHCR URL</text>
+  <text x="745" y="770" text-anchor="middle" font-size="11" font-style="italic" fill="#3D2F4A">verify boot banner</text>
+
+  <!-- ── ARROWS ────────────────────────────────────────────────────── -->
   <!-- Browser ⇄ DO (brand purple, socket.io) -->
-  <path d="M298 168 L350 168" stroke="#7B2EFF" stroke-width="3" fill="none" marker-end="url(#arrSdzBrand)"/>
-  <text x="324" y="160" text-anchor="middle" font-size="11" fill="#7B2EFF" font-weight="800" font-style="italic">socket.io</text>
+  <path d="M420 235 L460 235" stroke="#7B2EFF" stroke-width="2.5" fill="none" marker-end="url(#arrSdzBrand)"/>
+  <text x="440" y="228" text-anchor="middle" font-size="10" fill="#7B2EFF" font-weight="800" font-style="italic">socket.io</text>
+  <path d="M460 290 L420 290" stroke="#7B2EFF" stroke-width="2.5" fill="none" marker-end="url(#arrSdzBrand)"/>
+  <text x="440" y="305" text-anchor="middle" font-size="10" fill="#7B2EFF" font-weight="800" font-style="italic">progress · result</text>
 
-  <path d="M350 200 L298 200" stroke="#7B2EFF" stroke-width="3" fill="none" marker-end="url(#arrSdzBrand)"/>
-  <text x="324" y="218" text-anchor="middle" font-size="11" fill="#7B2EFF" font-weight="800" font-style="italic">progress · result</text>
-
-  <!-- DO ⇄ Postgres (fluoro green dim, TLS) -->
-  <path d="M650 200 L700 162" stroke="#1FCE6E" stroke-width="3" fill="none" marker-end="url(#arrSdzGreen)"/>
-  <text x="690" y="195" text-anchor="end" font-size="11" fill="#1FCE6E" font-weight="800" font-style="italic">SQL · TLS</text>
+  <!-- DO server ⇄ Postgres (fluoro green) -->
+  <path d="M650 496 L650 506" stroke="#1FCE6E" stroke-width="2.5" fill="none" marker-end="url(#arrSdzGreen)"/>
 
   <!-- DO ⇄ RunPod (magenta, chunked yield) -->
-  <path d="M650 130 L968 130" stroke="#FF2EAB" stroke-width="3" fill="none" marker-end="url(#arrSdzMagenta)"/>
-  <text x="809" y="120" text-anchor="middle" font-size="11" fill="#FF2EAB" font-weight="800" font-style="italic">POST /run</text>
+  <path d="M820 296 L900 200" stroke="#FF2EAB" stroke-width="2.5" fill="none" marker-end="url(#arrSdzMagenta)"/>
+  <text x="877" y="240" text-anchor="middle" font-size="10" fill="#FF2EAB" font-weight="800" font-style="italic">POST /run</text>
+  <path d="M900 250 L820 326" stroke="#FF2EAB" stroke-width="2.5" fill="none" marker-end="url(#arrSdzMagenta)"/>
+  <text x="845" y="312" text-anchor="middle" font-size="10" fill="#FF2EAB" font-weight="800" font-style="italic">/stream/&lt;id&gt;</text>
 
-  <path d="M968 270 L650 270" stroke="#FF2EAB" stroke-width="3" fill="none" marker-end="url(#arrSdzMagenta)"/>
-  <text x="809" y="288" text-anchor="middle" font-size="11" fill="#FF2EAB" font-weight="800" font-style="italic">/stream · 700 KB chunks</text>
+  <!-- Browser ⇄ Stripe (gray) -->
+  <path d="M230 316 L230 348" stroke="#3D2F4A" stroke-width="2" fill="none" marker-end="url(#arrSdzMuted)"/>
 
-  <!-- Build pipeline strip across the bottom (gold) -->
-  <line x1="48" y1="350" x2="1230" y2="350" stroke="#7C5E1F" stroke-width="2" stroke-dasharray="6 4"/>
-  <text x="48" y="368" font-size="11" fill="#7C5E1F" font-weight="800" font-style="italic">git push → GitHub Actions → GHCR → RunPod release · DO auto-deploys on main</text>
+  <!-- DO server ⇄ Stripe (gray) -->
+  <path d="M460 470 L320 410" stroke="#3D2F4A" stroke-width="2" fill="none" marker-end="url(#arrSdzMuted)"/>
+
+  <!-- Build pipeline chain (gold) -->
+  <path d="M250 737 L270 737" stroke="#7C5E1F" stroke-width="2" fill="none" marker-end="url(#arrSdzGold)"/>
+  <path d="M450 737 L470 737" stroke="#7C5E1F" stroke-width="2" fill="none" marker-end="url(#arrSdzGold)"/>
+  <path d="M640 737 L660 737" stroke="#7C5E1F" stroke-width="2" fill="none" marker-end="url(#arrSdzGold)"/>
+  <path d="M830 737 L880 737 L880 200 L900 200" stroke="#7C5E1F" stroke-width="2" fill="none" marker-end="url(#arrSdzGold)" stroke-dasharray="4 3"/>
+
+  <!-- ── LEGEND ────────────────────────────────────────────────────── -->
+  <text x="40" y="836" font-size="13" font-weight="900" font-style="italic" fill="#0E0A12">Key data flows</text>
+  <line x1="40"  y1="850" x2="80"  y2="850" stroke="#7B2EFF" stroke-width="2.5"/>
+  <text x="88"  y="854" font-size="11" font-style="italic" fill="#3D2F4A">socket.io (command pattern, no REST)</text>
+  <line x1="290" y1="850" x2="330" y2="850" stroke="#FF2EAB" stroke-width="2.5"/>
+  <text x="338" y="854" font-size="11" font-style="italic" fill="#3D2F4A">RunPod HTTP poll (chunked-yield protocol)</text>
+  <line x1="610" y1="850" x2="650" y2="850" stroke="#1FCE6E" stroke-width="2.5"/>
+  <text x="658" y="854" font-size="11" font-style="italic" fill="#3D2F4A">Postgres TLS (BYTEA STL · 24h TTL)</text>
+  <line x1="900" y1="850" x2="940" y2="850" stroke="#7C5E1F" stroke-width="2.5"/>
+  <text x="948" y="854" font-size="11" font-style="italic" fill="#3D2F4A">Build / release path (image lifecycle)</text>
+
+  <text x="40" y="884" font-size="11" font-style="italic" fill="#3D2F4A">See README.md, ProductSpec.md, 3D_Pipeline.md, docs/RUNPOD_TRELLIS_PLAYBOOK.md for the prose.</text>
+  <text x="40" y="902" font-size="10" font-style="italic" fill="#6B5C7B">Generated by /how-it-works · sourced from architecture.svg</text>
 </svg>`;
 }
 
