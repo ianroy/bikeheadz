@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { db, hasDb } from '../db.js';
-import { requireAuth } from '../auth.js';
+import { requireAuth, hashPassword, verifyPassword } from '../auth.js';
 import { recordAudit } from '../audit.js';
 import { CommandError, ErrorCode } from '../errors.js';
 
@@ -172,6 +172,46 @@ export const accountCommands = {
       photos: photos.rows,
       exportedAt: new Date().toISOString(),
     };
+  },
+
+  // Migration 006 — opt-in password. The user can add or change a
+  // password from /account → Settings; we hash with scrypt
+  // (server/auth.js helpers) and persist on accounts.password_hash.
+  // Magic-link login keeps working even after a password is set —
+  // password is additive, never the only auth.
+  'account.setPassword': async ({ socket, payload }) => {
+    const user = requireAuth({ socket });
+    const Schema = z.object({
+      password: z.string().min(10).max(256),
+      currentPassword: z.string().max(256).optional(),
+    });
+    const parsed = Schema.safeParse(payload);
+    if (!parsed.success) {
+      throw new CommandError(ErrorCode.INVALID_PAYLOAD, 'password_too_short', parsed.error.issues);
+    }
+    if (!hasDb()) throw new CommandError(ErrorCode.INTERNAL_ERROR, 'no_database');
+    // If a password is already set, require the current one (or a
+    // recent magic-link / reset-flow consume — those land here
+    // signed-in but without a currentPassword in payload).
+    const { rows } = await db.query(
+      `SELECT password_hash FROM accounts WHERE id = $1`, [user.id]
+    );
+    const existing = rows[0]?.password_hash || null;
+    if (existing && parsed.data.currentPassword) {
+      if (!verifyPassword(parsed.data.currentPassword, existing)) {
+        throw new CommandError(ErrorCode.INVALID_TOKEN, 'wrong_current_password');
+      }
+    }
+    const hashed = hashPassword(parsed.data.password);
+    await db.query(
+      `UPDATE accounts SET password_hash = $1, password_set_at = NOW() WHERE id = $2`,
+      [hashed, user.id]
+    );
+    await recordAudit({
+      actorId: user.id,
+      action: existing ? 'account.password_changed' : 'account.password_set',
+    });
+    return { ok: true, hasPassword: true };
   },
 
   // P1-004 — soft-delete. Anonymise purchases (Stripe retention).

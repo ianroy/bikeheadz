@@ -1,0 +1,13 @@
+{{inviterEmail}} thinks you'd like StemDomeZ.
+
+StemDomeZ turns a photo of your face into a 3D-printable Schrader
+valve cap. Sign in with one click — no password to remember.
+
+{{message}}
+
+{{acceptUrl}}
+
+The invite expires in 7 days.
+
+— StemDomeZ
+stemdomez.com

@@ -25,7 +25,13 @@ import {
   signSessionId,
   parseCookie,
   fingerprint,
+  hashPassword,
+  verifyPassword,
+  createSession,
+  consumeInvite as consumeInviteHelper,
+  upsertUserByEmail,
 } from '../auth.js';
+import { db, hasDb } from '../db.js';
 import { sendEmail } from '../email.js';
 import { magicLinkLimiter, makeRateLimiter } from '../rate-limit.js';
 import { recordAudit } from '../audit.js';
@@ -216,6 +222,110 @@ export const authCommands = {
       // typically uses the /auth/consume HTTP redirect path instead.
       setCookieHeader: buildCookieString({ value: session }),
     };
+  },
+
+  // Password login (migration 006). Email + password → session cookie.
+  // Falls back to magic-link if the account hasn't opted in to a
+  // password (no password_hash row). Same per-IP rate limit as the
+  // magic-link consume path so brute-forcing isn't free.
+  'auth.loginWithPassword': async ({ socket, payload }) => {
+    const Schema = z.object({
+      email: z.string().trim().toLowerCase().email(),
+      password: z.string().min(10).max(256),
+    });
+    const parsed = Schema.safeParse(payload);
+    if (!parsed.success) {
+      throw new CommandError(ErrorCode.INVALID_PAYLOAD, 'invalid_credentials', parsed.error.issues);
+    }
+    const ip = ipOf(socket);
+    const ua = uaOf(socket);
+    try {
+      checkRateLimit({ key: 'auth_pwlogin:' + ip, max: 10, windowMs: 600_000 });
+    } catch (rlErr) {
+      const retryAfterMs = (rlErr.details?.retryAfter || 60) * 1000;
+      throw new CommandError(ErrorCode.RATE_LIMITED, 'too_many_attempts', { retryAfterMs });
+    }
+    if (!hasDb()) throw new CommandError(ErrorCode.INVALID_TOKEN, 'invalid_credentials');
+    const { rows } = await db.query(
+      `SELECT id, email, role, password_hash FROM accounts
+        WHERE LOWER(email) = $1 AND deleted_at IS NULL LIMIT 1`,
+      [parsed.data.email]
+    );
+    const row = rows[0];
+    // Constant-time-ish: always run a verify even on no-row, so
+    // attackers can't enumerate accounts via timing.
+    const stored = row?.password_hash || 'scrypt$32768$8$1$00$00';
+    const ok = verifyPassword(parsed.data.password, stored) && !!row;
+    if (!ok) {
+      trackConsumeFailure(ip);
+      throw new CommandError(ErrorCode.INVALID_TOKEN, 'invalid_credentials');
+    }
+    const cookie = await createSession({ userId: row.id, ip, userAgent: ua });
+    await recordAudit({ actorId: row.id, action: 'auth.password_login', ip });
+    return {
+      ok: true,
+      user: publicUser(row),
+      clearCookieHeader: null,
+      cookie,
+    };
+  },
+
+  // Password-reset request — same shape as requestMagicLink but uses
+  // a different email template + tags the token channel so the
+  // consume side can branch the post-login UX ("set new password").
+  'auth.requestPasswordReset': async ({ socket, payload }) => {
+    const parsed = RequestSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new CommandError(ErrorCode.INVALID_PAYLOAD, 'invalid_email', parsed.error.issues);
+    }
+    const { email } = parsed.data;
+    const ip = ipOf(socket);
+    magicLinkLimiter({ email, ip });
+
+    const { token, expiresAt } = await createMagicToken({
+      email, ip, userAgent: uaOf(socket), channel: 'password_reset',
+    });
+    const base = appUrlFromSocket(socket);
+    const resetUrl =
+      `${base}/auth/consume?token=${encodeURIComponent(token)}` +
+      `&redirect=${encodeURIComponent('/account?reset=1')}`;
+
+    const result = await sendEmail({
+      to: email,
+      template: 'password-reset',
+      data: { resetUrl },
+    });
+    await recordAudit({
+      action: 'auth.password_reset.requested',
+      targetType: 'email', targetId: email, ip,
+      metadata: { sent: result.ok, backend: result.backend || 'console' },
+    });
+    return {
+      ok: true,
+      expiresAt: expiresAt.toISOString(),
+      devUrl: !result.backend || result.backend === 'console' ? resetUrl : null,
+    };
+  },
+
+  // Invite consume (migration 006). The invite code carries enough
+  // weight on its own to sign the recipient in, since the inviter
+  // already vouched for the email address. Tags account.invited_by.
+  'auth.consumeInvite': async ({ socket, payload }) => {
+    const Schema = z.object({ code: z.string().min(8).max(64) });
+    const parsed = Schema.safeParse(payload);
+    if (!parsed.success) throw new CommandError(ErrorCode.INVALID_PAYLOAD, 'invalid', parsed.error.issues);
+    const ip = ipOf(socket);
+    try {
+      checkRateLimit({ key: 'auth_invite:' + ip, max: 10, windowMs: 600_000 });
+    } catch (rlErr) {
+      const retryAfterMs = (rlErr.details?.retryAfter || 60) * 1000;
+      throw new CommandError(ErrorCode.RATE_LIMITED, 'too_many_attempts', { retryAfterMs });
+    }
+    const { user, cookie } = await consumeInviteHelper({
+      code: parsed.data.code, ip, userAgent: uaOf(socket),
+    });
+    await recordAudit({ actorId: user.id, action: 'auth.invite_accepted', ip });
+    return { ok: true, user: publicUser(user), cookie };
   },
 
   'auth.whoami': async ({ socket }) => {

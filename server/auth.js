@@ -365,6 +365,102 @@ export function maybeUser({ socket }) {
   return socket.data?.user || null;
 }
 
+// ── Password opt-in (migration 006) ───────────────────────────────────────
+// scrypt-based password hashing using node:crypto so we don't pull in
+// argon2/bcrypt as new deps. Output format: scrypt$<N>$<r>$<p>$<saltHex>$<hashHex>.
+// N=2^15 takes ~80ms on a basic-xxs DO worker — strong enough for an
+// MVP launch + cheap enough to not lock up the request handler.
+
+const SCRYPT_N = 1 << 15;
+const SCRYPT_r = 8;
+const SCRYPT_p = 1;
+const SCRYPT_KEYLEN = 64;
+
+export function hashPassword(plaintext) {
+  if (typeof plaintext !== 'string' || plaintext.length < 10) {
+    throw new CommandError(ErrorCode.INVALID_PAYLOAD, 'password_too_short');
+  }
+  if (plaintext.length > 256) {
+    throw new CommandError(ErrorCode.INVALID_PAYLOAD, 'password_too_long');
+  }
+  const salt = randomBytes(16);
+  const derived = scryptSync(plaintext, salt, SCRYPT_KEYLEN, {
+    N: SCRYPT_N, r: SCRYPT_r, p: SCRYPT_p,
+  });
+  return `scrypt$${SCRYPT_N}$${SCRYPT_r}$${SCRYPT_p}$${salt.toString('hex')}$${derived.toString('hex')}`;
+}
+
+export function verifyPassword(plaintext, stored) {
+  if (!stored || typeof stored !== 'string') return false;
+  const parts = stored.split('$');
+  if (parts.length !== 6 || parts[0] !== 'scrypt') return false;
+  const [, nStr, rStr, pStr, saltHex, hashHex] = parts;
+  const N = Number(nStr); const r = Number(rStr); const p = Number(pStr);
+  if (!Number.isFinite(N) || !Number.isFinite(r) || !Number.isFinite(p)) return false;
+  let derived;
+  try {
+    derived = scryptSync(String(plaintext || ''), Buffer.from(saltHex, 'hex'),
+      Buffer.from(hashHex, 'hex').length, { N, r, p });
+  } catch {
+    return false;
+  }
+  const expected = Buffer.from(hashHex, 'hex');
+  if (derived.length !== expected.length) return false;
+  try { return timingSafeEqual(derived, expected); } catch { return false; }
+}
+
+// Password-reset tokens reuse the auth_tokens table with a different
+// channel. The consume path issues a session like a magic-link login,
+// then the SPA prompts the user to set a new password.
+export async function createPasswordResetToken({ email, ip = null, userAgent = null }) {
+  return createMagicToken({ email, ip, userAgent, channel: 'password_reset' });
+}
+
+// Invite tokens — separate `invites` table per migration 006, but we
+// reuse the same magic-link consume path on accept. The invite row
+// is the canonical record; the magic token just signs the accept-link.
+export async function createInvite({ email, sentBy, message = null, ttlHours = 168 }) {
+  if (!hasDb()) throw new CommandError(ErrorCode.INTERNAL_ERROR, 'no_database');
+  const lc = String(email || '').toLowerCase().trim();
+  if (!lc || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(lc)) {
+    throw new CommandError(ErrorCode.INVALID_PAYLOAD, 'invalid_email');
+  }
+  const code = randomBytes(24).toString('base64url');
+  const { rows } = await db.query(
+    `INSERT INTO invites (code, email, sent_by, expires_at, message)
+     VALUES ($1, $2, $3, NOW() + ($4 || ' hours')::INTERVAL, $5)
+     RETURNING id, code, email, sent_by, sent_at, expires_at, message`,
+    [code, lc, sentBy || null, String(ttlHours), message]
+  );
+  return rows[0];
+}
+
+export async function consumeInvite({ code, ip = null, userAgent = null }) {
+  if (!hasDb()) throw new CommandError(ErrorCode.INVALID_TOKEN, 'invalid_token');
+  const { rows } = await db.query(
+    `UPDATE invites SET accepted_at = NOW()
+       WHERE code = $1 AND accepted_at IS NULL AND expires_at > NOW()
+       RETURNING email, sent_by`,
+    [code]
+  );
+  if (!rows.length) throw new CommandError(ErrorCode.INVALID_TOKEN, 'invalid_or_expired_invite');
+  const { email, sent_by } = rows[0];
+  const user = await upsertUserByEmail(email);
+  // Tag the new account with the inviter for cohort analytics.
+  if (sent_by) {
+    await db.query(
+      `UPDATE accounts SET invited_by = COALESCE(invited_by, $2) WHERE id = $1`,
+      [user.id, sent_by]
+    );
+  }
+  await db.query(
+    `UPDATE invites SET accepted_by = $1 WHERE code = $2 AND accepted_by IS NULL`,
+    [user.id, code]
+  );
+  const cookie = await createSession({ userId: user.id, ip, userAgent });
+  return { user, cookie };
+}
+
 // ── Bootstrap: seed admin users from ADMIN_EMAILS at startup. Idempotent. ──
 export async function seedAdmins() {
   if (!ADMIN_EMAILS.length) return;

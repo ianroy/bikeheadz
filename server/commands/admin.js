@@ -4,11 +4,16 @@
 // an audit row (P0-009).
 
 import { z } from 'zod';
-import { requireAdmin } from '../auth.js';
+import {
+  requireAdmin,
+  createMagicToken,
+  createInvite as createInviteHelper,
+} from '../auth.js';
 import { recordAudit } from '../audit.js';
 import { db, hasDb } from '../db.js';
 import { CommandError, ErrorCode } from '../errors.js';
 import { logger } from '../logger.js';
+import { sendEmail } from '../email.js';
 
 const RangeSchema = z.object({
   range: z.enum(['7d', '30d', '90d']).default('30d'),
@@ -199,6 +204,319 @@ export const adminCommands = {
       logger.warn({ msg: 'admin.slow_query.unavailable', err: err.message });
       return { rows: [], error: 'pg_stat_statements_not_enabled' };
     }
+  },
+
+  // ── User management (migration 006) ──────────────────────────────
+
+  // Promote / demote a user. role ∈ {user, admin, support}.
+  'admin.users.setRole': async ({ socket, payload }) => {
+    const actor = requireAdmin({ socket });
+    const parsed = PromoteSchema.safeParse(payload);
+    if (!parsed.success) throw new CommandError(ErrorCode.INVALID_PAYLOAD, 'invalid', parsed.error.issues);
+    if (!hasDb()) return { ok: true };
+    const { rows } = await db.query(
+      `UPDATE accounts SET role = $2, session_token_version = session_token_version + 1
+        WHERE id = $1 AND deleted_at IS NULL
+        RETURNING id, email, role`,
+      [parsed.data.userId, parsed.data.role]
+    );
+    if (!rows.length) throw new CommandError(ErrorCode.INVALID_PAYLOAD, 'user_not_found');
+    await recordAudit({
+      actorId: actor.id, action: 'admin.role_changed',
+      targetType: 'user', targetId: String(parsed.data.userId),
+      metadata: { role: parsed.data.role },
+    });
+    return { ok: true, user: rows[0] };
+  },
+
+  // Admin-triggered password reset email.
+  'admin.users.sendPasswordReset': async ({ socket, payload }) => {
+    const actor = requireAdmin({ socket });
+    const Schema = z.object({
+      userId: z.union([z.number().int(), z.string()]).transform((v) => Number(v)),
+    });
+    const parsed = Schema.safeParse(payload);
+    if (!parsed.success) throw new CommandError(ErrorCode.INVALID_PAYLOAD, 'invalid');
+    if (!hasDb()) return { ok: true, sent: false };
+    const { rows } = await db.query(
+      `SELECT email FROM accounts WHERE id = $1 AND deleted_at IS NULL`,
+      [parsed.data.userId]
+    );
+    if (!rows.length) throw new CommandError(ErrorCode.INVALID_PAYLOAD, 'user_not_found');
+    const email = rows[0].email;
+    const { token, expiresAt } = await createMagicToken({
+      email, channel: 'password_reset', ip: null, userAgent: null,
+    });
+    const base = (process.env.APP_URL || 'https://stemdomez.com').replace(/\/$/, '');
+    const resetUrl =
+      `${base}/auth/consume?token=${encodeURIComponent(token)}` +
+      `&redirect=${encodeURIComponent('/account?reset=1')}`;
+    const result = await sendEmail({ to: email, template: 'password-reset', data: { resetUrl } });
+    await recordAudit({
+      actorId: actor.id, action: 'admin.password_reset_sent',
+      targetType: 'user', targetId: String(parsed.data.userId),
+      metadata: { sent: result.ok, backend: result.backend || 'console' },
+    });
+    return { ok: true, sent: result.ok, expiresAt: expiresAt.toISOString() };
+  },
+
+  // Admin sends an invite. Creates a row in `invites` + emails the
+  // recipient with a single-use accept link.
+  'admin.invites.send': async ({ socket, payload }) => {
+    const actor = requireAdmin({ socket });
+    const Schema = z.object({
+      email: z.string().trim().toLowerCase().email(),
+      message: z.string().max(500).optional(),
+    });
+    const parsed = Schema.safeParse(payload);
+    if (!parsed.success) throw new CommandError(ErrorCode.INVALID_PAYLOAD, 'invalid', parsed.error.issues);
+    const invite = await createInviteHelper({
+      email: parsed.data.email,
+      sentBy: actor.id,
+      message: parsed.data.message || null,
+    });
+    const base = (process.env.APP_URL || 'https://stemdomez.com').replace(/\/$/, '');
+    const acceptUrl = `${base}/login?invite=${encodeURIComponent(invite.code)}`;
+    const result = await sendEmail({
+      to: parsed.data.email,
+      template: 'invite',
+      data: {
+        acceptUrl,
+        message: parsed.data.message || '',
+        inviterEmail: actor.email,
+      },
+    });
+    await recordAudit({
+      actorId: actor.id, action: 'admin.invite_sent',
+      targetType: 'email', targetId: parsed.data.email,
+      metadata: { sent: result.ok, backend: result.backend || 'console' },
+    });
+    return { ok: true, invite, sent: result.ok };
+  },
+
+  'admin.invites.list': async ({ socket }) => {
+    requireAdmin({ socket });
+    if (!hasDb()) return { rows: [] };
+    const { rows } = await db.query(
+      `SELECT i.id, i.email, i.sent_at, i.expires_at, i.accepted_at, i.message,
+              a.email AS sent_by_email
+         FROM invites i
+         LEFT JOIN accounts a ON a.id = i.sent_by
+        ORDER BY i.sent_at DESC LIMIT 200`
+    );
+    return { rows };
+  },
+
+  // ── Metrics for the dashboard tabs (migration 006) ──────────────
+
+  // Trends graph — daily counts for the line chart. Each metric is
+  // an array of {date, count} for the requested range. Chart.js
+  // overlays them as separate datasets in the brand palette.
+  'admin.metrics.timeseries': async ({ socket, payload }) => {
+    requireAdmin({ socket });
+    const { range } = RangeSchema.parse(payload || {});
+    const days = range === '7d' ? 7 : range === '90d' ? 90 : 30;
+    if (!hasDb()) {
+      return { range, days, series: { hits: [], signups: [], photos: [], jobs_started: [], jobs_succeeded: [], stl_downloads: [] } };
+    }
+    // Generate dense day series so Chart.js doesn't have gaps.
+    const series = {};
+    const queries = [
+      ['hits',           `SELECT date_trunc('day', created_at) AS day, COUNT(*)::int AS n FROM page_views WHERE created_at > NOW() - INTERVAL '${days} days' GROUP BY day ORDER BY day`],
+      ['signups',        `SELECT date_trunc('day', created_at) AS day, COUNT(*)::int AS n FROM accounts WHERE created_at > NOW() - INTERVAL '${days} days' GROUP BY day ORDER BY day`],
+      ['photos',         `SELECT date_trunc('day', uploaded_at) AS day, COUNT(*)::int AS n FROM user_photos WHERE uploaded_at > NOW() - INTERVAL '${days} days' GROUP BY day ORDER BY day`],
+      ['jobs_started',   `SELECT date_trunc('day', created_at) AS day, COUNT(*)::int AS n FROM generated_designs WHERE created_at > NOW() - INTERVAL '${days} days' GROUP BY day ORDER BY day`],
+      ['jobs_succeeded', `SELECT date_trunc('day', created_at) AS day, COUNT(*)::int AS n FROM generated_designs WHERE created_at > NOW() - INTERVAL '${days} days' AND triangles IS NOT NULL GROUP BY day ORDER BY day`],
+      ['stl_downloads',  `SELECT date_trunc('day', paid_at) AS day, COUNT(*)::int AS n FROM purchases WHERE paid_at > NOW() - INTERVAL '${days} days' AND status = 'paid' GROUP BY day ORDER BY day`],
+    ];
+    for (const [name, sql] of queries) {
+      try { const { rows } = await db.query(sql); series[name] = rows.map((r) => ({ date: r.day, count: Number(r.n) })); }
+      catch (err) { logger.debug({ msg: 'admin.timeseries.query_failed', name, err: err.message }); series[name] = []; }
+    }
+    return { range, days, series };
+  },
+
+  // Funnel — Land → Sign in → Generate → Purchase / Free download.
+  'admin.metrics.funnel': async ({ socket, payload }) => {
+    requireAdmin({ socket });
+    const { range } = RangeSchema.parse(payload || {});
+    const interval = rangeToInterval(range);
+    if (!hasDb()) return { range, steps: [] };
+    const [{ rows: visitors }, { rows: signups }, { rows: generators }, { rows: downloaders }] = await Promise.all([
+      db.query(`SELECT COUNT(DISTINCT session_key)::int AS n FROM page_views WHERE created_at > NOW() - INTERVAL '${interval}'`),
+      db.query(`SELECT COUNT(*)::int AS n FROM accounts WHERE created_at > NOW() - INTERVAL '${interval}'`),
+      db.query(`SELECT COUNT(DISTINCT account_id)::int AS n FROM generated_designs WHERE created_at > NOW() - INTERVAL '${interval}' AND account_id IS NOT NULL`),
+      db.query(`SELECT COUNT(DISTINCT account_id)::int AS n FROM purchases WHERE paid_at > NOW() - INTERVAL '${interval}' AND status = 'paid' AND account_id IS NOT NULL`),
+    ]);
+    const steps = [
+      { label: 'Visitors',    n: visitors[0]?.n || 0 },
+      { label: 'Signed up',   n: signups[0]?.n || 0 },
+      { label: 'Generated',   n: generators[0]?.n || 0 },
+      { label: 'Downloaded',  n: downloaders[0]?.n || 0 },
+    ];
+    return { range, steps };
+  },
+
+  // Login locations for the world map.
+  'admin.metrics.geo': async ({ socket, payload }) => {
+    requireAdmin({ socket });
+    const { range } = RangeSchema.parse(payload || {});
+    const interval = rangeToInterval(range);
+    if (!hasDb()) return { range, rows: [] };
+    const { rows } = await db.query(
+      `SELECT geo_country AS country, geo_city AS city, COUNT(*)::int AS n,
+              MAX(created_at) AS last_seen
+         FROM page_views
+        WHERE created_at > NOW() - INTERVAL '${interval}'
+          AND geo_country IS NOT NULL
+        GROUP BY geo_country, geo_city
+        ORDER BY n DESC LIMIT 500`
+    );
+    return { range, rows };
+  },
+
+  // Device + browser split.
+  'admin.metrics.devices': async ({ socket, payload }) => {
+    requireAdmin({ socket });
+    const { range } = RangeSchema.parse(payload || {});
+    const interval = rangeToInterval(range);
+    if (!hasDb()) return { range, devices: [], oses: [], browsers: [] };
+    const [{ rows: devices }, { rows: oses }, { rows: browsers }] = await Promise.all([
+      db.query(`SELECT COALESCE(device_kind,'unknown') AS k, COUNT(*)::int AS n FROM page_views WHERE created_at > NOW() - INTERVAL '${interval}' GROUP BY k ORDER BY n DESC`),
+      db.query(`SELECT COALESCE(os_kind,'unknown') AS k, COUNT(*)::int AS n FROM page_views WHERE created_at > NOW() - INTERVAL '${interval}' GROUP BY k ORDER BY n DESC`),
+      db.query(`SELECT COALESCE(browser_kind,'unknown') AS k, COUNT(*)::int AS n FROM page_views WHERE created_at > NOW() - INTERVAL '${interval}' GROUP BY k ORDER BY n DESC`),
+    ]);
+    return { range, devices, oses, browsers };
+  },
+
+  // Referrer source split — strips down to the host so noise from
+  // long URLs doesn't blow up the table.
+  'admin.metrics.referrers': async ({ socket, payload }) => {
+    requireAdmin({ socket });
+    const { range } = RangeSchema.parse(payload || {});
+    const interval = rangeToInterval(range);
+    if (!hasDb()) return { range, rows: [] };
+    const { rows } = await db.query(
+      `SELECT
+          COALESCE(NULLIF(regexp_replace(referrer, '^https?://([^/]+).*$', '\\1'), ''), '(direct)') AS host,
+          COUNT(*)::int AS n,
+          COUNT(DISTINCT session_key)::int AS unique_visitors
+        FROM page_views
+        WHERE created_at > NOW() - INTERVAL '${interval}'
+        GROUP BY host
+        ORDER BY n DESC LIMIT 100`
+    );
+    return { range, rows };
+  },
+
+  // Cohort retention — Day 0/1/7/30 returning rate by signup week.
+  'admin.metrics.cohorts': async ({ socket }) => {
+    requireAdmin({ socket });
+    if (!hasDb()) return { rows: [] };
+    const { rows } = await db.query(
+      `WITH cohorts AS (
+         SELECT id AS account_id, date_trunc('week', created_at) AS cohort
+           FROM accounts WHERE deleted_at IS NULL
+       ),
+       activity AS (
+         SELECT pv.account_id, c.cohort,
+                EXTRACT(EPOCH FROM (pv.created_at - c.cohort)) / 86400 AS day
+           FROM page_views pv JOIN cohorts c ON c.account_id = pv.account_id
+       )
+       SELECT cohort,
+              COUNT(DISTINCT account_id) FILTER (WHERE day BETWEEN 0 AND 1) AS d0,
+              COUNT(DISTINCT account_id) FILTER (WHERE day BETWEEN 1 AND 2) AS d1,
+              COUNT(DISTINCT account_id) FILTER (WHERE day BETWEEN 7 AND 8) AS d7,
+              COUNT(DISTINCT account_id) FILTER (WHERE day BETWEEN 30 AND 31) AS d30,
+              (SELECT COUNT(*) FROM cohorts c2 WHERE c2.cohort = activity.cohort) AS size
+         FROM activity GROUP BY cohort ORDER BY cohort DESC LIMIT 26`
+    );
+    return { rows };
+  },
+
+  // TRELLIS pipeline health histogram.
+  'admin.metrics.pipeline': async ({ socket, payload }) => {
+    requireAdmin({ socket });
+    const { range } = RangeSchema.parse(payload || {});
+    const interval = rangeToInterval(range);
+    if (!hasDb()) return { range, total: 0, watertight_pct: 0, retried_pct: 0, tri_buckets: [] };
+    const [tot, water, retr, hist] = await Promise.all([
+      db.query(`SELECT COUNT(*)::int AS n FROM generated_designs WHERE created_at > NOW() - INTERVAL '${interval}'`),
+      db.query(`SELECT COUNT(*)::int AS n FROM generated_designs WHERE created_at > NOW() - INTERVAL '${interval}' AND watertight = TRUE`),
+      db.query(`SELECT COUNT(*)::int AS n FROM generated_designs WHERE created_at > NOW() - INTERVAL '${interval}' AND stage3_retried = TRUE`),
+      db.query(
+        `SELECT width_bucket(triangles, 0, 100000, 10) AS bucket, COUNT(*)::int AS n
+           FROM generated_designs WHERE triangles IS NOT NULL AND created_at > NOW() - INTERVAL '${interval}'
+          GROUP BY bucket ORDER BY bucket`
+      ),
+    ]);
+    const total = tot.rows[0]?.n || 0;
+    return {
+      range, total,
+      watertight_pct: total ? (water.rows[0].n / total) * 100 : 0,
+      retried_pct: total ? (retr.rows[0].n / total) * 100 : 0,
+      tri_buckets: hist.rows,
+    };
+  },
+
+  // Cost-per-job tracker. Pulls Stripe fee + Resend volume from the
+  // existing tables. Approximate; admin uses it as a "watch the
+  // wall" gauge, not an accounting source of truth.
+  'admin.metrics.cost': async ({ socket, payload }) => {
+    requireAdmin({ socket });
+    const { range } = RangeSchema.parse(payload || {});
+    const interval = rangeToInterval(range);
+    if (!hasDb()) return { range, paid_revenue: 0, paid_count: 0, email_count: 0 };
+    const [rev, em] = await Promise.all([
+      db.query(`SELECT COALESCE(SUM(amount_cents),0)::int AS s, COUNT(*)::int AS n FROM purchases WHERE status='paid' AND paid_at > NOW() - INTERVAL '${interval}'`),
+      db.query(`SELECT COUNT(*)::int AS n FROM email_events WHERE created_at > NOW() - INTERVAL '${interval}'`),
+    ]);
+    return {
+      range,
+      paid_revenue: rev.rows[0].s, paid_count: rev.rows[0].n,
+      email_count: em.rows[0].n,
+    };
+  },
+
+  // Outbound email health from email_events.
+  'admin.metrics.email': async ({ socket, payload }) => {
+    requireAdmin({ socket });
+    const { range } = RangeSchema.parse(payload || {});
+    const interval = rangeToInterval(range);
+    if (!hasDb()) return { range, by_template: [], by_type: [] };
+    const [tpl, typ] = await Promise.all([
+      db.query(`SELECT template, COUNT(*)::int AS n FROM email_events WHERE created_at > NOW() - INTERVAL '${interval}' GROUP BY template ORDER BY n DESC`),
+      db.query(`SELECT type, COUNT(*)::int AS n FROM email_events WHERE created_at > NOW() - INTERVAL '${interval}' GROUP BY type ORDER BY n DESC`),
+    ]);
+    return { range, by_template: tpl.rows, by_type: typ.rows };
+  },
+
+  // Failure corpus — recent stl.generate jobs that errored. Surfaces
+  // the photo + slider settings + RunPod job id so the operator can
+  // pull the input from /runpod-volume/failures/<date>/<jobId>/ when
+  // iterating on the pipeline.
+  'admin.metrics.failures': async ({ socket }) => {
+    requireAdmin({ socket });
+    if (!hasDb()) return { rows: [] };
+    const { rows } = await db.query(
+      `SELECT created_at, action, target_type, target_id, metadata
+         FROM audit_log
+        WHERE action LIKE 'cmd.error%' OR action = 'stl.generate.failed'
+           OR (action = 'cmd.error' AND metadata->>'name' = 'stl.generate')
+        ORDER BY created_at DESC LIMIT 200`
+    );
+    return { rows };
+  },
+
+  // Real-time activity stream — last N events for the live tab.
+  'admin.metrics.activity': async ({ socket }) => {
+    requireAdmin({ socket });
+    if (!hasDb()) return { rows: [] };
+    const { rows } = await db.query(
+      `SELECT created_at, actor_id, action, target_type, target_id, ip, geo_country, geo_city
+         FROM audit_log ORDER BY id DESC LIMIT 50`
+    );
+    return { rows };
   },
 
   // P4-015 — start an impersonation session for a target user.
