@@ -234,7 +234,7 @@ export const stlCommands = {
       [designId, sessionId]
     );
     if (!rows.length) throw new CommandError(ErrorCode.PAYMENT_REQUIRED, 'payment_required');
-    if (rows[0].account_id != null && user && rows[0].account_id !== user.id) {
+    if (rows[0].account_id != null && user && Number(rows[0].account_id) !== Number(user.id)) {
       throw new CommandError(ErrorCode.AUTH_REQUIRED, 'design_belongs_to_other_user');
     }
 
@@ -260,7 +260,10 @@ export const stlCommands = {
     const { designId } = parsed.data;
     const cached = await designStore.get(designId);
     if (!cached) throw new CommandError(ErrorCode.DESIGN_NOT_FOUND, 'design_not_found');
-    if (cached.accountId != null && cached.accountId !== user.id) {
+    // node-postgres returns BIGINT as a string; user.id is cast to
+    // Number in loadSessionUser. Without coercion, "1" !== 1 and the
+    // owner of a design can't download it. Number-cast both sides.
+    if (cached.accountId != null && Number(cached.accountId) !== Number(user.id)) {
       throw new CommandError(ErrorCode.AUTH_REQUIRED, 'design_belongs_to_other_user');
     }
     return { filename: cached.filename, stl_b64: cached.stl.toString('base64') };

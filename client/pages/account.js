@@ -389,10 +389,20 @@ export function AccountPage({ socket }) {
                 'button',
                 {
                   class: 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors',
-                  style: { background: 'transparent', color: '#3D2F4A', fontSize: '0.75rem' },
+                  style: {
+                    background: '#FFFFFF',
+                    color: '#0E0A12',
+                    border: '2px solid #0E0A12',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    fontStyle: 'italic',
+                    cursor: 'pointer',
+                  },
                   onClick: () => deleteDesign(d),
+                  'aria-label': `Delete ${d.photo_name || d.filename || 'design'}`,
                 },
-                icon('trash2', { size: 14 })
+                icon('trash2', { size: 14 }),
+                'Delete'
               )
             )
           )
@@ -404,13 +414,20 @@ export function AccountPage({ socket }) {
       el(
         'a',
         {
-          href: '/',
+          href: '/stemdome-generator',
           'data-link': true,
           class: 'flex items-center justify-center gap-2 py-4 rounded-xl border-2 border-dashed transition-colors mt-1',
-          style: { borderColor: '#D7CFB6', color: '#3D2F4A', textDecoration: 'none' },
+          style: {
+            borderColor: '#0E0A12',
+            color: '#0E0A12',
+            textDecoration: 'none',
+            background: '#F5F2E5',
+            fontWeight: 700,
+            fontStyle: 'italic',
+          },
         },
         el('span', { style: { fontSize: '1.2rem' } }, '+'),
-        el('span', { style: { fontSize: '0.85rem', fontWeight: 600 } }, 'Create New Design')
+        el('span', { style: { fontSize: '0.95rem', letterSpacing: '0.04em', textTransform: 'uppercase' } }, 'Create new design  →')
       )
     );
     return wrap;
