@@ -102,13 +102,13 @@ export function HomePage({ socket: _socket }) {
                 el(
                   'span',
                   { style: { color: 'var(--brand)' } },
-                  ' · printable on any FDM/PLA setup.'
+                  ' · 3D printable on any FDM/PLA setup.'
                 )
               )
             : el(
                 'span',
                 { style: { color: 'var(--brand)' } },
-                '$2 STL · printable on any FDM/PLA setup.'
+                '$2 STL · 3D printable on any FDM/PLA setup.'
               )
         ),
         // "Free download!" graffiti tag — lives in its own block
