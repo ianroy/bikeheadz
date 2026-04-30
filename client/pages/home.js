@@ -798,48 +798,49 @@ function architectureBlock() {
   );
 }
 
-// Hand-authored inline-SVG glyphs for each component in the stack.
-// Single-color so they unify under whatever fill the chip passes in
-// (always var(--ink) so the row reads as one piece). Geometry is
-// abstracted enough to read as recognisable silhouettes without
-// reproducing official trademarks.
+// Hand-authored single-colour SVG glyphs that suggest each project's
+// identity through generic geometric shapes (lightning bolt, hexagon,
+// triangle, waves, etc.) — NOT reproductions of trademarked logos.
+// Each is rendered fluoro-green inside a pinned-dark badge so the
+// chip row reads at 14.75:1 (brandstandards.MD §11 forbids fluoro
+// green text on cream paper at 1.18:1).
 function brandGlyph(kind, color) {
-  const c = color || '#0E0A12';
+  const c = color || '#2EFF8C';
   const wrap = (body) =>
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28" width="28" height="28" aria-hidden="true">${body}</svg>`;
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28" width="22" height="22" aria-hidden="true">${body}</svg>`;
   switch (kind) {
     case 'vite': // lightning bolt
       return wrap(`<path d="M15 3 L6 16 L12 16 L11 25 L22 11 L16 11 L17 3 z" fill="${c}"/>`);
-    case 'three': // triangle (Three.js)
-      return wrap(`<polygon points="14,4 25,22 3,22" fill="none" stroke="${c}" stroke-width="2.4" stroke-linejoin="round"/>`);
-    case 'tailwind': // two stacked waves
-      return wrap(`<path d="M3 11 Q8 6 14 11 T25 11" fill="none" stroke="${c}" stroke-width="2.4" stroke-linecap="round"/><path d="M3 18 Q8 13 14 18 T25 18" fill="none" stroke="${c}" stroke-width="2.4" stroke-linecap="round"/>`);
-    case 'socketio': // arrow-in-circle (request/response)
-      return wrap(`<circle cx="14" cy="14" r="10" fill="none" stroke="${c}" stroke-width="2.4"/><path d="M9 12 L14 8 L14 13 L19 13 L19 18 L14 18 L14 23" fill="none" stroke="${c}" stroke-width="2" stroke-linejoin="round"/>`);
-    case 'node': // hexagon
-      return wrap(`<polygon points="14,3 24,9 24,19 14,25 4,19 4,9" fill="none" stroke="${c}" stroke-width="2.4"/><text x="14" y="18" text-anchor="middle" font-family="-apple-system,system-ui,sans-serif" font-size="10" font-weight="900" font-style="italic" fill="${c}">N</text>`);
-    case 'express': // italic { e }
-      return wrap(`<text x="14" y="22" text-anchor="middle" font-family="-apple-system,system-ui,sans-serif" font-size="22" font-weight="900" font-style="italic" fill="${c}">{e}</text>`);
-    case 'do': // droplet
-      return wrap(`<path d="M14 3 C19 11 22 14 22 18 A8 8 0 0 1 6 18 C6 14 9 11 14 3 z" fill="none" stroke="${c}" stroke-width="2.4" stroke-linejoin="round"/>`);
-    case 'postgres': // simplified elephant silhouette
-      return wrap(`<path d="M6 22 Q3 16 5 10 Q8 5 14 5 Q20 5 22 10 Q24 15 22 20 Q22 24 19 24 Q17 24 16 22 Q15 25 12 25 Q9 25 9 22 Q7 24 6 22 z M11 12 Q14 10 17 12" fill="none" stroke="${c}" stroke-width="2"/>`);
-    case 'runpod': // pod / capsule
-      return wrap(`<rect x="5" y="6" width="18" height="16" rx="7" fill="none" stroke="${c}" stroke-width="2.4"/><circle cx="14" cy="14" r="3" fill="${c}"/><path d="M14 6 L14 22" stroke="${c}" stroke-width="1" stroke-dasharray="2 2"/>`);
-    case 'trellis': // 4-square (Microsoft origin)
-      return wrap(`<rect x="3" y="3" width="10" height="10" fill="${c}"/><rect x="15" y="3" width="10" height="10" fill="none" stroke="${c}" stroke-width="2"/><rect x="3" y="15" width="10" height="10" fill="none" stroke="${c}" stroke-width="2"/><rect x="15" y="15" width="10" height="10" fill="${c}"/>`);
-    case 'manifold': // wireframe cube
-      return wrap(`<polygon points="14,3 24,8 24,20 14,25 4,20 4,8" fill="none" stroke="${c}" stroke-width="1.6"/><line x1="14" y1="3" x2="14" y2="25" stroke="${c}" stroke-width="1.6"/><line x1="4" y1="8" x2="24" y2="8" stroke="${c}" stroke-width="1.6"/><line x1="4" y1="20" x2="24" y2="20" stroke="${c}" stroke-width="1.6"/>`);
-    case 'trimesh': // triangulated mesh
-      return wrap(`<polygon points="14,4 24,22 4,22" fill="none" stroke="${c}" stroke-width="1.6"/><polygon points="14,4 24,22 14,14" fill="none" stroke="${c}" stroke-width="1.6"/><polygon points="14,4 4,22 14,14" fill="none" stroke="${c}" stroke-width="1.6"/>`);
-    case 'pymeshlab': // sliced sphere
-      return wrap(`<circle cx="14" cy="14" r="10" fill="none" stroke="${c}" stroke-width="2"/><line x1="6" y1="11" x2="22" y2="11" stroke="${c}" stroke-width="1.6"/><line x1="6" y1="17" x2="22" y2="17" stroke="${c}" stroke-width="1.6"/>`);
-    case 'github': // circle with branch fork
-      return wrap(`<circle cx="14" cy="14" r="10" fill="none" stroke="${c}" stroke-width="2.4"/><circle cx="11" cy="9" r="2" fill="${c}"/><circle cx="11" cy="19" r="2" fill="${c}"/><circle cx="18" cy="14" r="2" fill="${c}"/><path d="M11 11 L11 17 M11 14 Q15 14 16 13" fill="none" stroke="${c}" stroke-width="1.6"/>`);
-    case 'ghcr': // package box
-      return wrap(`<polygon points="14,4 24,9 24,20 14,25 4,20 4,9" fill="none" stroke="${c}" stroke-width="2"/><polyline points="4,9 14,14 24,9" fill="none" stroke="${c}" stroke-width="2"/><line x1="14" y1="14" x2="14" y2="25" stroke="${c}" stroke-width="2"/>`);
-    case 'stripe': // italic S
-      return wrap(`<text x="14" y="22" text-anchor="middle" font-family="-apple-system,system-ui,sans-serif" font-size="22" font-weight="900" font-style="italic" fill="${c}">S</text>`);
+    case 'three': // triangle outline
+      return wrap(`<polygon points="14,4 25,22 3,22" fill="none" stroke="${c}" stroke-width="2.4" stroke-linejoin="round"/><polygon points="14,12 21,21 7,21" fill="${c}" opacity="0.55"/>`);
+    case 'tailwind': // two stacked smooth waves
+      return wrap(`<path d="M3 11 Q8 6 14 11 T25 11" fill="none" stroke="${c}" stroke-width="2.6" stroke-linecap="round"/><path d="M3 19 Q8 14 14 19 T25 19" fill="none" stroke="${c}" stroke-width="2.6" stroke-linecap="round"/>`);
+    case 'socketio': // chat-bubble + dots (real-time messaging)
+      return wrap(`<path d="M5 6 H23 A2 2 0 0 1 25 8 V18 A2 2 0 0 1 23 20 H14 L9 24 V20 H5 A2 2 0 0 1 3 18 V8 A2 2 0 0 1 5 6 z" fill="none" stroke="${c}" stroke-width="2"/><circle cx="10" cy="13" r="1.6" fill="${c}"/><circle cx="14" cy="13" r="1.6" fill="${c}"/><circle cx="18" cy="13" r="1.6" fill="${c}"/>`);
+    case 'node': // hexagon outline (no inner text)
+      return wrap(`<polygon points="14,3 24,9 24,19 14,25 4,19 4,9" fill="none" stroke="${c}" stroke-width="2.6"/><polygon points="14,8 21,12 21,16 14,20 7,16 7,12" fill="${c}" opacity="0.45"/>`);
+    case 'express': // route arrow / chevron sweep
+      return wrap(`<path d="M5 8 L11 14 L5 20" fill="none" stroke="${c}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M13 8 L19 14 L13 20" fill="none" stroke="${c}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><line x1="22" y1="20" x2="25" y2="20" stroke="${c}" stroke-width="2.4" stroke-linecap="round"/>`);
+    case 'do': // hollow concentric circles (cloud droplet abstraction)
+      return wrap(`<circle cx="14" cy="14" r="10" fill="none" stroke="${c}" stroke-width="2.4"/><circle cx="14" cy="14" r="4.5" fill="${c}"/>`);
+    case 'postgres': // database cylinder
+      return wrap(`<ellipse cx="14" cy="7" rx="9" ry="3" fill="none" stroke="${c}" stroke-width="2"/><path d="M5 7 V21 A9 3 0 0 0 23 21 V7" fill="none" stroke="${c}" stroke-width="2"/><path d="M5 12 A9 3 0 0 0 23 12" fill="none" stroke="${c}" stroke-width="1.6" opacity="0.7"/><path d="M5 17 A9 3 0 0 0 23 17" fill="none" stroke="${c}" stroke-width="1.6" opacity="0.7"/>`);
+    case 'runpod': // capsule pod
+      return wrap(`<rect x="5" y="6" width="18" height="16" rx="8" fill="none" stroke="${c}" stroke-width="2.4"/><circle cx="14" cy="14" r="3.2" fill="${c}"/>`);
+    case 'trellis': // four-square block grid
+      return wrap(`<rect x="3" y="3" width="10" height="10" rx="1.5" fill="${c}"/><rect x="15" y="3" width="10" height="10" rx="1.5" fill="none" stroke="${c}" stroke-width="2"/><rect x="3" y="15" width="10" height="10" rx="1.5" fill="none" stroke="${c}" stroke-width="2"/><rect x="15" y="15" width="10" height="10" rx="1.5" fill="${c}"/>`);
+    case 'manifold': // 3D wireframe cube
+      return wrap(`<polygon points="14,3 24,8 24,20 14,25 4,20 4,8" fill="none" stroke="${c}" stroke-width="1.8"/><line x1="14" y1="3" x2="14" y2="25" stroke="${c}" stroke-width="1.8"/><line x1="4" y1="8" x2="24" y2="8" stroke="${c}" stroke-width="1.8"/><line x1="4" y1="20" x2="24" y2="20" stroke="${c}" stroke-width="1.8"/><line x1="4" y1="8" x2="14" y2="14" stroke="${c}" stroke-width="1.4" opacity="0.6"/><line x1="24" y1="8" x2="14" y2="14" stroke="${c}" stroke-width="1.4" opacity="0.6"/>`);
+    case 'trimesh': // triangulated triangle
+      return wrap(`<polygon points="14,4 24,22 4,22" fill="none" stroke="${c}" stroke-width="1.8"/><line x1="14" y1="4" x2="14" y2="22" stroke="${c}" stroke-width="1.4"/><line x1="14" y1="13" x2="4" y2="22" stroke="${c}" stroke-width="1.4"/><line x1="14" y1="13" x2="24" y2="22" stroke="${c}" stroke-width="1.4"/>`);
+    case 'pymeshlab': // sliced sphere with cross-section bands
+      return wrap(`<circle cx="14" cy="14" r="10" fill="none" stroke="${c}" stroke-width="2.2"/><ellipse cx="14" cy="14" rx="10" ry="3.5" fill="none" stroke="${c}" stroke-width="1.4" opacity="0.7"/><line x1="14" y1="4" x2="14" y2="24" stroke="${c}" stroke-width="1.4" opacity="0.6"/>`);
+    case 'github': // round avatar + tentacle wisps (octopus abstraction)
+      return wrap(`<circle cx="14" cy="13" r="9" fill="none" stroke="${c}" stroke-width="2.4"/><circle cx="11" cy="13" r="1.5" fill="${c}"/><circle cx="17" cy="13" r="1.5" fill="${c}"/><path d="M9 22 Q9 25 11 25 M14 22 Q14 25 16 25 M19 22 Q19 25 17 25" fill="none" stroke="${c}" stroke-width="1.6" stroke-linecap="round"/>`);
+    case 'ghcr': // package / shipping box
+      return wrap(`<polygon points="14,4 24,9 24,20 14,25 4,20 4,9" fill="none" stroke="${c}" stroke-width="2"/><polyline points="4,9 14,14 24,9" fill="none" stroke="${c}" stroke-width="2"/><line x1="14" y1="14" x2="14" y2="25" stroke="${c}" stroke-width="2"/><line x1="9" y1="6.5" x2="19" y2="11.5" stroke="${c}" stroke-width="1.4" opacity="0.6"/>`);
+    case 'stripe': // three vertical stripes
+      return wrap(`<rect x="6" y="6" width="3" height="16" rx="1" fill="${c}"/><rect x="12.5" y="6" width="3" height="16" rx="1" fill="${c}"/><rect x="19" y="6" width="3" height="16" rx="1" fill="${c}"/>`);
     default:
       return wrap(`<rect x="5" y="5" width="18" height="18" rx="3" fill="none" stroke="${c}" stroke-width="2"/>`);
   }
@@ -859,7 +860,7 @@ function logoChip({ name, href, kind, accent }) {
         display: 'flex',
         alignItems: 'center',
         gap: '0.5rem',
-        padding: '0.5rem 0.75rem',
+        padding: '0.4rem 0.75rem 0.4rem 0.4rem',
         background: 'var(--paper)',
         color: 'var(--ink)',
         border: '2px solid var(--ink)',
@@ -871,9 +872,20 @@ function logoChip({ name, href, kind, accent }) {
         letterSpacing: '0.02em',
       },
     },
+    // Pinned-dark badge so the fluoro-green icon clears the §11
+    // "no fluoro on cream" floor — green-on-ink reads at 14.75:1.
     el('span', {
-      style: { display: 'inline-flex', flexShrink: 0 },
-      html: brandGlyph(kind, '#0E0A12'),
+      style: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0,
+        width: '30px',
+        height: '30px',
+        borderRadius: '7px',
+        background: '#0E0A12',
+      },
+      html: brandGlyph(kind, '#2EFF8C'),
     }),
     el('span', {}, name)
   );
