@@ -161,6 +161,12 @@ export const stlCommands = {
         }
       }
 
+      // Migration 006 — persist pipeline telemetry for the admin
+      // TRELLIS-health dashboard. Triangles is computed locally from
+      // the binary STL header; watertight + stage3Retried come back
+      // from the worker once handler.py is bumped to emit them
+      // (today they're null, which the dashboard renders as "—").
+      const triangleCount = countTriangles(stlBytes);
       await designStore.save({
         id: designId,
         stl: stlBytes,
@@ -169,6 +175,10 @@ export const stlCommands = {
         photoName: imageName,
         accountId,
         photoId: savedPhotoId,
+        triangles: triangleCount,
+        watertight: null,
+        stage3Retried: null,
+        pipelineWarnings: [],
       });
 
       logger.info({ msg: 'stl.generated', designId, bytes: stlBytes.length, backend, accountId });

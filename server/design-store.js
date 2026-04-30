@@ -21,23 +21,41 @@ function pruneMemory() {
 }
 
 export const designStore = {
-  async save({ id, stl, filename, settings = {}, photoName = null, accountId = null, photoId = null }) {
+  async save({
+    id, stl, filename, settings = {}, photoName = null, accountId = null,
+    photoId = null,
+    // Migration 006 — pipeline telemetry for the admin TRELLIS health
+    // dashboard. All optional; missing values land as null so existing
+    // callers don't break.
+    triangles = null, watertight = null, stage3Retried = null,
+    pipelineWarnings = null,
+  }) {
     pruneMemory();
     if (!hasDb()) {
       MEMORY.set(id, { stl, filename, settings, photoName, accountId, photoId, at: Date.now() });
       return { id };
     }
     await db.query(
-      `INSERT INTO generated_designs (id, account_id, photo_id, stl_bytes, filename, settings, photo_name)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO generated_designs
+         (id, account_id, photo_id, stl_bytes, filename, settings, photo_name,
+          triangles, watertight, stage3_retried, pipeline_warnings)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, COALESCE($11, '[]'::jsonb))
        ON CONFLICT (id) DO UPDATE SET
-         account_id = COALESCE(EXCLUDED.account_id, generated_designs.account_id),
-         photo_id   = COALESCE(EXCLUDED.photo_id, generated_designs.photo_id),
-         stl_bytes  = EXCLUDED.stl_bytes,
-         filename   = EXCLUDED.filename,
-         settings   = EXCLUDED.settings,
-         photo_name = EXCLUDED.photo_name`,
-      [id, accountId, photoId, stl, filename, settings, photoName]
+         account_id        = COALESCE(EXCLUDED.account_id, generated_designs.account_id),
+         photo_id          = COALESCE(EXCLUDED.photo_id, generated_designs.photo_id),
+         stl_bytes         = EXCLUDED.stl_bytes,
+         filename          = EXCLUDED.filename,
+         settings          = EXCLUDED.settings,
+         photo_name        = EXCLUDED.photo_name,
+         triangles         = COALESCE(EXCLUDED.triangles, generated_designs.triangles),
+         watertight        = COALESCE(EXCLUDED.watertight, generated_designs.watertight),
+         stage3_retried    = COALESCE(EXCLUDED.stage3_retried, generated_designs.stage3_retried),
+         pipeline_warnings = EXCLUDED.pipeline_warnings`,
+      [
+        id, accountId, photoId, stl, filename, settings, photoName,
+        triangles, watertight, stage3Retried,
+        pipelineWarnings ? JSON.stringify(pipelineWarnings) : null,
+      ]
     );
     return { id };
   },
