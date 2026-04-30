@@ -179,7 +179,7 @@ export function SixpackPage({ socket: _socket }) {
         el('strong', null, 'StemDome'),
         el('span', {
           style: {
-            color: 'var(--brand)',
+            color: 'var(--sdzr-brand)',
             fontStyle: 'italic',
             fontWeight: '900',
             textShadow: '2px 2px 0 var(--accent2)',
@@ -208,7 +208,7 @@ export function SixpackPage({ socket: _socket }) {
 
   const cta = el('div', { class: 'sixpack-cta' },
     el('div', { class: 'sixpack-cta__copy' },
-      el('div', { class: 'sixpack-eyebrow', style: { color: 'var(--accent2)' } }, 'DROP 003 · YOUR FACE'),
+      el('div', { class: 'sixpack-eyebrow', style: { color: 'var(--sdzr-accent2)' } }, 'DROP 003 · YOUR FACE'),
       el('h2', { class: 'sixpack-cta__head' }, 'Now make ', el('em', null, 'yours'), '.'),
       el('p', { class: 'sixpack-cta__lede' },
         'The Sixpack is the lore. ',
