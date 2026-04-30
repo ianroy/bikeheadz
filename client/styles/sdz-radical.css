@@ -1,0 +1,544 @@
+/* ════════════════════════════════════════════════════════════════════════════
+   SDZ-RADICAL.CSS — drop-in layer for StemDomeZ
+   ════════════════════════════════════════════════════════════════════════════
+   Sits on top of theme.css. Adds:
+     · 1993 BMX-catalog graphic vocabulary (chunked, sticker, ransom)
+     · Marquees, tickers, jitter, color-cycle, splatter
+     · Page-bg variations + halftone overlays
+     · A "calm mode" that respects prefers-reduced-motion AND .sdz-calm on <html>
+
+   Usage in the real app:
+     <link rel="stylesheet" href="/sdz-radical.css">
+     <html class="sdz-radical">          ← gates the loud styles per page
+     <html class="sdz-radical sdz-calm">  ← motion paused
+
+   None of this overrides existing tokens. It only adds new classes
+   (sdzr-*) and one html-scope toggle (.sdz-radical / .sdz-calm).
+   ════════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --sdzr-paper: #F5F2E5;
+  --sdzr-paper-soft: #E5E0CC;
+  --sdzr-ink: #0E0A12;
+  --sdzr-ink-muted: #3D2F4A;
+  --sdzr-brand: #7B2EFF;
+  --sdzr-brand-dim: #5A1FCE;
+  --sdzr-brand-light: #A267FF;
+  --sdzr-accent2: #2EFF8C;
+  --sdzr-accent2-dim: #1FCE6E;
+  --sdzr-accent3: #FF2EAB;
+  --sdzr-accent3-dim: #CE1F8B;
+  --sdzr-gold: #7C5E1F;
+
+  /* dark violet ground for inverted sections */
+  --sdzr-ground-dark: #110A1E;
+  --sdzr-ground-violet: #1F0F3A;
+
+  /* tweakables — surface these via the Tweaks panel */
+  --sdzr-halftone-density: 8px;     /* dot spacing */
+  --sdzr-halftone-size: 1.6px;      /* dot radius */
+  --sdzr-marquee-speed: 30s;
+  --sdzr-jitter-amount: 1.2px;
+  --sdzr-checker-size: 18px;
+  --sdzr-zigzag-size: 14px;
+}
+
+/* ─── Display type. The brand standards lock SYSTEM italic black, but they
+       allow weight + scale freedom. We push that to its catalog-cover
+       extreme: ultra-tight tracking, ultra-tall caps, oblique skew via
+       transform on top of font-style:italic so it reads as truly italic AND
+       as hand-set 1993 catalog headline. ─────────────────────────────────── */
+
+.sdzr-display {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui,
+               'Helvetica Neue', sans-serif;
+  font-style: italic;
+  font-weight: 900;
+  letter-spacing: -0.035em;
+  line-height: 0.86;
+  text-transform: uppercase;
+  font-stretch: condensed;
+}
+
+/* Shadow stack used everywhere the wordmark or display heading appears.
+   Brand-standards-correct: green drop on cream; magenta on dark grounds.   */
+.sdzr-shadow-green {
+  text-shadow:
+     6px  6px 0 var(--sdzr-accent2),
+     6px  6px 0 var(--sdzr-accent2),
+     7px  7px 0 var(--sdzr-ink);
+}
+.sdzr-shadow-magenta {
+  text-shadow:
+     6px  6px 0 var(--sdzr-accent3),
+     7px  7px 0 var(--sdzr-ink);
+}
+.sdzr-shadow-tri {
+  /* CMY 90s misregistration: magenta back, green mid, ink front */
+  text-shadow:
+    -3px -3px 0 var(--sdzr-accent3),
+     5px  5px 0 var(--sdzr-accent2),
+     6px  6px 0 var(--sdzr-ink);
+}
+
+/* Outline / billboard variant (display only) */
+.sdzr-display-outline {
+  -webkit-text-stroke: 2px var(--sdzr-ink);
+  color: transparent;
+  text-shadow: 5px 5px 0 var(--sdzr-accent2);
+}
+
+/* ─── Wordmark + the splattering Z ──────────────────────────────────────── */
+
+.sdzr-wordmark {
+  display: inline-block;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui,
+               'Helvetica Neue', sans-serif;
+  font-style: italic;
+  font-weight: 900;
+  letter-spacing: -0.035em;
+  text-transform: lowercase;
+  position: relative;
+  cursor: default;
+  color: var(--sdzr-ink);
+}
+.sdzr-wordmark .sdzr-z {
+  color: var(--sdzr-brand);
+  display: inline-block;
+  transform-origin: 50% 60%;
+  transition: transform 160ms cubic-bezier(.2,0,0,1);
+}
+.sdzr-wordmark:hover .sdzr-z {
+  transform: scale(1.18) rotate(-6deg);
+}
+/* burst of splatter on hover — populated by JS */
+.sdzr-wordmark .sdzr-burst {
+  position: absolute; inset: 0; pointer-events: none;
+  overflow: visible;
+}
+.sdzr-wordmark .sdzr-burst circle { opacity: 0; }
+.sdzr-wordmark:hover .sdzr-burst circle {
+  animation: sdzr-burst-out 700ms cubic-bezier(.2,0,0,1) forwards;
+}
+@keyframes sdzr-burst-out {
+  0%   { opacity: 0; transform: translate(0,0) scale(.2); }
+  20%  { opacity: 1; }
+  100% { opacity: 0; transform: var(--sdzr-burst-end) scale(1); }
+}
+
+/* ─── Memphis offset boxes (existing helper, but a little more aggressive) ─ */
+
+.sdzr-memphis {
+  position: relative;
+  background: var(--sdzr-paper);
+  border: 2px solid var(--sdzr-ink);
+}
+.sdzr-memphis::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--sdzr-accent2);
+  transform: translate(8px, 8px);
+  z-index: -1;
+  border: 2px solid var(--sdzr-ink);
+}
+.sdzr-memphis-magenta::before { background: var(--sdzr-accent3); }
+.sdzr-memphis-purple::before  { background: var(--sdzr-brand);   }
+.sdzr-memphis-double::before  { transform: translate(10px,10px); }
+.sdzr-memphis-double::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--sdzr-accent3);
+  transform: translate(18px, 18px);
+  z-index: -2;
+  border: 2px solid var(--sdzr-ink);
+}
+
+/* ─── Halftone overlays as backgrounds ──────────────────────────────────── */
+
+.sdzr-halftone {
+  background-image:
+    radial-gradient(var(--sdzr-accent3) var(--sdzr-halftone-size), transparent calc(var(--sdzr-halftone-size) + 0.2px));
+  background-size: var(--sdzr-halftone-density) var(--sdzr-halftone-density);
+}
+.sdzr-halftone-purple { --halftone-color: var(--sdzr-brand); }
+.sdzr-halftone-purple {
+  background-image:
+    radial-gradient(var(--sdzr-brand) var(--sdzr-halftone-size), transparent calc(var(--sdzr-halftone-size) + 0.2px));
+  background-size: var(--sdzr-halftone-density) var(--sdzr-halftone-density);
+}
+.sdzr-halftone-fade {
+  /* radial fade-off, classic catalog */
+  -webkit-mask-image: radial-gradient(circle at center, #000 30%, transparent 70%);
+          mask-image: radial-gradient(circle at center, #000 30%, transparent 70%);
+}
+
+/* ─── Checkerboard strips ───────────────────────────────────────────────── */
+
+.sdzr-checker {
+  height: var(--sdzr-checker-size);
+  background-image:
+    linear-gradient(45deg, var(--sdzr-ink) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--sdzr-ink) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--sdzr-ink) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--sdzr-ink) 75%);
+  background-size: var(--sdzr-checker-size) var(--sdzr-checker-size);
+  background-color: var(--sdzr-accent2);
+  background-position:
+    0 0,
+    0 calc(var(--sdzr-checker-size) / 2),
+    calc(var(--sdzr-checker-size) / 2) calc(var(--sdzr-checker-size) / -2),
+    calc(var(--sdzr-checker-size) / -2) 0;
+}
+.sdzr-checker-magenta { background-color: var(--sdzr-accent3); }
+.sdzr-checker-purple  { background-color: var(--sdzr-brand);   }
+
+/* ─── Zigzag strips ─────────────────────────────────────────────────────── */
+
+.sdzr-zigzag {
+  height: var(--sdzr-zigzag-size);
+  background:
+    linear-gradient(135deg, var(--sdzr-accent3) 25%, transparent 25%) 0 0 / var(--sdzr-zigzag-size) var(--sdzr-zigzag-size),
+    linear-gradient(225deg, var(--sdzr-accent3) 25%, transparent 25%) 0 0 / var(--sdzr-zigzag-size) var(--sdzr-zigzag-size),
+    linear-gradient(315deg, var(--sdzr-accent3) 25%, transparent 25%) 0 0 / var(--sdzr-zigzag-size) var(--sdzr-zigzag-size),
+    linear-gradient( 45deg, var(--sdzr-accent3) 25%, transparent 25%) 0 0 / var(--sdzr-zigzag-size) var(--sdzr-zigzag-size);
+}
+
+/* ─── Marquee / ticker ──────────────────────────────────────────────────── */
+
+.sdzr-marquee {
+  display: flex;
+  overflow: hidden;
+  user-select: none;
+  border-block: 2px solid var(--sdzr-ink);
+  background: var(--sdzr-accent2);
+  color: var(--sdzr-ink);
+}
+.sdzr-marquee--magenta { background: var(--sdzr-accent3); color: var(--sdzr-ink); }
+.sdzr-marquee--purple  { background: var(--sdzr-brand);   color: #FFF; }
+.sdzr-marquee--ink     { background: var(--sdzr-ink); color: var(--sdzr-paper); }
+.sdzr-marquee__track {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 2.25rem;
+  padding-block: 0.55rem;
+  padding-inline: 1.125rem;
+  animation: sdzr-marquee var(--sdzr-marquee-speed) linear infinite;
+  white-space: nowrap;
+  font-style: italic;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  font-size: 1rem;
+}
+.sdzr-marquee__track--rev { animation-direction: reverse; }
+.sdzr-marquee__sep {
+  display: inline-flex; align-items: center; justify-content: center;
+  font-style: normal;
+}
+@keyframes sdzr-marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+/* ─── Jitter, color-cycle, pulses ───────────────────────────────────────── */
+
+.sdzr-jitter { animation: sdzr-jitter 180ms steps(2) infinite; }
+@keyframes sdzr-jitter {
+  0%   { transform: translate(0,0) rotate(0); }
+  25%  { transform: translate(var(--sdzr-jitter-amount), calc(var(--sdzr-jitter-amount) * -1)) rotate(-0.4deg); }
+  50%  { transform: translate(calc(var(--sdzr-jitter-amount) * -1), var(--sdzr-jitter-amount)) rotate(0.4deg); }
+  75%  { transform: translate(var(--sdzr-jitter-amount), var(--sdzr-jitter-amount)) rotate(-0.2deg); }
+}
+.sdzr-pulse  { animation: sdzr-pulse 1.4s ease-in-out infinite; }
+@keyframes sdzr-pulse {
+  0%,100% { transform: scale(1); }
+  50%     { transform: scale(1.04); }
+}
+.sdzr-cycle  { animation: sdzr-cycle 2.4s steps(3) infinite; }
+@keyframes sdzr-cycle {
+  0%,33%   { color: var(--sdzr-brand); }
+  34%,66%  { color: var(--sdzr-accent3); }
+  67%,100% { color: var(--sdzr-ink); }
+}
+.sdzr-spin   { animation: sdzr-spin 14s linear infinite; }
+@keyframes sdzr-spin { to { transform: rotate(360deg); } }
+
+/* ─── Sticker chrome (for draggable stickers + product tags) ────────────── */
+
+.sdzr-sticker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--sdzr-paper);
+  color: var(--sdzr-ink);
+  border: 2px solid var(--sdzr-ink);
+  padding: 0.5rem 0.85rem;
+  font-style: italic;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  box-shadow:
+    3px 3px 0 var(--sdzr-ink);
+  border-radius: 4px;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+.sdzr-sticker:active { cursor: grabbing; }
+.sdzr-sticker--green   { background: var(--sdzr-accent2); }
+.sdzr-sticker--magenta { background: var(--sdzr-accent3); color: #FFF; }
+.sdzr-sticker--purple  { background: var(--sdzr-brand);   color: #FFF; }
+.sdzr-sticker--ink     { background: var(--sdzr-ink);     color: var(--sdzr-paper); }
+.sdzr-sticker--circle {
+  border-radius: 999px;
+  width: 96px; height: 96px;
+  text-align: center;
+  line-height: 1.05;
+  font-size: 0.74rem;
+}
+.sdzr-sticker--star {
+  /* CSS-only 12-point burst */
+  width: 110px; height: 110px;
+  background: var(--sdzr-accent2);
+  border: none;
+  box-shadow: none;
+  clip-path: polygon(
+    50% 0%, 58% 18%, 78% 10%, 75% 32%, 96% 32%,
+    82% 50%, 96% 68%, 75% 68%, 78% 90%, 58% 82%,
+    50% 100%, 42% 82%, 22% 90%, 25% 68%, 4% 68%,
+    18% 50%, 4% 32%, 25% 32%, 22% 10%, 42% 18%
+  );
+  font-size: 0.78rem;
+  color: var(--sdzr-ink);
+  padding: 0;
+  text-align: center;
+  line-height: 1.0;
+}
+
+/* ─── CTA button — chunkier, riskier ────────────────────────────────────── */
+
+.sdzr-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: #7B2EFF;          /* literal hex per brand-standards §14 */
+  color: #FFFFFF;
+  border: 2px solid #0E0A12;
+  padding: 0.85rem 1.4rem;
+  font-style: italic;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 1rem;
+  border-radius: 6px;
+  position: relative;
+  cursor: pointer;
+  text-decoration: none;
+  box-shadow:
+    5px 5px 0 #2EFF8C,
+    5px 5px 0 1px #0E0A12;
+  transition: transform 80ms cubic-bezier(.2,0,0,1),
+              box-shadow 80ms cubic-bezier(.2,0,0,1),
+              background 160ms cubic-bezier(.2,0,0,1);
+}
+.sdzr-cta:hover {
+  background: #5A1FCE;
+  transform: translate(-1px,-1px);
+  box-shadow:
+    6px 6px 0 #2EFF8C,
+    6px 6px 0 1px #0E0A12;
+}
+.sdzr-cta:active {
+  transform: translate(3px,3px) scale(0.98);
+  box-shadow:
+    1px 1px 0 #2EFF8C,
+    1px 1px 0 1px #0E0A12;
+}
+.sdzr-cta--ghost {
+  background: var(--sdzr-paper);
+  color: var(--sdzr-ink);
+  box-shadow: 5px 5px 0 var(--sdzr-ink);
+}
+.sdzr-cta--ghost:hover {
+  background: var(--sdzr-paper-soft);
+  color: var(--sdzr-ink);
+}
+
+/* ─── Trading-card frame for product tiles ─────────────────────────────── */
+
+.sdzr-card {
+  position: relative;
+  background: var(--sdzr-paper);
+  border: 2px solid var(--sdzr-ink);
+  padding: 0.9rem;
+  box-shadow: 6px 6px 0 var(--sdzr-ink);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.sdzr-card__top {
+  border: 2px solid var(--sdzr-ink);
+  background: var(--sdzr-paper-soft);
+  aspect-ratio: 4/5;
+  display: grid;
+  place-items: center;
+  position: relative;
+  overflow: hidden;
+}
+.sdzr-card__corner {
+  position: absolute; top: 8px; left: 8px;
+  background: var(--sdzr-accent3);
+  color: #FFF;
+  border: 2px solid var(--sdzr-ink);
+  padding: 2px 8px;
+  font-style: italic;
+  font-weight: 900;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ─── Section bg presets (cycle through these for rhythm) ───────────────── */
+
+.sdzr-bg-paper        { background: var(--sdzr-paper);          color: var(--sdzr-ink); }
+.sdzr-bg-paper-soft   { background: var(--sdzr-paper-soft);     color: var(--sdzr-ink); }
+.sdzr-bg-purple       { background: var(--sdzr-brand);          color: #FFFFFF; }
+.sdzr-bg-magenta      { background: var(--sdzr-accent3);        color: #0E0A12; }
+.sdzr-bg-green        { background: var(--sdzr-accent2);        color: #0E0A12; }
+.sdzr-bg-ink          { background: var(--sdzr-ink);            color: var(--sdzr-paper); }
+.sdzr-bg-violet       { background: var(--sdzr-ground-dark);    color: var(--sdzr-paper); }
+.sdzr-bg-violet-deep  { background: var(--sdzr-ground-violet);  color: var(--sdzr-paper); }
+
+/* paper-grain overlay — pure CSS, opt-in */
+.sdzr-grain {
+  position: relative;
+}
+.sdzr-grain::after {
+  content: "";
+  position: absolute; inset: 0;
+  background-image:
+    radial-gradient(rgba(14,10,18,.05) 1px, transparent 1px),
+    radial-gradient(rgba(14,10,18,.04) 1px, transparent 1px);
+  background-size: 4px 4px, 7px 7px;
+  background-position: 0 0, 2px 3px;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+  opacity: 0.6;
+}
+
+/* ─── Splatter dot canvas — JS populates positions ──────────────────────── */
+
+.sdzr-splatter {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+.sdzr-splatter circle {
+  transition: r 200ms cubic-bezier(.2,0,0,1);
+}
+
+/* ─── Calm mode (motion paused) ─────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  html { /* gentle global stop */ }
+  *,
+  *::before,
+  *::after {
+    animation-play-state: paused !important;
+  }
+}
+html.sdz-calm *,
+html.sdz-calm *::before,
+html.sdz-calm *::after {
+  animation-play-state: paused !important;
+}
+/* but freezing the marquee at start is uglier than freezing mid-flight,
+   so calm mode actively rewinds tickers to start: */
+html.sdz-calm .sdzr-marquee__track {
+  animation: none !important;
+  transform: translateX(0) !important;
+}
+
+/* ─── Scrolling helpers / catalog frame ─────────────────────────────────── */
+
+.sdzr-frame {
+  border: 3px double var(--sdzr-ink);
+  padding: 1.25rem;
+  position: relative;
+}
+.sdzr-frame::before {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  border: 1px solid var(--sdzr-ink);
+  pointer-events: none;
+}
+
+/* ─── Eyebrow / overline — period catalog detail ────────────────────────── */
+
+.sdzr-eyebrow {
+  font-family: ui-monospace, 'SF Mono', 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--sdzr-ink-muted);
+  display: inline-flex; align-items: center;
+  gap: 0.5rem;
+}
+.sdzr-eyebrow::before {
+  content: ""; width: 1.4rem; height: 2px; background: currentColor; display: inline-block;
+}
+
+/* ─── Spec table (90s catalog spec block) ───────────────────────────────── */
+
+.sdzr-spec {
+  font-family: ui-monospace, 'SF Mono', 'JetBrains Mono', monospace;
+  font-size: 0.82rem;
+  border: 2px solid var(--sdzr-ink);
+  background: var(--sdzr-paper);
+}
+.sdzr-spec__row {
+  display: grid;
+  grid-template-columns: minmax(8rem, max-content) 1fr;
+  gap: 1rem;
+  padding: 0.45rem 0.7rem;
+  border-bottom: 1px dashed var(--sdzr-ink);
+}
+.sdzr-spec__row:last-child { border-bottom: none; }
+.sdzr-spec__k { color: var(--sdzr-ink-muted); text-transform: uppercase; letter-spacing: 0.1em; }
+.sdzr-spec__v { color: var(--sdzr-ink); font-weight: 700; }
+
+/* ─── Hero-three-D cap shell (the click-to-spin product) ────────────────── */
+
+.sdzr-cap-stage {
+  position: relative;
+  perspective: 1200px;
+  width: 100%;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+}
+.sdzr-cap {
+  width: 60%;
+  aspect-ratio: 1;
+  position: relative;
+  transform-style: preserve-3d;
+  animation: sdzr-cap-idle 9s linear infinite;
+  cursor: grab;
+}
+.sdzr-cap:active { cursor: grabbing; }
+@keyframes sdzr-cap-idle {
+  from { transform: rotateY(0) rotateX(-12deg); }
+  to   { transform: rotateY(360deg) rotateX(-12deg); }
+}
+
+/* ─── Print + small-screen fallbacks ────────────────────────────────────── */
+
+@media (max-width: 720px) {
+  .sdzr-display { letter-spacing: -0.025em; }
+  .sdzr-card { box-shadow: 4px 4px 0 var(--sdzr-ink); }
+  .sdzr-cta { padding: 0.7rem 1.05rem; font-size: 0.92rem; }
+}
