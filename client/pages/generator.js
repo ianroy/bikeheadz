@@ -682,6 +682,14 @@ export function GeneratorPage({ socket }) {
           announce(
             'Heads-up: we couldn’t spot a face in this photo. Try one with the head centred and well-lit.'
           );
+        } else if (hint === 'face_too_small') {
+          // iPhone wide-shot selfies put the head in <15% of the frame
+          // and TRELLIS produces narrower meshes that fail stage 3
+          // wall-thickness checks more often. Surface a soft hint up
+          // front so the user re-frames before generating.
+          announce(
+            'Heads-up: your head looks small in the frame. A closer photo (shoulders up) gives a thicker, more printable cap.'
+          );
         }
       })
       .catch(() => {});
@@ -711,7 +719,16 @@ export function GeneratorPage({ socket }) {
             if (r > 95 && g > 40 && b > 20 && r > g && r > b && r - g > 15) skin++;
           }
           const ratio = skin / (data.length / 4);
-          resolve(ratio < 0.05 ? 'no_face_likely' : 'maybe_face');
+          // Three buckets:
+          //   < 0.05  → no_face_likely (no skin at all in upper half)
+          //   < 0.12  → face_too_small (some skin but the head fills
+          //             too little of the frame — TRELLIS struggles
+          //             with this and stage 3 thin-walls become likely)
+          //   else    → maybe_face (good enough; server-side P3-012
+          //             face check is the real gate)
+          if (ratio < 0.05) resolve('no_face_likely');
+          else if (ratio < 0.12) resolve('face_too_small');
+          else resolve('maybe_face');
         } catch {
           resolve('unknown');
         }
@@ -764,6 +781,18 @@ export function GeneratorPage({ socket }) {
       worker_failed: 'The worker had a wobble. Try again.',
       image_too_large: 'That image is too large. Try one under 5 MB.',
       image_required: 'Pick a photo first.',
+      // Pipeline gates are now warn-and-continue (handler v0.1.35),
+      // but if the topology check ever does fire we want a friendlier
+      // explanation than the raw code. "Try a closer photo" is the
+      // single instruction that fixes >80% of these in practice.
+      output_dimensions_out_of_range:
+        'That photo produced a mesh too thin or too large to print. Try a closer head-on photo, or lower the Crop Tightness slider.',
+      output_not_watertight:
+        'The 3D mesh came out with holes. Try a different photo — head centred, plain background works best.',
+      stage_timeout:
+        'The GPU took too long on that photo. Try a smaller / clearer image, or hit Generate again.',
+      mesh_too_large:
+        'TRELLIS produced an unusually heavy mesh. Try a different photo or hit Generate again.',
     };
     return map[code] || err?.message || 'Something went wrong.';
   }

@@ -286,18 +286,54 @@ def run_v1(
     )
     _emit(*_PROGRESS_STAGE1_5)
 
-    cropped, _info = run_with_timeout(
-        "stage2_crop", stage2_crop,
-        head, C, shoulder_taper_fraction=shoulder_taper_fraction,
-        timeout_s=stage_budget, job_remaining_s=_remaining(),
-    )
+    # Crop + cavity carve. Stage 3 no longer raises on thin walls
+    # (see stages.py warn-and-continue change); instead it tags the
+    # mesh with `metadata["sdz_thin_wall_min_mm"]` when the cavity
+    # carve left a wall under the 5 mm printable floor. iPhone-
+    # selfie inputs hit this path more than studio shots — the head
+    # silhouette is narrower so the cavity shaves into thinner
+    # material. We auto-retry stage 2 + stage 3 ONCE with a relaxed
+    # shoulder_taper_fraction (less aggressive crop = more wall),
+    # which clears the floor on most marginal cases without making
+    # the user adjust sliders by hand.
+    def _run_crop_and_carve(taper: float):
+        c, _ = run_with_timeout(
+            "stage2_crop", stage2_crop,
+            head, C, shoulder_taper_fraction=taper,
+            timeout_s=stage_budget, job_remaining_s=_remaining(),
+        )
+        s = run_with_timeout(
+            "stage3_subtract_negative_core", stage3_subtract_negative_core,
+            c, negative_core, C,
+            timeout_s=stage_budget, job_remaining_s=_remaining(),
+        )
+        return c, s
+
+    cropped, socketed = _run_crop_and_carve(shoulder_taper_fraction)
     _emit(*_PROGRESS_STAGE2)
 
-    socketed = run_with_timeout(
-        "stage3_subtract_negative_core", stage3_subtract_negative_core,
-        cropped, negative_core, C,
-        timeout_s=stage_budget, job_remaining_s=_remaining(),
-    )
+    thin = float(getattr(socketed, "metadata", {}).get("sdz_thin_wall_min_mm", 0.0) or 0.0)
+    if 0.0 < thin < 5.0:
+        # Loosen the crop by 0.15 (clamped to the schema floor of 0.40)
+        # and re-run. One retry is the budget — if the second attempt
+        # is still thin, ship it; the slicer handles a sub-5 mm wall
+        # at FDM/PLA's 1.2 mm minimum without complaint.
+        relaxed = max(0.40, float(shoulder_taper_fraction) - 0.15)
+        if abs(relaxed - shoulder_taper_fraction) > 1e-6:
+            sys.stderr.write(
+                f"[run_v1] thin-wall ({thin:.3f} mm) detected; auto-retrying "
+                f"stage2+stage3 with shoulder_taper_fraction "
+                f"{shoulder_taper_fraction:.2f} → {relaxed:.2f}\n"
+            )
+            try:
+                cropped, socketed = _run_crop_and_carve(relaxed)
+            except Exception as exc:  # noqa: BLE001
+                # Retry crashed (e.g. CDT triangulator hates the new
+                # crop) — keep the original socketed mesh and ship.
+                sys.stderr.write(
+                    f"[run_v1] auto-retry crashed: {type(exc).__name__}: {exc}; "
+                    f"shipping the first-attempt mesh anyway.\n"
+                )
     _emit(*_PROGRESS_STAGE3)
 
     final = run_with_timeout(

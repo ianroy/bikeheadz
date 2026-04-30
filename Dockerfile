@@ -150,6 +150,13 @@ RUN pip install --no-cache-dir "git+https://github.com/graphdeco-inria/diff-gaus
 # `is_offline_mode` lookups inside transformers.)
 RUN pip install --no-cache-dir runpod
 
+# pillow-heif registers libheif as a Pillow plugin so iPhone-default
+# HEIC/HEIF uploads decode without the user converting to JPEG. handler.py
+# guards the import behind try/except so build-failure here is non-fatal,
+# but iPhone uploads will fail until this is healthy.
+RUN pip install --no-cache-dir "pillow-heif>=0.18" \
+    || echo "[build] pillow-heif install failed (HEIC inputs will be rejected)"
+
 # v1 mesh-pipeline deps — the seven-stage pipeline at /app/pipeline runs
 # CPU-side after TRELLIS finishes. Per 3D_Pipeline.md §7 bill of
 # materials. Pinned ranges, not specific versions, since these are

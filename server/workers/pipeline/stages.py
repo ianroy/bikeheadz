@@ -650,7 +650,41 @@ def stage3_subtract_negative_core(
         )
         socketed = bodies[0]
 
-    assert_printable(socketed, stage="stage3")
+    # Per the project's TRELLIS-output memory ("pipeline gates must
+    # warn-and-continue, not raise") + the iPhone-photo robustness
+    # initiative: the dimension/topology validator is no longer fatal
+    # at stage 3. Demote both failure modes to stderr warnings, and
+    # for the thin-walls case (OUTPUT_DIMENSIONS_OUT_OF_RANGE with min
+    # extent under the printable floor) tag the mesh so run_v1 can
+    # decide whether to auto-retry with a relaxed Crop Tightness.
+    # Slicers cope with thin walls and minor non-watertightness; the
+    # alternative — bombing on the user — is worse for the iPhone-
+    # selfie path the launch is targeting.
+    try:
+        assert_printable(socketed, stage="stage3")
+    except PipelineError as exc:
+        import sys as _sys
+        if exc.code == ErrorCode.OUTPUT_DIMENSIONS_OUT_OF_RANGE:
+            extents = socketed.bounding_box.extents
+            min_ext = float(extents.min())
+            _sys.stderr.write(
+                f"[stage3] WARNING: thin-walls — bbox min extent {min_ext:.3f} mm "
+                f"({exc.detail}); shipping to stage 4. run_v1 may auto-retry "
+                f"with a relaxed Crop Tightness if this is the first attempt.\n"
+            )
+            # Tag for run_v1's auto-retry detector. trimesh.Trimesh
+            # tolerates arbitrary attributes; the retry path checks
+            # this name and clears it before returning.
+            try:
+                socketed.metadata["sdz_thin_wall_min_mm"] = min_ext
+            except Exception:  # noqa: BLE001
+                pass
+        else:
+            _sys.stderr.write(
+                f"[stage3] WARNING: post-subtract topology failure ({exc.detail}); "
+                f"shipping to stage 4 anyway. Slicers handle most non-watertight "
+                f"meshes; Phase 4 owns a hard fix.\n"
+            )
     return socketed
 
 

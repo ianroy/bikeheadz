@@ -31,7 +31,41 @@ from pathlib import Path
 import numpy as np
 import runpod
 import trimesh
-from PIL import Image
+from PIL import Image, ImageOps
+
+# iPhone-photo robustness: register the HEIC opener so iCloud-default
+# uploads decode without the user having to convert. pillow-heif ships
+# the libheif backend; if the install is missing in this image (older
+# RunPod releases), the import is a no-op and HEIC bytes will fail at
+# Image.open later — the failure path falls through to the v1 pipeline
+# import-error reporter exactly like any other unsupported encoding.
+try:
+    from pillow_heif import register_heif_opener as _register_heif_opener  # type: ignore
+    _register_heif_opener()
+    sys.stderr.write("[stemdomez] pillow_heif registered (HEIC/HEIF inputs ok)\n")
+except Exception as _heif_exc:  # noqa: BLE001
+    sys.stderr.write(
+        f"[stemdomez] pillow_heif unavailable ({_heif_exc!r}); HEIC inputs will fail. "
+        f"Add pillow-heif to server/workers/requirements.txt and rebuild the image.\n"
+    )
+sys.stderr.flush()
+
+
+def _load_user_image(image_b64: str) -> "Image.Image":
+    """Decode an uploaded image, normalising for iPhone-default inputs.
+
+    1. base64 → bytes via PIL.Image.open
+    2. ImageOps.exif_transpose: iPhone portrait shots carry an EXIF
+       orientation tag (typically 6 = "rotated 90° CW"). Without
+       this pass, TRELLIS sees a sideways face and the resulting
+       mesh is unusable. The transpose is idempotent for already-
+       upright images.
+    3. .convert("RGB"): TRELLIS expects 3-channel RGB. iPhone HEIC
+       can ship as 'P' (palettised) or 'RGBA' — convert handles both.
+    """
+    img = Image.open(io.BytesIO(base64.b64decode(image_b64)))
+    img = ImageOps.exif_transpose(img)
+    return img.convert("RGB")
 
 # TRELLIS is cloned into /opt/TRELLIS by the Dockerfile.
 sys.path.insert(0, "/opt/TRELLIS")
@@ -51,7 +85,7 @@ os.environ.setdefault("SPARSE_ATTN_BACKEND", "xformers")
 # Version banner — prints unconditionally at module load time so we can
 # tell from the worker logs whether the running container is actually
 # the image tag we think it is.
-HANDLER_VERSION = "v0.1.34"
+HANDLER_VERSION = "v0.1.35"
 sys.stderr.write(f"[stemdomez] handler.py {HANDLER_VERSION} booting (pid={os.getpid()})\n")
 sys.stderr.flush()
 
@@ -553,7 +587,9 @@ def handler(job):
 
             yield {"type": "progress", "step": "Analyzing facial geometry…", "pct": 30}
             t = _time.perf_counter()
-            img = Image.open(io.BytesIO(base64.b64decode(image_b64))).convert("RGB")
+            # _load_user_image: HEIC-aware decode + EXIF auto-orient
+            # so iPhone portraits don't arrive sideways at TRELLIS.
+            img = _load_user_image(image_b64)
             outputs = pipeline.run(img, seed=seed)
             timings["trellis_ms"] = int((_time.perf_counter() - t) * 1000)
 

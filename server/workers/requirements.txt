@@ -3,4 +3,9 @@
 # upstream project's instructions — only the glue libs are pinned here.
 numpy>=1.26
 pillow>=10
+# pillow-heif registers the HEIC/HEIF opener so iPhone-default uploads
+# (iCloud sets the camera to HEIC by default on iOS 11+) decode without
+# the user having to convert to JPEG by hand. See handler.py's
+# register_heif_opener call.
+pillow-heif>=0.18
 trimesh>=4.4
