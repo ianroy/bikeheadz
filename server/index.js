@@ -16,6 +16,7 @@ import { runpodEnabled, pingRunpod } from './workers/runpod-client.js';
 import { sendEmail } from './email.js';
 import { setFlag, listFlags } from './flags.js';
 import { invalidateAppConfigCache } from './app-config.js';
+import { applyPendingMigrations } from './migrate.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -530,6 +531,26 @@ async function start() {
   try {
     await initSentry();
     await initDb();
+    // Migrate-on-boot: catches the case where DO's PRE_DEPLOY job
+    // didn't fire (e.g., the app was created before migrate.js was
+    // declared, or the spec change wasn't picked up retroactively).
+    // applyPendingMigrations() is idempotent — already-applied files
+    // sit in the schema_migrations table and get skipped. Failure
+    // here is fatal; better to crash early than serve a half-migrated
+    // schema (auth_tokens missing → /login throws internal_error).
+    if (hasDb()) {
+      try {
+        const result = await applyPendingMigrations({ silent: true });
+        if (result.applied.length) {
+          logger.info({ msg: 'migrate.boot_applied', files: result.applied });
+        } else {
+          logger.info({ msg: 'migrate.boot_clean', total: result.skipped.length });
+        }
+      } catch (err) {
+        logger.error({ msg: 'migrate.boot_failed', err: err.message });
+        throw err;
+      }
+    }
     await seedAdmins().catch((err) => logger.warn({ msg: 'auth.seed_admins_failed', err: err.message }));
     await seedMvpFlags().catch((err) => logger.warn({ msg: 'flags.seed_failed', err: err.message }));
     logStripeConfig();
