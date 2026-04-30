@@ -17,13 +17,13 @@ const PAYMENTS_KEY = 'payments_enabled';
 const PRINTING_KEY = 'printing_enabled';
 
 const CACHE_TTL_MS = 30_000;
-let cache = { at: 0, payments: true, printing: false };
+let cache = { at: 0, payments: false, printing: false };
 
 // Defaults — kept here next to the resolver so they're easy to audit.
-// payments default ON (current ship behavior); printing default OFF for
-// the MVP launch window — admin can flip it back on once the printing
-// fulfilment partner is ready.
-const PAYMENTS_DEFAULT = true;
+// BOTH OFF for the MVP launch window: Stripe stays cold, downloads are
+// free for logged-in users, third-party printing is hidden. Admin can
+// flip either back on via /admin once the launch posture is over.
+const PAYMENTS_DEFAULT = false;
 const PRINTING_DEFAULT = false;
 
 async function loadFromDb() {

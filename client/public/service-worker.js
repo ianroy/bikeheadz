@@ -14,7 +14,9 @@
  * which handles the precache manifest injection automatically.
  */
 
-const CACHE_VERSION = 'bh-v1';
+// Bumped 2026-04-29 — MVP launch graffiti. Old `bh-v1` shell is
+// dropped on activate so returning visitors don't get a stale `/`.
+const CACHE_VERSION = 'sdz-mvp-v2';
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const UNSPLASH_HOST = 'images.unsplash.com';

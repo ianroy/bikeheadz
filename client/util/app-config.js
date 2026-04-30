@@ -7,12 +7,14 @@ let cached = null;
 let inflight = null;
 const subscribers = new Set();
 
-// First-paint defaults — match the server's: payments ON, printing OFF
-// for MVP launch. The real values arrive from `system.config` shortly
+// First-paint defaults — match the server's: BOTH OFF for the MVP
+// launch window. The real values arrive from `system.config` shortly
 // after socket connect; main.js re-renders the active route once they
-// resolve so the no-flash window is small.
+// resolve so the no-flash window is small. Defaulting payments OFF
+// here means a returning visitor sees the graffiti on first paint
+// even before the socket round-trip completes.
 const DEFAULT = {
-  paymentsEnabled: true,
+  paymentsEnabled: false,
   printingEnabled: false,
   stripeConfigured: false,
 };

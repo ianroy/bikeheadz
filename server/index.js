@@ -491,18 +491,31 @@ async function handleStripeEvent(event) {
 }
 
 // Seed the two MVP launch toggle rows so the admin panel always shows
-// them. Defaults: payments ON (current ship behavior), printing OFF —
-// MVP-launch posture, third-party printing fulfilment isn't wired yet.
+// them. Defaults: BOTH OFF — free-MVP launch posture (Stripe disabled,
+// login-gated free downloads, no third-party printing fulfilment yet).
 // Idempotent: only INSERTs when the row is absent, so admin overrides
-// stick across restarts.
+// via /admin stick across restarts.
+//
+// `mvp_launch_v2` marker forces a one-shot UPSERT of both flags to OFF
+// when present. This catches earlier deploys that seeded payments=ON
+// before the launch posture was finalized; the marker prevents
+// repeated overrides so a later admin "turn payments back on" toggle
+// stays sticky.
 async function seedMvpFlags() {
   if (!hasDb()) return;
   const existing = new Set((await listFlags()).map((f) => f.key));
   if (!existing.has('payments_enabled')) {
-    await setFlag({ key: 'payments_enabled', enabled: true, percent: 100 });
+    await setFlag({ key: 'payments_enabled', enabled: false, percent: 0 });
   }
   if (!existing.has('printing_enabled')) {
     await setFlag({ key: 'printing_enabled', enabled: false, percent: 0 });
+  }
+  const RESET_MARKER = 'mvp_launch_v2';
+  if (!existing.has(RESET_MARKER)) {
+    await setFlag({ key: 'payments_enabled', enabled: false, percent: 0 });
+    await setFlag({ key: 'printing_enabled', enabled: false, percent: 0 });
+    await setFlag({ key: RESET_MARKER, enabled: true, percent: 100 });
+    logger.info({ msg: 'flags.mvp_launch_v2_applied' });
   }
   invalidateAppConfigCache();
 }
