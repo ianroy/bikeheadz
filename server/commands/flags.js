@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { requireAdmin, maybeUser } from '../auth.js';
 import { recordAudit } from '../audit.js';
 import { isEnabled, setFlag, listFlags } from '../flags.js';
+import { invalidateAppConfigCache } from '../app-config.js';
 import { CommandError, ErrorCode } from '../errors.js';
 
 const SetSchema = z.object({
@@ -26,6 +27,7 @@ export const flagsCommands = {
     const parsed = SetSchema.safeParse(payload);
     if (!parsed.success) throw new CommandError(ErrorCode.INVALID_PAYLOAD, 'invalid', parsed.error.issues);
     await setFlag({ ...parsed.data, updatedBy: actor.id });
+    invalidateAppConfigCache();
     await recordAudit({
       actorId: actor.id,
       action: 'flags.set',

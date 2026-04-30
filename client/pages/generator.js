@@ -1,8 +1,12 @@
 import { el, clear } from '../dom.js';
 import { icon } from '../icons.js';
 import { createValveStemViewer } from '../components/valve-stem-viewer.js';
+import { getCachedAppConfig } from '../util/app-config.js';
 
 export function GeneratorPage({ socket }) {
+  const cfg = getCachedAppConfig();
+  const paymentsOff = !cfg.paymentsEnabled;
+  const printingOff = !cfg.printingEnabled;
   const state = {
     photoUrl: null,
     photoFile: null,
@@ -506,9 +510,16 @@ export function GeneratorPage({ socket }) {
     const canPurchase = state.stlReady && !!state.designId && !state.checkoutPending;
 
     clear(downloadBtn);
+    const buttonLabel = paymentsOff
+      ? state.checkoutPending
+        ? 'Downloading…'
+        : 'Download STL · FREE'
+      : state.checkoutPending
+        ? 'Redirecting…'
+        : 'Buy STL · $2';
     downloadBtn.append(
-      icon('creditCard', { size: 16, color: canPurchase ? '#FFFFFF' : '#3D2F4A' }),
-      state.checkoutPending ? 'Redirecting…' : 'Buy STL · $2',
+      icon(paymentsOff ? 'download' : 'creditCard', { size: 16, color: canPurchase ? '#FFFFFF' : '#3D2F4A' }),
+      buttonLabel,
     );
     Object.assign(downloadBtn.style, {
       background: canPurchase ? 'linear-gradient(135deg, #7B2EFF, #5A1FCE)' : '#D7CFB6',
@@ -534,7 +545,12 @@ export function GeneratorPage({ socket }) {
           ),
           el('p', {
             style: { color: '#3D2F4A', fontSize: '0.78rem' },
-          }, 'Checkout for $2 to download the file, or order it printed and shipped.'),
+          },
+            paymentsOff
+              ? (printingOff
+                  ? 'MVP launch — sign in and download the STL for free.'
+                  : 'MVP launch — sign in and download the STL for free. Printing options coming back soon.')
+              : 'Checkout for $2 to download the file, or order it printed and shipped.'),
         ),
       ));
     }
@@ -548,23 +564,30 @@ export function GeneratorPage({ socket }) {
 
     // Pricing card — was at the bottom of the sidebar previously,
     // promoted to top now that the designs gallery is gone.
+    const sidebarTiers = [
+      ['STL Download', '$2.00',  'instant download'],
+    ];
+    if (!printingOff) {
+      sidebarTiers.push(['Printed Stem', '$19.99', 'shipped to you']);
+      sidebarTiers.push(['Pack of 4',    '$59.99', 'one for each wheel']);
+    }
     rightAside.appendChild(
       el('div', {
-        class: 'rounded-xl p-4 border',
-        style: { background: '#FFFFFF', borderColor: '#D7CFB6' },
+        class: paymentsOff ? 'rounded-xl p-4 border sdz-graffiti-x' : 'rounded-xl p-4 border',
+        style: { background: '#FFFFFF', borderColor: '#D7CFB6', position: 'relative' },
       },
         el('div.flex.items-center.gap-2.mb-3',
           icon('creditCard', { size: 14, color: '#7B2EFF' }),
           el('span.uppercase', {
             style: { color: '#3D2F4A', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.05em' },
-          }, 'Pricing'),
+          },
+            paymentsOff
+              ? el('span', { class: 'sdz-graffiti-strike' }, 'Pricing')
+              : 'Pricing'
+          ),
         ),
         el('div', { class: 'flex flex-col gap-2' },
-          ...[
-            ['STL Download', '$2.00',  'instant download'],
-            ['Printed Stem', '$19.99', 'shipped to you'],
-            ['Pack of 4',    '$59.99', 'one for each wheel'],
-          ].map(([label, price, sub]) =>
+          ...sidebarTiers.map(([label, price, sub]) =>
             el('div.flex.justify-between.items-start.py-1',
               el('div.flex.flex-col',
                 el('span', { style: { color: '#0E0A12', fontSize: '0.85rem', fontWeight: 600 } }, label),
@@ -574,6 +597,26 @@ export function GeneratorPage({ socket }) {
             )
           ),
         ),
+        paymentsOff
+          ? el(
+              'div',
+              {
+                style: {
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%) rotate(-6deg)',
+                  zIndex: 5,
+                  pointerEvents: 'none',
+                },
+              },
+              el(
+                'span',
+                { class: 'sdz-graffiti-tag', style: { fontSize: '1.4rem' } },
+                'Free!'
+              )
+            )
+          : null,
       ),
     );
 
@@ -795,6 +838,32 @@ export function GeneratorPage({ socket }) {
     if (!state.designId || state.checkoutPending) return;
     state.checkoutPending = true;
     renderActions();
+
+    if (paymentsOff) {
+      // MVP free-download path. Server enforces login + that the
+      // payments_enabled flag is OFF; if the user isn't signed in we
+      // bounce them to /login with a return-to so they come back here.
+      try {
+        const res = await socket.request('stl.downloadFree', {
+          designId: state.designId,
+        });
+        triggerStlDownload(res);
+      } catch (err) {
+        if (err.message === 'auth_required') {
+          // Stash the design id so /login can come back here.
+          sessionStorage.setItem('stemdomez.designId', state.designId);
+          const next = encodeURIComponent('/stemdome-generator');
+          window.location.assign(`/login?next=${next}`);
+          return;
+        }
+        alert(`Could not download: ${err.message}`);
+      } finally {
+        state.checkoutPending = false;
+        renderActions();
+      }
+      return;
+    }
+
     try {
       const { url } = await socket.request('payments.createCheckoutSession', {
         designId: state.designId,
@@ -808,6 +877,21 @@ export function GeneratorPage({ socket }) {
         : `Could not start checkout: ${err.message}`);
       renderActions();
     }
+  }
+
+  function triggerStlDownload({ filename, stl_b64 }) {
+    if (!stl_b64) return;
+    const bin = atob(stl_b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const blob = new Blob([bytes], { type: 'model/stl' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename || 'StemDomeZ_ValveStem.stl';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(a.href);
   }
 
   // First paint

@@ -14,6 +14,7 @@ import { CommandError, ErrorCode } from '../errors.js';
 import { maybeUser, requireAdmin } from '../auth.js';
 import { recordAudit } from '../audit.js';
 import { sendEmail } from '../email.js';
+import { paymentsEnabled, printingEnabled } from '../app-config.js';
 
 // Socket command surface for Stripe.
 //
@@ -42,11 +43,18 @@ const RefundSchema = z.object({
 
 export const paymentsCommands = {
   'payments.catalogue': async () => {
+    const [paymentsOn, printingOn] = await Promise.all([paymentsEnabled(), printingEnabled()]);
     const items = pricingCatalogue();
-    return { enabled: stripeEnabled(), items };
+    return {
+      enabled: stripeEnabled() && paymentsOn,
+      paymentsEnabled: paymentsOn,
+      printingEnabled: printingOn,
+      items,
+    };
   },
 
   'payments.createCheckoutSession': async ({ socket, payload }) => {
+    if (!(await paymentsEnabled())) throw new CommandError(ErrorCode.PAYMENT_REQUIRED, 'payments_disabled');
     if (!stripeEnabled()) throw new CommandError(ErrorCode.STRIPE_NOT_CONFIGURED, 'stripe_not_configured');
     const parsed = CreateSchema.safeParse(payload);
     if (!parsed.success) throw new CommandError(ErrorCode.INVALID_PAYLOAD, 'invalid', parsed.error.issues);
@@ -57,6 +65,9 @@ export const paymentsCommands = {
 
     const item = pricingCatalogue()[product];
     if (!item) throw new CommandError(ErrorCode.INVALID_PAYLOAD, 'unknown_product');
+    if (item.shippable && !(await printingEnabled())) {
+      throw new CommandError(ErrorCode.INVALID_PAYLOAD, 'printing_disabled');
+    }
     const stripe = getStripe();
     const base = appUrl(socket);
     const user = maybeUser({ socket });

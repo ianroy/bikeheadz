@@ -1,5 +1,6 @@
 import { el, clear } from '../dom.js';
 import { icon } from '../icons.js';
+import { getCachedAppConfig } from '../util/app-config.js';
 
 // StemDomeZ header — Mongoose-BMX styling.
 //
@@ -110,6 +111,9 @@ export function HeaderComponent() {
     clear(desktopNav);
     clear(mobilePanel);
 
+    const cfg = getCachedAppConfig();
+    const paymentsOff = !cfg.paymentsEnabled;
+
     const links = [
       ['/how-it-works', 'How It Works'],
       ['/pricing', 'Pricing'],
@@ -119,8 +123,8 @@ export function HeaderComponent() {
     ];
 
     for (const [to, label] of links) {
-      desktopNav.appendChild(navLink(to, label));
-      mobilePanel.appendChild(navLink(to, label, () => setMenu(false)));
+      desktopNav.appendChild(navLink(to, label, undefined, { graffiti: paymentsOff && to === '/pricing' }));
+      mobilePanel.appendChild(navLink(to, label, () => setMenu(false), { graffiti: paymentsOff && to === '/pricing' }));
     }
 
     // Primary "Make yours" CTA — points at the generator. The money
@@ -172,7 +176,7 @@ export function HeaderComponent() {
     desktopNav.appendChild(profile);
   }
 
-  function navLink(to, label, onClick) {
+  function navLink(to, label, onClick, opts = {}) {
     const active = currentPath === to;
     const a = el('a', {
       href: to,
@@ -185,11 +189,43 @@ export function HeaderComponent() {
         letterSpacing: '0.02em',
         textTransform: 'uppercase',
         fontSize: '0.85rem',
+        // Extra top padding when graffiti is overlaid, so the "FREE!"
+        // tag has room to sit above the text without crowding the
+        // checker strip.
+        paddingTop: opts.graffiti ? '1.4rem' : undefined,
       },
       onClick: (e) => {
         onClick?.(e);
       },
-    }, label);
+    });
+    if (opts.graffiti) {
+      // Magenta spraypaint slash through "Pricing" + a fluoro-green
+      // "FREE!" tag spray-stenciled above. Exactly what the brand
+      // standards' 90s graphic vocabulary asks for, layered with
+      // pointer-events: none so the link still routes cleanly.
+      a.appendChild(el('span', { class: 'sdz-graffiti-strike' }, label));
+      a.appendChild(
+        el(
+          'span',
+          {
+            class: 'sdz-graffiti-tag',
+            style: {
+              position: 'absolute',
+              top: '-0.1rem',
+              left: '50%',
+              transform: 'translateX(-50%) rotate(-8deg)',
+              fontSize: '0.95rem',
+              whiteSpace: 'nowrap',
+              zIndex: 2,
+            },
+            'aria-label': 'Free',
+          },
+          'FREE!'
+        )
+      );
+    } else {
+      a.appendChild(document.createTextNode(label));
+    }
     if (active) {
       // Active-state underline bar — brand purple (5.09:1 against
       // paper ✓ AA UI). Using fluoro green here would only get 1.18:1
