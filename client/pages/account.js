@@ -18,7 +18,12 @@ export function AccountPage({ socket }) {
   const state = {
     activeTab: 'designs',
     user: null,
-    profile: { displayName: '', email: '', preferences: {}, emailPrefs: {}, hasPassword: false, passwordSetAt: null },
+    profile: {
+      displayName: '', email: '',
+      preferences: {}, emailPrefs: {},
+      hasPassword: false, passwordSetAt: null,
+      needsTosAccept: false, tosCurrentVersion: null,
+    },
     designs: [],
     orders: [],
     photos: [],
@@ -51,16 +56,120 @@ export function AccountPage({ socket }) {
 
   function renderGuest() {
     clear(guestSlot);
-    profileHeader.style.display = state.user ? '' : 'none';
-    tabBar.style.display = state.user ? '' : 'none';
-    content.style.display = state.user ? '' : 'none';
-    if (state.user) return;
+    // Three states: guest (no user), TOS-required (user exists but
+    // needs to accept current TOS), normal. The chrome is hidden in
+    // both gating states so the user can't bypass the gate by
+    // clicking around.
+    const isGuest = !state.user;
+    const tosBlocked = !!state.user && !!state.profile.needsTosAccept;
+    const showChrome = !isGuest && !tosBlocked;
+    profileHeader.style.display = showChrome ? '' : 'none';
+    tabBar.style.display = showChrome ? '' : 'none';
+    content.style.display = showChrome ? '' : 'none';
+    if (showChrome) return;
+
+    if (tosBlocked) {
+      const accept = el('input', {
+        type: 'checkbox',
+        style: { width: '20px', height: '20px', accentColor: '#7B2EFF', cursor: 'pointer' },
+      });
+      const status = el('p', { style: { color: '#3D2F4A', fontStyle: 'italic', fontSize: '0.85rem', minHeight: '18px' } });
+      const acceptBtn = el('button', {
+        class: 'sdz-cta',
+        style: { fontSize: '0.95rem', padding: '0.75rem 1.4rem' },
+        onClick: async () => {
+          if (!accept.checked) {
+            status.textContent = 'Please tick the box to confirm.';
+            status.style.color = '#CE1F8B';
+            return;
+          }
+          status.textContent = 'Saving…';
+          status.style.color = '#3D2F4A';
+          try {
+            await socket.request('account.acceptTos', {
+              version: state.profile.tosCurrentVersion,
+            });
+            state.profile.needsTosAccept = false;
+            renderGuest();
+            renderProfile();
+            renderContent();
+          } catch (err) {
+            status.textContent = `Couldn't save: ${err?.message || 'unknown error'}`;
+            status.style.color = '#CE1F8B';
+          }
+        },
+      }, 'I ACCEPT  →');
+
+      guestSlot.appendChild(
+        el('div', {
+          style: {
+            background: '#F5F2E5', border: '2px solid #0E0A12',
+            borderRadius: '14px', padding: '28px 24px',
+          },
+        },
+          el('h1', {
+            class: 'sdz-display',
+            style: {
+              fontSize: '1.7rem', color: '#0E0A12',
+              textShadow: '4px 4px 0 #2EFF8C',
+              marginBottom: '12px',
+            },
+          }, 'Welcome to StemDomeZ.'),
+          el('p', { style: { color: '#0E0A12', fontSize: '0.95rem', lineHeight: 1.55, marginBottom: '14px' } },
+            'Before you can use your account we need you to agree to our Terms of Service and Privacy Policy. ',
+            'These were just rewritten with the rules around photo uploads — please give them a read.'
+          ),
+          el('div', {
+            style: {
+              display: 'flex', flexDirection: 'column', gap: '8px',
+              padding: '14px 16px', background: '#E5E0CC',
+              border: '2px solid #0E0A12', borderRadius: '10px',
+              marginBottom: '14px',
+            },
+          },
+            el('a', { href: '/terms', 'data-link': '', target: '_blank', rel: 'noopener', style: { color: '#5A1FCE', fontWeight: 700, textDecoration: 'underline' } }, 'Read the Terms of Service ↗'),
+            el('a', { href: '/privacy', 'data-link': '', target: '_blank', rel: 'noopener', style: { color: '#5A1FCE', fontWeight: 700, textDecoration: 'underline' } }, 'Read the Privacy Policy ↗'),
+            el('a', { href: '/acceptable-use', 'data-link': '', target: '_blank', rel: 'noopener', style: { color: '#5A1FCE', fontWeight: 700, textDecoration: 'underline' } }, 'Read the Acceptable Use Policy ↗'),
+            el('a', { href: '/photo-policy', 'data-link': '', target: '_blank', rel: 'noopener', style: { color: '#5A1FCE', fontWeight: 700, textDecoration: 'underline' } }, 'Read the Photo & Likeness Policy ↗')
+          ),
+          el('label', {
+            style: {
+              display: 'flex', alignItems: 'flex-start', gap: '10px',
+              padding: '12px 14px', background: '#FFFFFF',
+              border: '2px solid #0E0A12', borderRadius: '10px',
+              cursor: 'pointer', marginBottom: '14px',
+            },
+          },
+            accept,
+            el('span', { style: { color: '#0E0A12', fontSize: '0.92rem', lineHeight: 1.45, fontWeight: 600 } },
+              'I am 18 or older. I agree to the Terms of Service, Privacy Policy, Acceptable Use Policy, and Photo & Likeness Policy. ',
+              'I will only upload photos of myself, or of another adult who has given me express consent.'
+            )
+          ),
+          acceptBtn,
+          status,
+          el('p', { style: { marginTop: '14px', fontSize: '0.78rem', color: '#3D2F4A', fontStyle: 'italic' } },
+            'Don\'t agree? You can ',
+            el('a', { href: '#', onClick: async (e) => {
+              e.preventDefault();
+              if (!window.confirm('Sign out without accepting? You can come back any time.')) return;
+              try { await fetch('/auth/logout', { method: 'POST', credentials: 'include' }); } catch { /* ignore */ }
+              window.location.href = '/';
+            }, style: { color: '#5A1FCE', textDecoration: 'underline', fontWeight: 700 } }, 'sign out'),
+            ' instead — nothing will be saved against your account.'
+          )
+        )
+      );
+      return;
+    }
+
+    // Guest state — fall through to the existing sign-in card.
     guestSlot.appendChild(
       el(
         'div',
         {
           class: 'rounded-2xl p-8 border text-center',
-          style: { background: '#FFFFFF', borderColor: '#D7CFB6' },
+          style: { background: '#F5F2E5', borderColor: '#0E0A12', borderWidth: '2px' },
         },
         el(
           'h1',
@@ -68,8 +177,8 @@ export function AccountPage({ socket }) {
             class: 'sdz-display',
             style: {
               fontSize: '1.6rem',
-              color: 'var(--ink)',
-              textShadow: '4px 4px 0 var(--accent2)',
+              color: '#0E0A12',
+              textShadow: '4px 4px 0 #2EFF8C',
               marginBottom: '0.75rem',
             },
           },
@@ -79,7 +188,7 @@ export function AccountPage({ socket }) {
           'p',
           {
             style: {
-              color: 'var(--ink-muted)',
+              color: '#0E0A12',
               fontSize: '0.95rem',
               maxWidth: '40ch',
               margin: '0 auto 1.5rem',
@@ -871,6 +980,8 @@ export function AccountPage({ socket }) {
         state.profile.emailPrefs = profile.emailPrefs || {};
         state.profile.hasPassword = !!profile.hasPassword;
         state.profile.passwordSetAt = profile.passwordSetAt || null;
+        state.profile.needsTosAccept = !!profile.needsTosAccept;
+        state.profile.tosCurrentVersion = profile.tosCurrentVersion || null;
       }
     } catch {
       /* ignore */

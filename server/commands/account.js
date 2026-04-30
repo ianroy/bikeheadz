@@ -6,6 +6,13 @@ import { requireAuth, hashPassword, verifyPassword } from '../auth.js';
 import { recordAudit } from '../audit.js';
 import { CommandError, ErrorCode } from '../errors.js';
 
+// TOS_VERSION must match LEGAL_VERSION in client/pages/legal.js. Bump
+// both whenever a material edit lands; existing accounts get a
+// re-acceptance prompt at next /account visit because account.get
+// returns needsTosAccept = (tos_version IS NULL OR tos_version !=
+// TOS_VERSION).
+export const TOS_VERSION = '2026-04-30';
+
 // Empty profile for anonymous callers. The legacy "Alex Rider /
 // alex@stemdomez.com" demo profile shipped a fake identity to logged-
 // out visitors which made the /account page look like someone was
@@ -72,14 +79,15 @@ export const accountCommands = {
   'account.get': async ({ socket }) => {
     const user = socket.data?.user;
     if (!user) return ANONYMOUS_PROFILE;
-    // Hydrate password_hash + password_set_at from the DB. The
-    // session-loaded user object intentionally omits the hash so it
-    // can't accidentally serialise; we re-read here to surface the
-    // hasPassword boolean for the Settings UI.
+    // Hydrate password_hash + password_set_at + tos_* from the DB.
+    // The session-loaded user object intentionally omits the hash so
+    // it can't accidentally serialise; we re-read here to surface the
+    // hasPassword + needsTosAccept booleans for the Settings UI.
     if (hasDb()) {
       try {
         const { rows } = await db.query(
-          `SELECT password_hash, password_set_at FROM accounts WHERE id = $1`,
+          `SELECT password_hash, password_set_at, tos_accepted_at, tos_version
+             FROM accounts WHERE id = $1`,
           [user.id]
         );
         if (rows[0]) {
@@ -87,11 +95,41 @@ export const accountCommands = {
             ...user,
             password_hash: rows[0].password_hash,
             password_set_at: rows[0].password_set_at,
+            tos_accepted_at: rows[0].tos_accepted_at,
+            tos_version: rows[0].tos_version,
           });
         }
       } catch { /* ignore — fall through to plain profile */ }
     }
     return publicProfile(user);
+  },
+
+  // Record acceptance of the current Terms of Service + Privacy
+  // Policy version. Stores the bump in accounts.tos_version so
+  // future TOS_VERSION changes re-prompt the user.
+  'account.acceptTos': async ({ socket, payload }) => {
+    const user = requireAuth({ socket });
+    const Schema = z.object({
+      version: z.string().min(4).max(64),
+    });
+    const parsed = Schema.safeParse(payload || {});
+    if (!parsed.success) throw new CommandError(ErrorCode.INVALID_PAYLOAD, 'invalid');
+    if (parsed.data.version !== TOS_VERSION) {
+      throw new CommandError(ErrorCode.INVALID_PAYLOAD, 'tos_version_mismatch', {
+        expected: TOS_VERSION, got: parsed.data.version,
+      });
+    }
+    if (!hasDb()) return { ok: true, version: TOS_VERSION };
+    await db.query(
+      `UPDATE accounts SET tos_accepted_at = NOW(), tos_version = $2 WHERE id = $1`,
+      [user.id, TOS_VERSION]
+    );
+    await recordAudit({
+      actorId: user.id,
+      action: 'account.tos_accepted',
+      metadata: { version: TOS_VERSION },
+    });
+    return { ok: true, version: TOS_VERSION, acceptedAt: new Date().toISOString() };
   },
 
   'account.update': async ({ socket, payload }) => {
@@ -266,5 +304,12 @@ function publicProfile(u) {
     // "Set a password" vs "Change password" form variant.
     hasPassword: !!u.password_hash,
     passwordSetAt: u.password_set_at || null,
+    // TOS acceptance state — used by the SPA to show the blocking
+    // accept modal on /account when the user hasn't accepted yet
+    // OR their accepted version is stale.
+    tosVersion: u.tos_version || null,
+    tosAcceptedAt: u.tos_accepted_at || null,
+    tosCurrentVersion: TOS_VERSION,
+    needsTosAccept: !u.tos_version || u.tos_version !== TOS_VERSION,
   };
 }
