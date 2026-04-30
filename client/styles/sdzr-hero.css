@@ -1,0 +1,154 @@
+/* ════════════════════════════════════════════════════════════════════════════
+   SDZR-HERO.CSS — alternate landing-page hero variants from the prototype.
+   Loaded site-wide but only activates inside .sdzr-hero (rendered by
+   client/components/sdzr-hero.js when localStorage['sdz-hero'] is set
+   to 'cap', 'card', or 'sheet'). Default keeps the existing /home hero.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.sdzr-hero { position: relative; padding: 4rem 0 5rem; overflow: hidden; }
+.sdzr-hero__inner { display: grid; gap: 2rem; align-items: center; max-width: 1240px; padding: 0 1.5rem; margin: 0 auto; }
+@media (min-width: 880px) {
+  .sdzr-hero--cap .sdzr-hero__inner { grid-template-columns: 1.3fr 1fr; gap: 3rem; }
+}
+.sdzr-hero__title {
+  font-size: clamp(3.6rem, 11vw, 8.5rem);
+  margin: 0;
+}
+.sdzr-hero__sub {
+  font-size: 1.18rem;
+  max-width: 36ch;
+  margin: 1.25rem 0 1.75rem;
+  color: var(--ink);
+}
+
+/* ─── Variant A — spinning cap ──────────────────────────────────────── */
+.sdzr-cap-stage { position: relative; min-height: 360px; display: grid; place-items: center; }
+
+.cap-shell {
+  width: 320px;
+  height: 320px;
+  max-width: 100%;
+  margin: 0 auto;
+  perspective: 1100px;
+  position: relative;
+}
+.sdzr-cap {
+  width: 100%; height: 100%;
+  position: relative;
+  transform-style: preserve-3d;
+  transform: rotateY(0deg) rotateX(-12deg);
+  animation: sdzr-cap-spin 9s linear infinite;
+  cursor: grab;
+}
+@keyframes sdzr-cap-spin {
+  to { transform: rotateY(360deg) rotateX(-12deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sdzr-cap { animation: none; }
+}
+html.sdz-calm .sdzr-cap { animation: none; }
+
+.cap-cyl {
+  position: absolute;
+  inset: 18% 12% 12%;
+  transform-style: preserve-3d;
+}
+.cap-cyl__side {
+  position: absolute; inset: 0;
+  border-radius: 0 0 18px 18px;
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0 22px,
+      rgba(14,10,18,0.18) 22px 24px
+    ),
+    linear-gradient(90deg, var(--brand) 0 30%, #A267FF 35%, var(--brand) 60%, #5A1FCE 100%);
+  border: 3px solid var(--ink);
+}
+.cap-cyl__top {
+  position: absolute;
+  width: 100%; height: 22%;
+  top: -11%;
+  background: radial-gradient(ellipse at 40% 35%, #C9A8FF 0%, #A267FF 50%, var(--brand) 100%);
+  border: 3px solid var(--ink);
+  border-radius: 50%;
+}
+.cap-head {
+  position: absolute;
+  width: 70%; height: 70%;
+  left: 15%; top: -2%;
+  background: var(--ink);
+  border-radius: 50% 50% 45% 45%;
+  transform: translateZ(2px);
+  clip-path: polygon(
+    15% 38%, 8% 28%, 12% 14%, 28% 4%, 50% 0%,
+    72% 4%, 88% 14%, 92% 28%, 88% 42%, 95% 50%,
+    88% 58%, 86% 80%, 78% 96%, 50% 100%, 22% 96%, 14% 80%, 12% 58%
+  );
+}
+.cap-glasses {
+  position: absolute;
+  width: 56%; height: 12%;
+  left: 22%; top: 30%;
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  transform: translateZ(8px);
+}
+.cap-glasses::before, .cap-glasses::after {
+  content: ""; position: absolute; top: 22%; height: 56%;
+  width: 32%; background: var(--ink);
+}
+.cap-glasses::before { left: 8%; }
+.cap-glasses::after  { right: 8%; }
+
+/* ─── Variant B — trading card ──────────────────────────────────────── */
+.sdzr-hero--card .sdzr-hero__inner { grid-template-columns: 1fr; max-width: 880px; }
+.trading {
+  position: relative;
+  border: 4px solid var(--ink);
+  background: var(--paper);
+  padding: 1rem;
+  box-shadow: 12px 12px 0 var(--accent2), 12px 12px 0 6px var(--ink);
+}
+.trading__top {
+  background: var(--brand);
+  border: 3px solid var(--ink);
+  aspect-ratio: 16/10;
+  position: relative;
+  overflow: hidden;
+  display: grid; place-items: center;
+}
+.trading__rarity {
+  position: absolute; top: 8px; right: 8px;
+  background: var(--accent2); color: var(--ink);
+  font-style: italic; font-weight: 900; font-size: 0.78rem;
+  padding: 4px 10px; border: 2px solid var(--ink);
+  letter-spacing: 0.06em; text-transform: uppercase;
+}
+.trading__no {
+  position: absolute; bottom: 8px; left: 8px;
+  font-family: ui-monospace, monospace; font-size: 0.78rem;
+  background: var(--paper); padding: 2px 8px; border: 2px solid var(--ink);
+  color: var(--ink);
+}
+.trading__bot {
+  display: grid; grid-template-columns: 1fr auto;
+  align-items: end; gap: 1rem;
+  padding: 0.8rem 0.4rem 0.2rem;
+}
+
+/* ─── Variant C — sticker sheet ─────────────────────────────────────── */
+.sdzr-hero--sheet { padding: 2rem 0; }
+.sdzr-hero--sheet .sdzr-hero__inner { max-width: 1240px; }
+.sheet {
+  position: relative;
+  min-height: 540px;
+  border: 3px dashed var(--ink);
+  background: repeating-linear-gradient(
+    45deg,
+    transparent 0 8px,
+    rgba(14,10,18,0.04) 8px 16px
+  );
+  padding: 1.5rem;
+}
+.sheet .sdzr-sticker { position: absolute; }

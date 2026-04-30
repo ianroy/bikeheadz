@@ -14,6 +14,7 @@ import { AdminPage } from './pages/admin.js';
 import { GalleryPage, ShareDesignPage } from './pages/gallery.js';
 import { HelpPage } from './pages/help.js';
 import { SixpackPage } from './pages/sixpack.js';
+import { mountTweaksPanel, applyPersistedTweaks } from './components/tweaks-panel.js';
 import './sdz-radical.js';
 import { StatusPage } from './pages/status.js';
 import { ChangelogPage, IncidentsPage } from './pages/changelog.js';
@@ -138,6 +139,12 @@ function initRadicalAfterRender() {
     try { window.SDZRadical.init(document); } catch { /* ignore */ }
   });
 }
+
+// Apply persisted Tweaks settings on first paint (hero variant + CSS
+// vars) regardless of whether the panel itself mounts. Then mount the
+// panel only if ?tweaks=1 or localStorage flag is set.
+applyPersistedTweaks();
+mountTweaksPanel();
 
 // Calm-mode floating toggle — bottom-left. Toggles `html.sdz-calm`
 // which freezes all `sdzr-*` motion (and respects prefers-reduced-
