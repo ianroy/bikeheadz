@@ -18,6 +18,19 @@
 name: stemdomez
 region: nyc
 
+# Custom domains. DigitalOcean provisions a Let's Encrypt cert for each
+# entry on first deploy (typically 5–30 min after the records are
+# pointed at DO). Both .com hostnames live under the StemDomeZ Prod
+# DNS zone managed by Networking → Domains. PRIMARY = bare apex,
+# ALIAS = www host that 301-redirects to PRIMARY.
+domains:
+  - domain: stemdomez.com
+    type: PRIMARY
+    zone: stemdomez.com
+  - domain: www.stemdomez.com
+    type: ALIAS
+    zone: stemdomez.com
+
 features:
   - buildpack-stack=ubuntu-22
 
@@ -53,10 +66,14 @@ services:
       - key: DATABASE_SSL
         scope: RUN_TIME
         value: "true"
-      # APP_URL is derived from the socket origin at request time (see
-      # server/stripe-client.js appUrl). Set it here as an App-Level env
-      # var only if you want to pin Stripe redirects to a specific domain
-      # regardless of where the browser loaded the app.
+      # Pin the canonical public URL so Stripe redirects, sitemap.xml,
+      # robots.txt and security.txt all use stemdomez.com regardless
+      # of which hostname the browser loaded the app from. Without
+      # this, requests that arrive at dolphin-app-*.ondigitalocean.app
+      # end up with checkout success_urls pointing at the DO subdomain.
+      - key: APP_URL
+        scope: RUN_TIME
+        value: "https://stemdomez.com"
       # ── Stripe ─────────────────────────────────────────────────────
       # Bind STRIPE_SECRET_KEY as a SECRET in the DO dashboard before the
       # first deploy (Settings → App-Level Environment Variables).
@@ -103,7 +120,7 @@ services:
       # ── Email (Resend or Postmark; both keys safe to leave blank) ──
       - key: EMAIL_FROM
         scope: RUN_TIME
-        value: "StemDomeZ <noreply@stemdomez.app>"
+        value: "StemDomeZ <noreply@stemdomez.com>"
       - key: RESEND_API_KEY
         scope: RUN_TIME
         type: SECRET

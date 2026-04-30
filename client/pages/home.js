@@ -93,13 +93,7 @@ export function HomePage({ socket: _socket }) {
           paymentsOff
             ? el(
                 'span',
-                {
-                  style: {
-                    display: 'inline-block',
-                    position: 'relative',
-                    paddingRight: '0.4em',
-                  },
-                },
+                { style: { display: 'inline' } },
                 el(
                   'span',
                   { class: 'sdz-graffiti-strike', style: { color: 'var(--brand)' } },
@@ -109,25 +103,6 @@ export function HomePage({ socket: _socket }) {
                   'span',
                   { style: { color: 'var(--brand)' } },
                   ' · printable on any FDM/PLA setup.'
-                ),
-                // "Free download" tag, hand-sprayed across the
-                // strikethrough — sits absolute so it doesn't reflow
-                // surrounding copy.
-                el(
-                  'span',
-                  {
-                    class: 'sdz-graffiti-tag',
-                    style: {
-                      position: 'absolute',
-                      top: '-0.6em',
-                      left: '-0.2em',
-                      fontSize: '1.1em',
-                      whiteSpace: 'nowrap',
-                      zIndex: 2,
-                    },
-                    'aria-label': 'Free download',
-                  },
-                  'Free download!'
                 )
               )
             : el(
@@ -136,6 +111,35 @@ export function HomePage({ socket: _socket }) {
                 '$2 STL · printable on any FDM/PLA setup.'
               )
         ),
+        // "Free download!" graffiti tag — lives in its own block
+        // BELOW the subhead so the spray paint never blocks the
+        // copy. Slight rotation + fluoro stencil sit on top of the
+        // strikethrough'd "$2 STL" line above.
+        paymentsOff
+          ? el(
+              'div',
+              {
+                style: {
+                  marginTop: '0.5rem',
+                  height: '1.4em',
+                  lineHeight: '1',
+                },
+              },
+              el(
+                'span',
+                {
+                  class: 'sdz-graffiti-tag',
+                  style: {
+                    fontSize: 'clamp(1.4rem, 3.5vw, 2rem)',
+                    whiteSpace: 'nowrap',
+                  },
+                  role: 'img',
+                  'aria-label': 'Free download',
+                },
+                'Free download!'
+              )
+            )
+          : null,
         el(
           'div',
           { class: 'flex items-center gap-4 flex-wrap mt-2' },
@@ -373,14 +377,19 @@ export function HomePage({ socket: _socket }) {
   // ── 5. PRODUCT SPEC ────────────────────────────────────────────────
   // Pulled from ProductSpec.md §0 ("Locked decisions") + 3D_Pipeline.md
   // §0 (locked print invariants), rewritten for riders.
+  //
+  // Pinned-literal background per brandstandards.MD §14: this is an
+  // always-dark zone so the fluoro-green disclaimer text stays at
+  // 14.75:1 in light + dark + AAA modes. Without pinning, dark mode
+  // flips var(--ink) to cream and the green falls to 1.18:1.
   const spec = el(
     'section',
     {
       class: 'relative overflow-hidden',
       style: {
-        background: 'var(--ink)',
-        color: 'var(--paper)',
-        borderTop: '3px solid var(--ink)',
+        background: '#0E0A12',
+        color: '#F5F2E5',
+        borderTop: '3px solid #0E0A12',
       },
     },
     // multi-color CMY splatter on the dark backdrop
@@ -395,7 +404,7 @@ export function HomePage({ socket: _socket }) {
         'h2',
         {
           class: 'sdz-display',
-          style: { fontSize: '2rem', color: 'var(--paper)', marginBottom: '0.5rem' },
+          style: { fontSize: '2rem', color: '#F5F2E5', marginBottom: '0.5rem' },
         },
         'Print spec.'
       ),
@@ -403,7 +412,7 @@ export function HomePage({ socket: _socket }) {
         'p',
         {
           style: {
-            color: 'var(--accent2)',
+            color: '#2EFF8C',
             fontSize: '0.95rem',
             fontWeight: 600,
             fontStyle: 'italic',
@@ -429,7 +438,7 @@ export function HomePage({ socket: _socket }) {
         'p',
         {
           style: {
-            color: 'var(--accent2)',
+            color: '#2EFF8C',
             fontStyle: 'italic',
             marginTop: '2rem',
             fontSize: '0.9rem',
@@ -589,13 +598,19 @@ export function HomePage({ socket: _socket }) {
   root.appendChild(showcase);
 
   // ── 8. FOOTER ──────────────────────────────────────────────────────
+  // Pinned-literal background per brandstandards.MD §14: footer is
+  // an always-dark zone so accent2 (fluoro green) text stays at
+  // 14.75:1 in light + dark + AAA modes. Without this, dark mode
+  // flips var(--ink) to cream and every accent2 footer surface
+  // (column titles, "Race day at the trails 1993", copyright,
+  // security.txt link) drops to 1.18:1 — invisible.
   const footer = el(
     'footer',
     {
       style: {
-        background: 'var(--ink)',
-        color: 'var(--paper)',
-        borderTop: '3px solid var(--ink)',
+        background: '#0E0A12',
+        color: '#F5F2E5',
+        borderTop: '3px solid #0E0A12',
         padding: '2.5rem 0 3rem',
       },
     },
@@ -634,9 +649,9 @@ export function HomePage({ socket: _socket }) {
             {
               class: 'sdz-display sdz-wordmark',
               style: {
-                color: 'var(--paper)',
+                color: '#F5F2E5',
                 fontSize: '1.6rem',
-                textShadow: '3px 3px 0 var(--accent2)',
+                textShadow: '3px 3px 0 #2EFF8C',
               },
             },
             'StemDome',
@@ -646,7 +661,7 @@ export function HomePage({ socket: _socket }) {
             'p',
             {
               style: {
-                color: 'var(--accent2)',
+                color: '#2EFF8C',
                 fontStyle: 'italic',
                 fontSize: '0.85rem',
                 marginTop: '0.75rem',
@@ -661,9 +676,9 @@ export function HomePage({ socket: _socket }) {
         {
           class: 'pt-6 flex flex-wrap items-center justify-between gap-2',
           style: {
-            borderTop: '1px solid var(--accent2)',
+            borderTop: '1px solid #2EFF8C',
             fontSize: '0.78rem',
-            color: 'var(--accent2)',
+            color: '#2EFF8C',
           },
         },
         el('span', {}, '© ' + new Date().getFullYear() + ' StemDomeZ. Made in a workshop.'),
@@ -675,7 +690,7 @@ export function HomePage({ socket: _socket }) {
             'a',
             {
               href: '/.well-known/security.txt',
-              style: { color: 'var(--accent2)', textDecoration: 'underline' },
+              style: { color: '#2EFF8C', textDecoration: 'underline' },
             },
             'security.txt'
           )
@@ -1037,6 +1052,9 @@ function tierCard(label, price, body, primary = false) {
 }
 
 function footerCol(title, links) {
+  // Pinned-literal colors throughout — the footer surface is forced
+  // dark above (brandstandards.MD §14), so the text colors here
+  // mirror that pin to stay consistent across light/dark/AAA modes.
   return el(
     'div',
     {},
@@ -1049,7 +1067,7 @@ function footerCol(title, links) {
           fontStyle: 'italic',
           textTransform: 'uppercase',
           letterSpacing: '0.12em',
-          color: 'var(--accent2)',
+          color: '#2EFF8C',
           marginBottom: '0.75rem',
         },
       },
@@ -1074,7 +1092,7 @@ function footerCol(title, links) {
             href,
             'data-link': '',
             style: {
-              color: 'var(--paper)',
+              color: '#F5F2E5',
               textDecoration: 'none',
               fontSize: '0.95rem',
               transition: 'color 0.15s ease',
@@ -1083,10 +1101,10 @@ function footerCol(title, links) {
               display: opts?.graffiti ? 'inline-block' : undefined,
             },
             onMouseenter: (e) => {
-              e.target.style.color = 'var(--brand-light)';
+              e.target.style.color = '#A267FF';
             },
             onMouseleave: (e) => {
-              e.target.style.color = 'var(--paper)';
+              e.target.style.color = '#F5F2E5';
             },
           }
         );
@@ -1122,13 +1140,16 @@ function footerCol(title, links) {
 // auto-plays muted/looping; otherwise renders a static poster card with
 // the cap mark + "demo coming soon" copy.
 function videoTile() {
+  // Pinned literal dark hex so the poster fallback stays readable in
+  // dark mode — the fluoro caption inside relies on a true dark
+  // ground for contrast (brandstandards.MD §14).
   const tile = el('div', {
     class: 'sdz-memphis',
     style: {
       '--memphis-offset': '10px',
       '--memphis-color': 'var(--accent3)',
-      background: 'var(--ink)',
-      border: '3px solid var(--ink)',
+      background: '#0E0A12',
+      border: '3px solid #0E0A12',
       borderRadius: '14px',
       aspectRatio: '16 / 9',
       width: '100%',
@@ -1149,7 +1170,9 @@ function videoTile() {
     video.style.display = 'block';
     posterCard.style.display = 'none';
   });
-  // Static poster — visible until/unless the video loads.
+  // Static poster — visible until/unless the video loads. Pinned
+  // literal hexes per brandstandards.MD §14 so the gradient stays
+  // dark and the fluoro caption keeps 14.75:1 in dark mode.
   const posterCard = el(
     'div',
     {
@@ -1161,8 +1184,8 @@ function videoTile() {
         justifyContent: 'center',
         flexDirection: 'column',
         gap: '0.75rem',
-        color: 'var(--paper)',
-        background: 'linear-gradient(135deg, var(--ink) 0%, #221830 100%)',
+        color: '#F5F2E5',
+        background: 'linear-gradient(135deg, #0E0A12 0%, #221830 100%)',
       },
     },
     el('img', {
@@ -1179,7 +1202,7 @@ function videoTile() {
           fontWeight: 700,
           letterSpacing: '0.06em',
           textTransform: 'uppercase',
-          color: 'var(--accent2)',
+          color: '#2EFF8C',
         },
       },
       'Demo reel · drop landing.mp4 in /demo/'

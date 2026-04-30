@@ -65,7 +65,7 @@ export function TermsPage() {
       },
       {
         heading: '4. Payment & refunds',
-        body: 'Purchases are processed by Stripe. Refunds are available within 14 days of purchase, less any costs already incurred for printing or shipping. Contact support@stemdomez.app to request a refund.',
+        body: 'Purchases are processed by Stripe. Refunds are available within 14 days of purchase, less any costs already incurred for printing or shipping. Contact support@stemdomez.com to request a refund.',
       },
       {
         heading: '5. Disclaimer & limitation of liability',
@@ -77,7 +77,7 @@ export function TermsPage() {
       },
       {
         heading: '7. Contact',
-        body: 'Questions: legal@stemdomez.app',
+        body: 'Questions: legal@stemdomez.com',
       },
     ],
   });
@@ -121,11 +121,11 @@ export function PrivacyPage() {
       },
       {
         heading: '5. Security',
-        body: 'We use TLS for all traffic, hash-store passwords (we use passwordless magic-link authentication), and run secure cookies (HttpOnly, SameSite=Lax, Secure in production). Vulnerability reports: security@stemdomez.app — see /security.',
+        body: 'We use TLS for all traffic, hash-store passwords (we use passwordless magic-link authentication), and run secure cookies (HttpOnly, SameSite=Lax, Secure in production). Vulnerability reports: security@stemdomez.com — see /security.',
       },
       {
         heading: '6. Contact',
-        body: 'Questions: privacy@stemdomez.app',
+        body: 'Questions: privacy@stemdomez.com',
       },
     ],
   });
@@ -149,7 +149,7 @@ export function AcceptableUsePage() {
       },
       {
         heading: 'Reporting abuse',
-        body: 'See a design or user violating this policy? Tap the flag button on the design, or email abuse@stemdomez.app. We review reports within 48h.',
+        body: 'See a design or user violating this policy? Tap the flag button on the design, or email abuse@stemdomez.com. We review reports within 48h.',
       },
       {
         heading: 'Enforcement',
@@ -168,7 +168,7 @@ export function SecurityPage() {
       {
         heading: 'Reporting',
         body: [
-          'Email: security@stemdomez.app (PGP key available on request)',
+          'Email: security@stemdomez.com (PGP key available on request)',
           'We aim to respond within 2 business days.',
         ],
       },
@@ -224,7 +224,7 @@ export function ServerErrorPage({ incidentId }) {
           'If you were mid-purchase, your card was not charged unless Stripe explicitly confirmed it.',
           incidentId
             ? `Send us this incident id when reporting: ${incidentId}`
-            : 'If it keeps happening, drop us a line at help@stemdomez.app.',
+            : 'If it keeps happening, drop us a line at help@stemdomez.com.',
         ],
       },
     ],

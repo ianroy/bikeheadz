@@ -198,15 +198,16 @@ app.post('/auth/logout', (_req, res) => {
 // ── X-008 — RFC 9116 security.txt + /security page is rendered by the SPA.
 app.get('/.well-known/security.txt', (_req, res) => {
   const expires = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
+  const base = (process.env.APP_URL || 'https://stemdomez.com').replace(/\/$/, '');
   res.set('Content-Type', 'text/plain');
   res.send(
     [
-      'Contact: mailto:security@stemdomez.app',
+      'Contact: mailto:security@stemdomez.com',
       'Preferred-Languages: en',
       `Expires: ${expires}`,
-      'Acknowledgments: https://stemdomez.app/security',
-      'Policy: https://stemdomez.app/security',
-      'Canonical: https://stemdomez.app/.well-known/security.txt',
+      `Acknowledgments: ${base}/security`,
+      `Policy: ${base}/security`,
+      `Canonical: ${base}/.well-known/security.txt`,
     ].join('\n') + '\n'
   );
 });
@@ -214,7 +215,7 @@ app.get('/.well-known/security.txt', (_req, res) => {
 // ── X-010 — robots.txt + sitemap.xml.
 app.get('/robots.txt', (_req, res) => {
   res.set('Content-Type', 'text/plain');
-  const base = process.env.APP_URL || 'https://stemdomez.app';
+  const base = process.env.APP_URL || 'https://stemdomez.com';
   res.send(
     [
       'User-agent: *',
@@ -229,7 +230,7 @@ app.get('/robots.txt', (_req, res) => {
 });
 
 app.get('/sitemap.xml', (_req, res) => {
-  const base = (process.env.APP_URL || 'https://stemdomez.app').replace(/\/$/, '');
+  const base = (process.env.APP_URL || 'https://stemdomez.com').replace(/\/$/, '');
   const lastmod = new Date().toISOString().slice(0, 10);
   const urls = [
     '/',

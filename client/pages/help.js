@@ -26,7 +26,7 @@ const FAQ = [
   },
   {
     q: 'What is your refund policy?',
-    a: 'Refunds are available within 14 days of purchase, less any costs already incurred for printing or shipping. Email help@stemdomez.app with your order id and we\'ll process the refund through Stripe within two business days.',
+    a: 'Refunds are available within 14 days of purchase, less any costs already incurred for printing or shipping. Email help@stemdomez.com with your order id and we\'ll process the refund through Stripe within two business days.',
   },
   {
     q: 'What kind of photo gives the best result?',
@@ -34,7 +34,7 @@ const FAQ = [
   },
   {
     q: 'My print failed (warped, didn\'t adhere, looked off). What do I do?',
-    a: 'Send us the failed print + a photo of the slicer settings to help@stemdomez.app and we\'ll either send a corrected STL free of charge or refund the order. The most common causes we\'ve seen: print orientation other than cap-down, layer height >0.2 mm, or non-PLA filament without clearance compensation. See the printing guide on `/how-it-works` for the recommended profile.',
+    a: 'Send us the failed print + a photo of the slicer settings to help@stemdomez.com and we\'ll either send a corrected STL free of charge or refund the order. The most common causes we\'ve seen: print orientation other than cap-down, layer height >0.2 mm, or non-PLA filament without clearance compensation. See the printing guide on `/how-it-works` for the recommended profile.',
   },
   {
     q: 'What 3D file formats do you support?',
@@ -54,7 +54,7 @@ const FAQ = [
   },
   {
     q: 'I have a question that isn\'t answered here. How do I reach support?',
-    a: 'Email help@stemdomez.app — we read every message and respond within one business day. For abuse reports use abuse@stemdomez.app, and for security issues use security@stemdomez.app (PGP key on request, see /security).',
+    a: 'Email help@stemdomez.com — we read every message and respond within one business day. For abuse reports use abuse@stemdomez.com, and for security issues use security@stemdomez.com (PGP key on request, see /security).',
   },
 ];
 
@@ -144,7 +144,7 @@ export function HelpPage() {
               textAlign: 'center',
             },
           },
-          'No questions match. Try a different keyword, or email help@stemdomez.app.'
+          'No questions match. Try a different keyword, or email help@stemdomez.com.'
         )
       );
       return;
