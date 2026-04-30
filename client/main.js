@@ -13,6 +13,7 @@ import { AdminPage } from './pages/admin.js';
 import { GalleryPage, ShareDesignPage } from './pages/gallery.js';
 import { HelpPage } from './pages/help.js';
 import { mountTweaksPanel, applyPersistedTweaks } from './components/tweaks-panel.js';
+import { createSiteFooter } from './components/site-footer.js';
 import './sdz-radical.js';
 import { StatusPage } from './pages/status.js';
 import { ChangelogPage, IncidentsPage } from './pages/changelog.js';
@@ -32,7 +33,7 @@ import {
 import { setupInstallPrompt } from './components/install-prompt.js';
 import { LocaleSwitcher } from './components/locale-switcher.js';
 import { ContrastToggle } from './components/contrast-toggle.js';
-import { getAppConfig, onAppConfigChange } from './util/app-config.js';
+import { getAppConfig, getCachedAppConfig, onAppConfigChange } from './util/app-config.js';
 
 const root = document.getElementById('root');
 Object.assign(root.style, {
@@ -62,6 +63,23 @@ root.appendChild(header.el);
 
 const main = el('main', { class: 'flex-1' });
 root.appendChild(main);
+
+// Global site footer — mounted once below the router's <main> so it
+// shows on every page without each page re-rendering it. The host
+// element survives route changes; only its contents get swapped when
+// the runtime config (payments_enabled / printing_enabled) changes
+// so the Pricing graffiti treatment stays in sync.
+const footerHost = el('div');
+root.appendChild(footerHost);
+function renderSiteFooter() {
+  while (footerHost.firstChild) footerHost.removeChild(footerHost.firstChild);
+  const cfg = (typeof getCachedAppConfigSafe === 'function' ? getCachedAppConfigSafe() : { paymentsEnabled: true });
+  footerHost.appendChild(createSiteFooter({ paymentsOff: !cfg.paymentsEnabled }));
+}
+function getCachedAppConfigSafe() {
+  try { return getCachedAppConfig(); } catch { return { paymentsEnabled: true }; }
+}
+renderSiteFooter();
 
 const router = new Router({
   mount: main,
@@ -214,10 +232,12 @@ mountTweaksPanel();
 // values + sync the AAA chip visibility.
 getAppConfig({ socket }).then((cfg) => {
   syncAaaChip(cfg);
+  renderSiteFooter();
   router.render(location.pathname + location.search);
 });
 onAppConfigChange((cfg) => {
   syncAaaChip(cfg);
+  renderSiteFooter();
   router.render(location.pathname + location.search);
 });
 
