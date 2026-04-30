@@ -111,3 +111,10 @@ the doc it belongs to.
 - RunPod release flow: `gh release create vX.Y.Z` → GHA builds
   GHCR image (~17–25 min) → RunPod dashboard → New Release →
   paste GHCR URL → confirm boot banner.
+
+  **Claude does the `gh release create` step automatically** whenever
+  a commit bumps `HANDLER_VERSION` in `handler.py`. Don't wait for the
+  owner to run it. After the release fires, watch the GHA run in the
+  background (`gh run watch <id>`) and notify the owner when the image
+  is on GHCR — they handle the manual RunPod-dashboard "New Release"
+  paste step (no API exists for serverless endpoint releases).
