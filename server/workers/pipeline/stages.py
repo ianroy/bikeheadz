@@ -112,6 +112,22 @@ except Exception:  # noqa: BLE001
         "skip decimation (output may exceed §0 50–80K triangle band).\n"
     )
 
+try:
+    # PyMeshFix wraps Marco Attene's MeshFix library — the gold-standard
+    # tool for turning an arbitrary triangle soup into a guaranteed
+    # watertight, manifold, self-intersection-free mesh suitable for
+    # slicing. Powers Stage 6 (print_repair). If absent, the stage
+    # falls back to a best-effort trimesh repair pass that won't
+    # *guarantee* watertightness but at least patches small holes.
+    import pymeshfix as _pmf  # type: ignore[import-not-found]
+except Exception:  # noqa: BLE001
+    _pmf = None  # type: ignore[assignment]
+    sys.stderr.write(
+        "[pipeline.stages] pymeshfix unavailable; Stage 6 will fall back "
+        "to trimesh.repair (weaker — may ship non-watertight meshes that "
+        "fail in slicers).\n"
+    )
+
 
 # ---- manifold3d <-> trimesh conversion helpers -----------------------------
 
@@ -872,3 +888,125 @@ def _decimate(mesh: trimesh.Trimesh, *, target_tris: int) -> trimesh.Trimesh:
     decimated = trimesh.Trimesh(v, f, process=True)
     decimated.fix_normals()
     return decimated
+
+
+# ---- Stage 6 — Print-repair ------------------------------------------------
+
+
+def stage6_print_repair(
+    final: trimesh.Trimesh, C: Constants, target_tris: int = 70_000,
+) -> trimesh.Trimesh:
+    """Make the mesh genuinely watertight + manifold for slicer input.
+
+    Stage 5 lands the mesh in the §0 50–80K triangle band but is *soft*
+    on watertightness — boolean ops + decimation routinely leave small
+    holes (typically on the head crown), self-intersections at the cap
+    seam, and non-manifold edges where stage-4's union fell back to
+    concatenation. Slicers paper over some of this but the user sees
+    holes in the 3D preview and prints either fail or come out hollow.
+
+    PyMeshFix (Marco Attene's MeshFix wrapped for Python) takes any
+    triangle soup and produces a guaranteed watertight, 2-manifold,
+    self-intersection-free mesh — purpose-built for 3D printing prep.
+    Hole-filling here is unconstrained by the §1.5 ``maxholesize=200``
+    cap; whatever's left after the booleans + decimation gets sealed.
+
+    If the repair balloons triangle count above the §0 band, we
+    re-decimate to keep slicer load times reasonable.
+
+    Falls back to ``trimesh.repair.fill_holes`` if pymeshfix isn't
+    installed at runtime — won't *guarantee* watertightness but at
+    least patches small holes.
+    """
+    import time as _time
+    started = _time.monotonic()
+    n_faces_in = len(final.faces)
+    was_watertight = bool(final.is_watertight)
+
+    if _pmf is None:
+        # Fallback: best-effort trimesh repair. Doesn't guarantee
+        # watertight; logs the gap so ops can see when pymeshfix
+        # didn't get installed in the worker image.
+        try:
+            trimesh.repair.fix_inversion(final)
+            trimesh.repair.fix_normals(final)
+            trimesh.repair.fill_holes(final)
+        except Exception as exc:  # noqa: BLE001
+            sys.stderr.write(
+                f"[stage6] WARNING: trimesh fallback repair raised "
+                f"{exc!r}; shipping as-is.\n"
+            )
+        sys.stderr.write(
+            f"[stage6] pymeshfix unavailable — fallback path. "
+            f"in={n_faces_in} watertight_in={was_watertight} "
+            f"watertight_out={bool(final.is_watertight)}\n"
+        )
+        return final
+
+    try:
+        v_in = np.asarray(final.vertices, dtype=np.float64)
+        f_in = np.asarray(final.faces, dtype=np.int32)
+        mfix = _pmf.MeshFix(v_in, f_in)
+        # joincomp=True   — joins disconnected components (e.g. cap concat
+        #                   fallback from stage 4) into one solid.
+        # remove_smallest_components=False — keep the cap even if
+        #                   somehow it's the smallest piece.
+        mfix.repair(joincomp=True, remove_smallest_components=False)
+        v_out = np.asarray(mfix.v, dtype=np.float64)
+        f_out = np.asarray(mfix.f, dtype=np.int64)
+        if len(v_out) == 0 or len(f_out) == 0:
+            raise RuntimeError("pymeshfix produced an empty mesh")
+        repaired = trimesh.Trimesh(v_out, f_out, process=True)
+        repaired.merge_vertices()
+        repaired.fix_normals()
+    except Exception as exc:  # noqa: BLE001
+        # PyMeshFix can rarely choke on degenerate input — never block
+        # the export. Log + ship the un-repaired mesh.
+        sys.stderr.write(
+            f"[stage6] WARNING: pymeshfix raised {exc!r}; shipping "
+            f"un-repaired mesh.\n"
+        )
+        return final
+
+    # PyMeshFix may add geometry to fill holes. If we've exceeded the
+    # §0 50–80K band by >20%, re-decimate. Use the same fast_simplification
+    # path as Stage 5.
+    n_faces_repaired = len(repaired.faces)
+    if _fs is not None and n_faces_repaired > int(target_tris * 1.2):
+        try:
+            repaired = _decimate(repaired, target_tris=target_tris)
+        except PipelineError as exc:
+            sys.stderr.write(
+                f"[stage6] WARNING: post-repair decimation failed "
+                f"({exc.detail}); shipping at {n_faces_repaired} tris.\n"
+            )
+
+    is_watertight_out = bool(repaired.is_watertight)
+    is_winding_consistent = bool(getattr(repaired, "is_winding_consistent", False))
+    elapsed_ms = int((_time.monotonic() - started) * 1000)
+    sys.stderr.write(
+        f"[stage6] pymeshfix done in {elapsed_ms}ms — "
+        f"in_tris={n_faces_in} out_tris={len(repaired.faces)} "
+        f"watertight_in={was_watertight} watertight_out={is_watertight_out} "
+        f"winding_consistent={is_winding_consistent}\n"
+    )
+
+    # Emit a structured warning frame if PyMeshFix somehow couldn't
+    # produce a watertight result — slicer will likely still cope but
+    # the operator/user should know. Matches the stage5 thin-walls
+    # warning protocol.
+    if not is_watertight_out:
+        try:
+            sys.stdout.write(
+                json.dumps({
+                    "type": "warning",
+                    "stage": "stage6",
+                    "code": "not_watertight_after_repair",
+                    "in_tris": int(n_faces_in),
+                    "out_tris": int(len(repaired.faces)),
+                }) + "\n"
+            )
+            sys.stdout.flush()
+        except Exception:  # noqa: BLE001
+            pass
+    return repaired

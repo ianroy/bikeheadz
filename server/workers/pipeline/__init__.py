@@ -54,6 +54,7 @@ from .stages import (
     stage3_subtract_negative_core,
     stage4_union_valve_cap,
     stage5_postprocess,
+    stage6_print_repair,
 )
 
 
@@ -173,7 +174,8 @@ _PROGRESS_STAGE1_5 = ("stage1_5_repair", 30)
 _PROGRESS_STAGE2 = ("stage2_crop", 50)
 _PROGRESS_STAGE3 = ("stage3_subtract_negative_core", 65)
 _PROGRESS_STAGE4 = ("stage4_union_valve_cap", 80)
-_PROGRESS_STAGE5 = ("stage5_postprocess", 92)
+_PROGRESS_STAGE5 = ("stage5_postprocess", 90)
+_PROGRESS_STAGE6 = ("stage6_print_repair", 96)
 _PROGRESS_DONE = ("run_v1.done", 100)
 
 
@@ -349,6 +351,17 @@ def run_v1(
         timeout_s=stage_budget, job_remaining_s=_remaining(),
     )
     _emit(*_PROGRESS_STAGE5)
+
+    # Stage 6 — print-repair pass (PyMeshFix). Guarantees a watertight
+    # 2-manifold mesh suitable for slicer input. Without this, holes
+    # introduced by stage-4 concat fallbacks + stage-5 decimation slip
+    # through to the user as preview holes / failed prints.
+    final = run_with_timeout(
+        "stage6_print_repair", stage6_print_repair,
+        final, C,
+        timeout_s=stage_budget, job_remaining_s=_remaining(),
+    )
+    _emit(*_PROGRESS_STAGE6)
 
     _emit(*_PROGRESS_DONE)
     return final

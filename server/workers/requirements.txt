@@ -9,3 +9,8 @@ pillow>=10
 # register_heif_opener call.
 pillow-heif>=0.18
 trimesh>=4.4
+# pymeshfix wraps Marco Attene's MeshFix C++ library — Stage 6 uses it
+# to guarantee watertight, 2-manifold output for slicer / 3D-printer
+# input. Without it, stage-5 output ships with the small head-crown
+# holes + cap-seam self-intersections we'd been seeing in production.
+pymeshfix>=0.16

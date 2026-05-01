@@ -171,6 +171,15 @@ RUN pip install --no-cache-dir \
 RUN pip install --no-cache-dir "pymeshlab>=2025.7" \
     || echo "[build] pymeshlab install failed (pipeline falls back to trimesh.repair)"
 
+# pymeshfix wraps Marco Attene's MeshFix C++ library — Stage 6 uses it
+# to guarantee watertight, 2-manifold output for slicer / 3D-printer
+# input. Without it, stage-5 output ships with small head-crown holes
+# + cap-seam self-intersections that show up in the preview and break
+# slicers. Imports vtk transitively. Fallback: trimesh.repair.fill_holes
+# (best-effort, doesn't guarantee watertightness).
+RUN pip install --no-cache-dir "pymeshfix>=0.16" \
+    || echo "[build] pymeshfix install failed (Stage 6 falls back to trimesh.repair)"
+
 # App payload.
 WORKDIR /app
 COPY handler.py /app/handler.py
