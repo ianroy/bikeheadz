@@ -1,8 +1,19 @@
-// Minimal client-side router using the History API. Replaces React Router.
-// Routes are keyed by exact pathname; each value is a factory receiving a
-// `context` object with { path, query } and returning a page object of shape
-// { el, destroy? }. The router mounts the page's `el` into the supplied
-// container and calls `destroy()` on the previous page.
+// Minimal client-side router. ~50 lines of History API, replaces the
+// 60kB of React Router we did not install. Routes are keyed by exact
+// pathname; each value is a factory receiving `{ path, query, matched }`
+// and returning a page object `{ el, destroy? }`. We mount the page's
+// `el` into the container and call `destroy()` on the previous page on
+// the way out — that's where pages should disconnect IntersectionObservers,
+// tear down WebGL contexts, abort in-flight fetches, etc.
+//
+// Hash-aware: links with `/#how` patterns get the fragment stripped
+// for route matching, then the page scrolls to that id once mounted
+// (see main.js's `scrollToHash`). This is how /#how and /#sixpack
+// work as in-page anchors instead of separate routes.
+//
+// If you find yourself wanting nested routes, route guards, lazy loading,
+// or a `useNavigate` hook — you don't want this router. Switch to
+// something heavier and accept the bundle weight as a deliberate trade.
 export class Router {
   constructor({ mount, routes, onRoute }) {
     this.mount = mount;

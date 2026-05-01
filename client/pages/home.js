@@ -1,7 +1,15 @@
 // StemDomeZ — landing page.
 //
-// Section flow lifted 1:1 from the GumBall Assets prototype
-// (/Users/ianroy/Library/CloudStorage/Dropbox/Sadys Bikes/GumBall Assets/_handoff/for-claude-code/index.html):
+// Section flow ported from the GumBall Assets prototype, beat for
+// beat. The prototype is a static HTML file with inline React +
+// Babel; we don't need that here, so this is the same structure as
+// el() trees with the back-end wiring intact (CTAs link to real
+// routes, payments_enabled flips the graffiti treatment, etc.).
+//
+// Original prototype lived at:
+// /Users/ianroy/Library/CloudStorage/Dropbox/Sadys Bikes/GumBall Assets/_handoff/for-claude-code/index.html
+// — a useful artefact when you're iterating on the visual design.
+//
 //
 //   1. Top marquee  (sdzr-marquee, default magenta)
 //   2. Hero — cap   (sdzr-bg-paper sdzr-grain, spinning CSS-3D cap)

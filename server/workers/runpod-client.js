@@ -1,22 +1,34 @@
 import { logger } from '../logger.js';
 import { recordHandlerVersion } from '../replica-drift.js';
 
-// RunPod serverless adapter. Wire format (progress / result_chunk /
+// RunPod serverless adapter. The wire format (progress / result_chunk /
 // result / error frames) matches the local Python worker exactly so
-// callers don't care which backend is serving the request.
+// callers don't have to care which backend served the request. Treat
+// this file as the contract between Node and the GPU side; if you
+// change a frame shape here, you change it in handler.py too.
 //
-// Supports either a single endpoint (legacy `RUNPOD_ENDPOINT_URL`) or
-// multiple endpoints raced in parallel (`RUNPOD_ENDPOINT_URLS`,
-// comma-separated). When 2+ endpoints are configured we submit the
-// job to all of them in parallel, watch each `/stream/<id>` for the
-// first IN_PROGRESS flip (i.e. a worker actually picked up the job),
-// stick with that endpoint, and cancel the losers. Costs ~2× the
-// `/run` POSTs but only one GPU run.
+// Two modes, picked at request time from env:
+//   • Single endpoint (legacy `RUNPOD_ENDPOINT_URL`). The original
+//     deployment shape. Still works, ships traffic to one region.
+//   • Multi-region race (`RUNPOD_ENDPOINT_URLS`, comma-separated).
+//     POST `/run` to every endpoint in parallel, watch each
+//     `/stream/<id>`, stick with whichever region's worker actually
+//     picks up the job (first IN_PROGRESS flip), cancel the losers.
+//     Costs ~2× the cheap `/run` POSTs but only one GPU run, and
+//     buys us back the queue-wait time on the loser region.
+//     Telemetry surfaces in /admin → Regions tab.
 //
-// Examples:
-//   RUNPOD_ENDPOINT_URL=https://api.runpod.ai/v2/<us-id>
-//   RUNPOD_ENDPOINT_URLS=https://api.runpod.ai/v2/<us-id>,https://api.runpod.ai/v2/<ro-id>
-//   RUNPOD_API_KEY=<bearer token>   ← account-wide, same key for both regions
+// Quick examples:
+//   RUNPOD_ENDPOINT_URL  = https://api.runpod.ai/v2/<us-id>
+//   RUNPOD_ENDPOINT_URLS = https://api.runpod.ai/v2/<us-id>,https://api.runpod.ai/v2/<ro-id>
+//   RUNPOD_API_KEY       = <bearer token>   ← account-wide; same key authenticates every region.
+//
+// If a region is freshly provisioned and has not seen weights yet,
+// `RUNPOD_FORCE_WARMUP=1` routes the first job after server boot to
+// the LAST endpoint in URLS only (no race). One job warms the volume,
+// then racing resumes. The flag re-arms on app restart, so it's safe
+// to leave permanently set; the cost is at most one un-raced job per
+// DO redeploy.
 
 const POLL_INTERVAL_MS  = 1_500;
 // Cold-start TRELLIS is genuinely slow: pulling 2.5GB of safetensors plus

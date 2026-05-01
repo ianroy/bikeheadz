@@ -22,13 +22,16 @@ const PYTHON_BIN = process.env.PYTHON_BIN || 'python3';
 const TRELLIS_ENABLED = (process.env.TRELLIS_ENABLED || 'true').toLowerCase() !== 'false';
 const MAX_IMAGE_BYTES = Number(process.env.MAX_IMAGE_BYTES) || 5 * 1024 * 1024;
 
-// Server-side downsample envelope. TRELLIS internally resizes to ~518 px
-// for its dinov2 backbone, so anything we ship above ~1024 px is wasted
-// bandwidth across the trans-Atlantic hop to the RO endpoint and inflates
-// the base64 payload by ~33%. Cap at 1024 px on the long edge with
-// quality-88 mozjpeg — typical 12 MP iPhone selfie drops from ~3–5 MB to
-// ~150–400 KB without any visible quality loss after TRELLIS preprocesses.
-// Tunable via env so ops can roll back without a deploy.
+// Server-side downsample envelope. TRELLIS internally resizes inputs
+// to ~518 px for its dinov2 vision backbone — every pixel above that
+// is decoration. Anything we ship over 1024 px is bytes wasted on the
+// trans-Atlantic hop to the RO endpoint, inflated by ~33% through the
+// base64 envelope on top, for no visible benefit after TRELLIS does
+// its own resize. Cap at 1024 px on the long edge, mozjpeg q88. A
+// typical 12 MP iPhone selfie goes from ~3-5 MB to ~150-400 KB. The
+// rider sees the same cap. The trans-Atlantic queue races faster.
+// Three env knobs in case ops needs to roll back without a deploy:
+// the resize itself, the max edge, and the quality.
 const RESIZE_MAX_EDGE = Number(process.env.IMAGE_RESIZE_MAX_EDGE) || 1024;
 const RESIZE_QUALITY  = Number(process.env.IMAGE_RESIZE_QUALITY)  || 88;
 const RESIZE_ENABLED  = (process.env.IMAGE_RESIZE_ENABLED || 'true').toLowerCase() !== 'false';

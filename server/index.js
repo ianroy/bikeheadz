@@ -1,3 +1,18 @@
+// StemDomeZ server — Express + socket.io on DigitalOcean App Platform.
+//
+// One process, one port, one socket.io 'command' event surface. Every
+// interaction the client makes is a `{ id, name, payload }` envelope
+// dispatched through `commands/index.js`. There is no REST. There is
+// no GraphQL. We had REST. It was fine. socket.io is fewer moving
+// parts and the Three.js viewer was already keeping a socket open
+// for progress streaming, so we leaned into it.
+//
+// Boot order matters and is enforced below — Sentry first so a crash
+// during init still phones home, then DB + migrations (idempotent;
+// runs on every boot to catch the case where DO PRE_DEPLOY didn't),
+// then commands, then sockets, then the static SPA. Don't reorder
+// without a strong opinion.
+
 import express from 'express';
 import { createServer } from 'node:http';
 import { Server as SocketIOServer } from 'socket.io';

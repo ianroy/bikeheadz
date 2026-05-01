@@ -1,31 +1,53 @@
 """Stage-level implementations for the v1 mesh pipeline.
 
-Each function corresponds to a stage in ``3D_Pipeline.md`` §5 with the
-post-Phase −0.5 redesign decisions baked in:
+Eight stages stand between TRELLIS's enthusiastic-but-broken mesh
+output and a printable STL. Each function maps 1:1 to a stage in
+``3D_Pipeline.md`` §5. Read this docstring before changing anything;
+the order of operations and the warn-vs-raise decisions are paid for
+in real production incidents.
 
-* Stage 1 auto-rescales the head to ``TARGET_HEAD_HEIGHT_MM`` because
-  raw scans / TRELLIS output land at ~1.7–1.9 m (decision −0.5.1).
-* Stage 1.5 runs *before* Stage 2 — no relying on manifold3d's silent
-  auto-heal during the boolean (decision −0.5.5).
-* Stage 2 picks the cut at the neck (the local-min between the head's
-  upper-max and the shoulders' lower-max) and rotates the head about Z
-  if the chosen cut location is too thin to fit the cavity without
-  breaking through the wall (decision −0.5.3 — wall thickness is
-  *placement-driven*, not core-widening-driven).
-* Stage 3 subtracts ``negative_core`` first (carves the cavity), then
-  Stage 4 unions ``valve_cap`` (whose threaded outer diameter is
-  *intentionally* slightly larger than the core, biting into the head
-  walls inside the cavity).
+Stage map (decisions in parens are from the Phase −0.5 design notes):
+
+* Stage 1 — Normalize. Auto-rescale to ``TARGET_HEAD_HEIGHT_MM``
+  because TRELLIS hands you a head at 1.7-1.9 metres. Yes, metres.
+  No, nobody knows why. (-0.5.1)
+* Stage 1.5 — Pymeshlab repair. Dedup, orient, close-holes ≤200.
+  Runs BEFORE stage 2; manifold3d's silent auto-heal during the
+  boolean is not a contract we're willing to depend on. (-0.5.5)
+* Stage 1.7 — PyMeshFix watertight enforcement. Added in v0.1.41
+  after the cap kept disappearing. The booleans need a watertight
+  head; pymeshlab's close-holes is best-effort and TRELLIS routinely
+  ships meshes with euler < -20. PyMeshFix is the gold-standard
+  topology hammer.
+* Stage 2 — Crop at the neck. Find the local-min between the head's
+  upper-max and the shoulders' lower-max, cut there. If the chosen
+  z is too thin to host the cavity, rotate about Z and try again.
+  Wall thickness is placement-driven, not core-widening-driven.
+  (-0.5.3 — fight us about it later)
+* Stage 3 — Subtract negative_core. Carves the threaded cavity that
+  the cap will later thread into.
+* Stage 4 — Union valve_cap. The cap's outer thread is intentionally
+  slightly oversized; it bites into the head walls inside the
+  cavity for grip. If the union fails (and it will, because TRELLIS
+  meshes still surprise us), we fall back to mesh concatenation
+  and pass the multi-shell output to stage 6 as a known shape.
+* Stage 5 — Print-prep. Decimate to the §0 50-80K band, soft
+  watertight assertion (we ship anyway if it fails because slicers
+  cope; raising here means zero printable caps).
+* Stage 6 — PyMeshFix safety net. Split-and-process: repair the
+  largest component (the head), keep the cap untouched, concat
+  back. If stage 1.7 + stages 2-4 went well, this is a near no-op.
 
 Stage functions take and return ``trimesh.Trimesh``. ``Constants`` (the
-locked values from §0/§6) is passed in as ``C`` rather than imported
-inside each function — explicit beats implicit, and unit tests can
-swap in a fixture-built Constants without monkeypatching the loader.
+locked values from §0/§6) gets passed in as ``C`` — explicit beats
+implicit, and unit tests can swap in a fixture-built Constants without
+monkeypatching the loader.
 
 Optional dependencies (pymeshlab, scipy.spatial.ConvexHull,
-fast_simplification) are wrapped in try/except. Each fallback is
-documented next to its degrade path so a future reader sees both the
-"happy" branch and "we lost a wheel" branch in one place.
+fast_simplification, pymeshfix) are wrapped in try/except with the
+fallback documented next to the degrade path. The "happy" branch and
+the "we lost a wheel" branch live in one place so the next person
+can see both.
 """
 
 from __future__ import annotations

@@ -1,3 +1,15 @@
+// StemDomeZ client entry. Vanilla JS SPA via Vite. No JSX. No React.
+// No framework runtime. Just a hyperscript-style el() builder, a tiny
+// History-API router, and a socket.io client that speaks the single
+// 'command' protocol the server exposes.
+//
+// Boot order is bottom-of-this-file: socket → header → router mount →
+// global footer → tweaks panel → calm toggle → router.start(). The
+// reason it's all top-level await-free imperative is that Vite's
+// dev-mode HMR plus our "everything is one socket" architecture make
+// any stricter app shell a category mistake. If you want a framework,
+// you don't want this codebase.
+
 import './styles/index.css';
 import { el } from './dom.js';
 import { Router } from './router.js';

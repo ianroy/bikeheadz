@@ -1,22 +1,33 @@
 """
 RunPod Serverless handler for StemDomeZ.
 
-Contract: one serverless invocation = one STL generation. The Node server
-calls POST /v2/<endpoint>/run with `{ "input": { image_b64, head_scale,
-neck_length_mm, head_tilt_deg, seed } }` and polls /stream/<id> while this
-handler yields progress frames and finally a `result` frame carrying the
-base64-encoded STL.
+Contract: one serverless invocation = one STL generation. The Node side
+POSTs `/v2/<endpoint>/run` with `{ "input": { image_b64, head_scale,
+neck_length_mm, head_tilt_deg, seed } }` and then polls `/stream/<id>`
+while this handler yields progress frames and finally a `result` frame
+with the base64-encoded STL inside.
 
-Frame shapes (identical to the local stdin/stdout worker so the Node side
-can't tell them apart):
+Frame shapes (kept identical to the old local stdin/stdout worker so the
+Node side can't tell them apart — that decoupling is load-bearing):
 
-    {"type": "progress", "step": "…", "pct": 30}
-    {"type": "result",   "triangles": 12345, "stl_b64": "…"}
-    {"type": "error",    "error": "…"}
+    {"type": "progress",     "step": "…", "pct": 30}
+    {"type": "result_chunk", "index": 0, "total": 5, "data": "…"}
+    {"type": "result",       "triangles": 12345, "chunks": 5}
+    {"type": "error",        "error": "…"}
 
-The TRELLIS pipeline and valve-cap mesh are loaded once at module import,
-re-used across warm invocations. HuggingFace caches to /runpod-volume/hf
-so model weights survive cold starts when a Network Volume is mounted.
+About the chunked-yield protocol: RunPod's per-frame ceiling is ~1 MB,
+the STL is routinely 2–5 MB after the pipeline is done with it, math
+does not negotiate. We slice the base64 into ~700 KB chunks and let the
+Node side reassemble in order. We did try the inlined `stl_b64` (broke),
+the via-/status path (worse, the SDK silently dropped it), and three
+other things you do not want to know about. The chunked path is the
+one that actually works in production.
+
+TRELLIS pipeline + the valve-cap mesh are loaded once at module import
+and re-used across warm invocations. HuggingFace caches to
+`/runpod-volume/hf` so model weights survive cold starts when a Network
+Volume is mounted. If that mount goes away, expect every cold start to
+re-download ~3.8 GB of safetensors and the user to wait roughly forever.
 """
 
 from __future__ import annotations
@@ -33,12 +44,14 @@ import runpod
 import trimesh
 from PIL import Image, ImageOps
 
-# iPhone-photo robustness: register the HEIC opener so iCloud-default
-# uploads decode without the user having to convert. pillow-heif ships
-# the libheif backend; if the install is missing in this image (older
-# RunPod releases), the import is a no-op and HEIC bytes will fail at
-# Image.open later — the failure path falls through to the v1 pipeline
-# import-error reporter exactly like any other unsupported encoding.
+# iPhone-photo robustness. iCloud sets every iOS-default camera to
+# HEIC. Without `pillow-heif` registered before `Image.open`, every
+# direct-from-iPhone upload fails at decode and the user is told to
+# "convert to JPG" — which they will not do, because they are not
+# wrong. So we register the libheif backend at module load. If the
+# package is missing (old image, broken build), we shrug, log it,
+# and let `Image.open` raise downstream like any other unsupported
+# format. We learned about this one in production. Twice.
 try:
     from pillow_heif import register_heif_opener as _register_heif_opener  # type: ignore
     _register_heif_opener()
@@ -54,14 +67,19 @@ sys.stderr.flush()
 def _load_user_image(image_b64: str) -> "Image.Image":
     """Decode an uploaded image, normalising for iPhone-default inputs.
 
-    1. base64 → bytes via PIL.Image.open
-    2. ImageOps.exif_transpose: iPhone portrait shots carry an EXIF
-       orientation tag (typically 6 = "rotated 90° CW"). Without
-       this pass, TRELLIS sees a sideways face and the resulting
-       mesh is unusable. The transpose is idempotent for already-
-       upright images.
-    3. .convert("RGB"): TRELLIS expects 3-channel RGB. iPhone HEIC
-       can ship as 'P' (palettised) or 'RGBA' — convert handles both.
+    Three steps, each in this order for a reason:
+
+    1. base64 → bytes → PIL.Image.open. If this raises, the input is
+       bad — pass the exception up; the Node side will surface it.
+    2. ImageOps.exif_transpose. iPhone portraits carry orientation=6
+       ("rotated 90° clockwise"). Skip this and TRELLIS sees a face
+       lying on its side. The resulting mesh is technically correct
+       and entirely unprintable. Transpose is idempotent on already-
+       upright images, so calling it always costs nothing and saves
+       us from a category of bug we no longer have.
+    3. .convert("RGB"). TRELLIS wants three channels. HEIC can ship
+       as 'P' (palettised), 'RGBA', or other modes the upstream
+       people designed when they were tired. .convert flattens it.
     """
     img = Image.open(io.BytesIO(base64.b64decode(image_b64)))
     img = ImageOps.exif_transpose(img)
@@ -70,21 +88,25 @@ def _load_user_image(image_b64: str) -> "Image.Image":
 # TRELLIS is cloned into /opt/TRELLIS by the Dockerfile.
 sys.path.insert(0, "/opt/TRELLIS")
 os.environ.setdefault("SPCONV_ALGO", "native")
-# TRELLIS has TWO independent attention modules:
-#   • trellis.modules.attention reads ATTN_BACKEND, supports
+# TRELLIS ships TWO independent attention modules:
+#   • trellis.modules.attention reads ATTN_BACKEND. Accepts
 #     {xformers, flash_attn, sdpa, naive}.
 #   • trellis.modules.sparse.attention reads SPARSE_ATTN_BACKEND (or
-#     falls back to ATTN_BACKEND), but ONLY accepts {xformers,
-#     flash_attn}.  No sdpa, no naive.
-# So we have to pick xformers or flash_attn — and force-install it in
-# the Dockerfile because setup.sh's case statement misses our exact
-# torch version string.
+#     falls back to ATTN_BACKEND if unset). Accepts ONLY {xformers,
+#     flash_attn}. No sdpa, no naive — yes, the dense path's broader
+#     menu was a deliberate decision somewhere upstream.
+# We pick xformers for both because it's the only kernel that builds
+# cleanly against our pinned torch and won't surprise us at runtime.
+# The Dockerfile force-installs it; setup.sh's case statement misses
+# our exact torch version string and the silent fallback is naive,
+# which the sparse module then rejects mid-job. Don't fix this until
+# you have an afternoon and a strong opinion.
 os.environ.setdefault("ATTN_BACKEND", "xformers")
 os.environ.setdefault("SPARSE_ATTN_BACKEND", "xformers")
 
-# Version banner — prints unconditionally at module load time so we can
-# tell from the worker logs whether the running container is actually
-# the image tag we think it is.
+# Version banner — prints unconditionally at module load so the worker
+# logs always confess which image tag is actually running. Trust this
+# more than you trust the RunPod dashboard.
 HANDLER_VERSION = "v0.1.41"
 sys.stderr.write(f"[stemdomez] handler.py {HANDLER_VERSION} booting (pid={os.getpid()})\n")
 sys.stderr.flush()
