@@ -1,14 +1,22 @@
 import { logger } from '../logger.js';
 import { recordHandlerVersion } from '../replica-drift.js';
 
-// Drop-in replacement for the local Python worker. Talks to a RunPod
-// Serverless endpoint that runs handler.py at the repo root. The wire format
-// (progress / result / error frames) matches the local worker exactly, so
-// the caller doesn't care which backend is serving the request.
+// RunPod serverless adapter. Wire format (progress / result_chunk /
+// result / error frames) matches the local Python worker exactly so
+// callers don't care which backend is serving the request.
 //
-// Activated when RUNPOD_ENDPOINT_URL is set. Example:
-//   RUNPOD_ENDPOINT_URL=https://api.runpod.ai/v2/<endpoint-id>
-//   RUNPOD_API_KEY=<bearer token>
+// Supports either a single endpoint (legacy `RUNPOD_ENDPOINT_URL`) or
+// multiple endpoints raced in parallel (`RUNPOD_ENDPOINT_URLS`,
+// comma-separated). When 2+ endpoints are configured we submit the
+// job to all of them in parallel, watch each `/stream/<id>` for the
+// first IN_PROGRESS flip (i.e. a worker actually picked up the job),
+// stick with that endpoint, and cancel the losers. Costs ~2× the
+// `/run` POSTs but only one GPU run.
+//
+// Examples:
+//   RUNPOD_ENDPOINT_URL=https://api.runpod.ai/v2/<us-id>
+//   RUNPOD_ENDPOINT_URLS=https://api.runpod.ai/v2/<us-id>,https://api.runpod.ai/v2/<ro-id>
+//   RUNPOD_API_KEY=<bearer token>   ← account-wide, same key for both regions
 
 const POLL_INTERVAL_MS  = 1_500;
 // Cold-start TRELLIS is genuinely slow: pulling 2.5GB of safetensors plus
@@ -19,74 +27,269 @@ const POLL_INTERVAL_MS  = 1_500;
 const POLL_MAX_WAIT_MS  = 720_000;
 const REQUEST_TIMEOUT_MS = 30_000;
 
-export function runpodEnabled() {
-  return !!process.env.RUNPOD_ENDPOINT_URL && !!process.env.RUNPOD_API_KEY;
+// ── Endpoint discovery ──────────────────────────────────────────────
+
+function getEndpoints() {
+  if (process.env.RUNPOD_ENDPOINT_URLS) {
+    return process.env.RUNPOD_ENDPOINT_URLS
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .map(trimSlash);
+  }
+  if (process.env.RUNPOD_ENDPOINT_URL) {
+    return [trimSlash(process.env.RUNPOD_ENDPOINT_URL)];
+  }
+  return [];
 }
 
-export async function runRunpod({ socket, commandId, imageBuf, settings }) {
-  const base = trimSlash(process.env.RUNPOD_ENDPOINT_URL);
-  const auth = {
+export function runpodEnabled() {
+  return getEndpoints().length > 0 && !!process.env.RUNPOD_API_KEY;
+}
+
+function authHeaders() {
+  return {
     Authorization: `Bearer ${process.env.RUNPOD_API_KEY}`,
     'Content-Type': 'application/json',
   };
+}
 
-  // PIPELINE_VERSION is the rollout flag for the new mesh pipeline
-  // (3D_Pipeline.md §9.5). Acceptable values:
-  //   - "legacy" (default): handler.py runs the original `_merge`
-  //     concatenation. Always available, never broken.
-  //   - "v1": handler.py runs the seven-stage pipeline (validate,
-  //     normalize, repair, crop, subtract, union, print-prep).
-  // The handler treats unknown values as "legacy" and logs a warning.
-  const input = {
-    image_b64: imageBuf.toString('base64'),
-    head_scale: Number(settings.headScale) || 1.0,
-    neck_length_mm: Number(settings.neckLength) || 50, // legacy slider, deprecated by v1
-    head_tilt_deg: Number(settings.headTilt) || 0,     // v1: pitch about +X (chin up)
-    shoulder_taper_fraction: clamp(Number(settings.cropTightness) || 0.60, 0.40, 0.85),
-    // Two new v1 overrides: target head height in mm (drives Stage 1
-    // rescale) and cap protrusion as a fraction (drives the bike-valve
-    // entry opening). Sliders ship pct (0..25); convert to fraction
-    // here so the wire format matches the pipeline's Constants schema.
-    target_head_height_mm: clamp(Number(settings.targetHeadHeightMm) || 30, 22, 42),
-    cap_protrusion_fraction: clamp((Number(settings.capProtrusionPct) || 10) / 100, 0.0, 0.25),
-    pipeline_version: process.env.PIPELINE_VERSION || 'legacy',
-    seed: 1,
-  };
+// ── Telemetry — exposed via getRunpodTelemetry() for /admin ─────────
 
-  // 1. Submit the job.
-  const startRes = await fetchJson(`${base}/run`, {
+const _telemetry = new Map();
+
+function bumpStat(url, key, value) {
+  let stat = _telemetry.get(url);
+  if (!stat) {
+    stat = {
+      submits: 0, wins: 0, losses: 0, errors: 0,
+      lastWinAt: null, lastWinLatencyMs: null, lastErrorAt: null,
+    };
+    _telemetry.set(url, stat);
+  }
+  if (key === 'lastWinAt' || key === 'lastWinLatencyMs' || key === 'lastErrorAt') {
+    stat[key] = value;
+  } else {
+    stat[key] = (stat[key] || 0) + 1;
+  }
+}
+
+export function getRunpodTelemetry() {
+  const out = [];
+  for (const [url, stat] of _telemetry) {
+    out.push({ url, id: url.split('/').pop(), ...stat });
+  }
+  return out;
+}
+
+// ── Public entry point: signature unchanged from the single-endpoint era
+
+export async function runRunpod({ socket, commandId, imageBuf, settings }) {
+  const endpoints = getEndpoints();
+  if (endpoints.length === 0) throw new Error('runpod_not_configured');
+  const input = buildInput({ imageBuf, settings });
+
+  if (endpoints.length === 1) {
+    const base = endpoints[0];
+    bumpStat(base, 'submits');
+    try {
+      const job = await submitJob(base, input);
+      return await streamAndAssemble({
+        socket, commandId, base, jobId: job.id,
+        deadline: Date.now() + POLL_MAX_WAIT_MS,
+      });
+    } catch (err) {
+      bumpStat(base, 'errors');
+      bumpStat(base, 'lastErrorAt', new Date().toISOString());
+      throw err;
+    }
+  }
+
+  return raceAndStream({ socket, commandId, endpoints, input });
+}
+
+// ── Race logic (Option A): submit to N, stick with first to start ───
+
+async function raceAndStream({ socket, commandId, endpoints, input }) {
+  const auth = authHeaders();
+  const startedAt = Date.now();
+  const deadline = startedAt + POLL_MAX_WAIT_MS;
+
+  // Submit to every endpoint in parallel. Some may 5xx or 429 — that's fine.
+  const submits = await Promise.allSettled(endpoints.map(async (base) => {
+    bumpStat(base, 'submits');
+    const job = await submitJob(base, input);
+    return { base, jobId: job.id };
+  }));
+
+  const accepted = [];
+  for (let i = 0; i < submits.length; i++) {
+    if (submits[i].status === 'fulfilled') {
+      accepted.push(submits[i].value);
+    } else {
+      bumpStat(endpoints[i], 'errors');
+      bumpStat(endpoints[i], 'lastErrorAt', new Date().toISOString());
+      logger.warn({
+        msg: 'runpod.race_submit_failed',
+        endpoint: endpoints[i],
+        err: submits[i].reason?.message,
+      });
+    }
+  }
+  if (accepted.length === 0) {
+    throw new Error('runpod_all_endpoints_failed_to_start');
+  }
+  logger.info({
+    msg: 'runpod.race_started',
+    endpoints: accepted.map((a) => ({ base: a.base, jobId: a.jobId })),
+  });
+
+  // Poll all accepted endpoints. First one to flip IN_PROGRESS or
+  // emit any frames is the winner — its worker has actually picked up
+  // the job (vs. sitting in queue waiting for a worker).
+  let winner = null;
+  let initialFrames = [];
+  const failedIndices = new Set();
+
+  while (!winner && Date.now() < deadline) {
+    const polls = await Promise.allSettled(accepted.map(async (a, idx) => {
+      if (failedIndices.has(idx)) return null;
+      const chunk = await fetchJson(`${a.base}/stream/${a.jobId}`, { headers: auth });
+      return { ...a, idx, chunk, frames: Array.isArray(chunk.stream) ? chunk.stream : [] };
+    }));
+
+    for (let i = 0; i < polls.length; i++) {
+      const p = polls[i];
+      if (p.status === 'rejected') {
+        failedIndices.add(i);
+        bumpStat(accepted[i].base, 'errors');
+        logger.warn({
+          msg: 'runpod.race_poll_failed',
+          endpoint: accepted[i].base,
+          err: p.reason?.message,
+        });
+        continue;
+      }
+      const v = p.value;
+      if (!v) continue;
+      const status = v.chunk.status;
+      if (status === 'FAILED' || status === 'CANCELLED' || status === 'TIMED_OUT') {
+        failedIndices.add(i);
+        logger.warn({
+          msg: 'runpod.race_endpoint_failed',
+          endpoint: v.base,
+          jobId: v.jobId,
+          status,
+        });
+        continue;
+      }
+      if (status === 'IN_PROGRESS' || status === 'COMPLETED' || v.frames.length > 0) {
+        winner = v;
+        initialFrames = v.frames;
+        break;
+      }
+    }
+
+    if (failedIndices.size === accepted.length) {
+      throw new Error('runpod_all_endpoints_failed_during_race');
+    }
+    if (!winner) await sleep(POLL_INTERVAL_MS);
+  }
+
+  if (!winner) {
+    accepted.forEach((a) => cancelJob(a.base, a.jobId).catch(() => {}));
+    throw new Error('runpod_race_timeout');
+  }
+
+  // Winner found — record telemetry, cancel losers.
+  const latencyMs = Date.now() - startedAt;
+  bumpStat(winner.base, 'wins');
+  bumpStat(winner.base, 'lastWinAt', new Date().toISOString());
+  bumpStat(winner.base, 'lastWinLatencyMs', latencyMs);
+  const losers = accepted.filter((a) => a.base !== winner.base);
+  for (const loser of losers) {
+    bumpStat(loser.base, 'losses');
+    cancelJob(loser.base, loser.jobId).catch((err) =>
+      logger.debug({ msg: 'runpod.cancel_failed', endpoint: loser.base, jobId: loser.jobId, err: err.message })
+    );
+  }
+  logger.info({
+    msg: 'runpod.race_winner',
+    winner: winner.base,
+    jobId: winner.jobId,
+    latencyMs,
+    losers: losers.length,
+  });
+
+  return streamAndAssemble({
+    socket, commandId,
+    base: winner.base,
+    jobId: winner.jobId,
+    deadline,
+    initialFrames,
+    initialStatus: winner.chunk.status,
+  });
+}
+
+// ── HTTP helpers ────────────────────────────────────────────────────
+
+async function submitJob(base, input) {
+  const res = await fetchJson(`${base}/run`, {
     method: 'POST',
-    headers: auth,
+    headers: authHeaders(),
     body: JSON.stringify({ input }),
   });
-  const jobId = startRes.id;
-  if (!jobId) {
-    throw new Error(`runpod_start_failed:${JSON.stringify(startRes).slice(0, 200)}`);
+  if (!res.id) {
+    throw new Error(`runpod_start_failed:${JSON.stringify(res).slice(0, 200)}`);
   }
-  logger.info({ msg: 'runpod.job_started', jobId });
+  logger.info({ msg: 'runpod.job_started', endpoint: base, jobId: res.id });
+  return res;
+}
 
-  // 2. Poll /stream/{id}. Each call returns frames yielded since the last call.
-  const deadline = Date.now() + POLL_MAX_WAIT_MS;
+async function cancelJob(base, jobId) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 5_000);
+  try {
+    const res = await fetch(`${base}/cancel/${jobId}`, {
+      method: 'POST',
+      headers: authHeaders(),
+      signal: ctrl.signal,
+    });
+    if (res && res.ok) {
+      logger.debug({ msg: 'runpod.cancelled', endpoint: base, jobId });
+    }
+  } catch {
+    // Best-effort; RunPod will time the worker out anyway if cancel fails.
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// ── Stream + assemble (the canonical reader loop) ───────────────────
+
+async function streamAndAssemble({
+  socket, commandId, base, jobId, deadline,
+  initialFrames = [], initialStatus = 'IN_QUEUE',
+}) {
+  const auth = authHeaders();
   let stlBytes = null;
-  let lastStatus = startRes.status || 'IN_QUEUE';
+  let lastStatus = initialStatus;
   // Chunk reassembly buffer for the v0.1.33+ handler protocol.
-  // RunPod's /job-stream per-frame cap is ~1 MB; the worker splits
-  // the base64 STL into ≤700 KB `result_chunk` frames + a final
-  // `result` frame with metadata. We index by `chunk.index` so order
-  // doesn't matter (frames may arrive across multiple poll batches).
+  // RunPod's /job-stream per-frame cap is ~1 MB; the worker splits the
+  // base64 STL into ≤700 KB `result_chunk` frames + a final `result`
+  // frame with metadata. We index by `chunk.index` so order doesn't
+  // matter (frames may arrive across multiple poll batches).
   const stlChunks = [];
   let stlChunkTotal = null;
   let stlBytesLen = null;
 
-  while (Date.now() < deadline) {
-    const chunk = await fetchJson(`${base}/stream/${jobId}`, { headers: auth });
-    const frames = Array.isArray(chunk.stream) ? chunk.stream : [];
+  const processFrames = (frames) => {
     for (const frame of frames) {
       const out = frame?.output;
       if (!out || typeof out !== 'object') continue;
       // P4-018 — drift detection. Worker boot frames or any frame that
       // includes the handler_version string get fed into the ring buffer.
-      // We don't gate on out.type so the next handler revision can ship
+      // Don't gate on out.type so the next handler revision can ship
       // boot-style metadata without us missing it.
       if (out.type === 'boot' || typeof out.handler_version === 'string') {
         const v = typeof out.handler_version === 'string' ? out.handler_version : null;
@@ -99,8 +302,6 @@ export async function runRunpod({ socket, commandId, imageBuf, settings }) {
           payload: { step: out.step, pct: out.pct },
         });
       } else if (out.type === 'result_chunk') {
-        // v0.1.33+ chunked-delivery protocol. Each chunk is a slice
-        // of the base64 STL; assemble at completion.
         if (typeof out.data === 'string' && Number.isInteger(out.index)) {
           stlChunks[out.index] = out.data;
           if (Number.isInteger(out.total)) stlChunkTotal = out.total;
@@ -108,7 +309,7 @@ export async function runRunpod({ socket, commandId, imageBuf, settings }) {
       } else if (out.type === 'result') {
         // Three handler eras live here:
         //   ≤v0.1.31: stl_b64 inlined (HTTP 400 — never actually arrives).
-        //   v0.1.32:  metadata only, STL via /status return value (broken — SDK drops it).
+        //   v0.1.32:  metadata only, STL via /status (broken — SDK drops it).
         //   v0.1.33+: metadata only, STL came in via prior result_chunk frames.
         if (typeof out.stl_b64 === 'string') {
           stlBytes = Buffer.from(out.stl_b64, 'base64');
@@ -120,14 +321,21 @@ export async function runRunpod({ socket, commandId, imageBuf, settings }) {
         throw new Error(`runpod_worker_error:${out.error}`);
       }
     }
+  };
 
-    // After processing this poll batch, attempt chunk assembly if we
-    // have all of them. Doing this inside the loop (rather than only
-    // at COMPLETED) gives us the bytes a poll-cycle earlier when the
-    // generator yields the chunks before status flips.
+  // Drain any frames the race loop already saw before we entered here.
+  if (initialFrames.length > 0) processFrames(initialFrames);
+  if (!stlBytes && stlChunkTotal && stlChunks.filter(Boolean).length === stlChunkTotal) {
+    stlBytes = Buffer.from(stlChunks.join(''), 'base64');
+  }
+
+  while (!stlBytes && Date.now() < deadline) {
+    const chunk = await fetchJson(`${base}/stream/${jobId}`, { headers: auth });
+    const frames = Array.isArray(chunk.stream) ? chunk.stream : [];
+    processFrames(frames);
+
     if (!stlBytes && stlChunkTotal && stlChunks.filter(Boolean).length === stlChunkTotal) {
-      const stl_b64 = stlChunks.join('');
-      stlBytes = Buffer.from(stl_b64, 'base64');
+      stlBytes = Buffer.from(stlChunks.join(''), 'base64');
       if (stlBytesLen !== null && stlBytes.length !== stlBytesLen) {
         logger.warn({
           msg: 'runpod.stl_size_mismatch',
@@ -146,7 +354,7 @@ export async function runRunpod({ socket, commandId, imageBuf, settings }) {
   }
 
   if (!stlBytes) {
-    // Final safety net: some handler variants only return via /status, not /stream.
+    // Final safety net: some handler variants only return via /status.
     const status = await fetchJson(`${base}/status/${jobId}`, { headers: auth });
     const out = status?.output;
     if (out && typeof out === 'object' && out.stl_b64) {
@@ -157,8 +365,33 @@ export async function runRunpod({ socket, commandId, imageBuf, settings }) {
   if (!stlBytes) {
     throw new Error(`runpod_no_result (last_status=${lastStatus})`);
   }
-  logger.info({ msg: 'runpod.job_complete', jobId, bytes: stlBytes.length });
+  logger.info({
+    msg: 'runpod.job_complete',
+    endpoint: base,
+    jobId,
+    bytes: stlBytes.length,
+  });
   return stlBytes;
+}
+
+// ── Input builder ───────────────────────────────────────────────────
+
+function buildInput({ imageBuf, settings }) {
+  // PIPELINE_VERSION rolls out the new mesh pipeline (3D_Pipeline.md §9.5):
+  //   "legacy": handler runs the original `_merge` concat. Always available.
+  //   "v1":     handler runs the seven-stage CAD pipeline.
+  // Handler treats unknown values as "legacy" and logs a warning.
+  return {
+    image_b64: imageBuf.toString('base64'),
+    head_scale: Number(settings.headScale) || 1.0,
+    neck_length_mm: Number(settings.neckLength) || 50,
+    head_tilt_deg: Number(settings.headTilt) || 0,
+    shoulder_taper_fraction: clamp(Number(settings.cropTightness) || 0.60, 0.40, 0.85),
+    target_head_height_mm: clamp(Number(settings.targetHeadHeightMm) || 30, 22, 42),
+    cap_protrusion_fraction: clamp((Number(settings.capProtrusionPct) || 10) / 100, 0.0, 0.25),
+    pipeline_version: process.env.PIPELINE_VERSION || 'legacy',
+    seed: 1,
+  };
 }
 
 async function fetchJson(url, options = {}) {
@@ -186,34 +419,43 @@ function clamp(v, lo, hi) {
   return Math.max(lo, Math.min(hi, v));
 }
 
-// P0-011 — lightweight reachability ping. Returns
-// { reachable, latencyMs, lastChecked }. Never throws so /health stays up
-// even when the GPU side is melting.
+// ── Reachability ping (multi-endpoint aware) ────────────────────────
+// Returns { reachable, latencyMs, lastChecked, endpoints[] }.
+// `reachable` is true if ANY endpoint responds; `latencyMs` is the
+// fastest. The `endpoints` array gives per-region breakdown for /admin.
+// Never throws so /health stays up even when both regions are melting.
 export async function pingRunpod() {
-  const startedAt = Date.now();
-  const out = { reachable: false, latencyMs: null, lastChecked: startedAt };
+  const out = { reachable: false, latencyMs: null, lastChecked: Date.now(), endpoints: [] };
   if (!runpodEnabled()) return out;
-  try {
-    const base = trimSlash(process.env.RUNPOD_ENDPOINT_URL);
+  const endpoints = getEndpoints();
+  const results = await Promise.allSettled(endpoints.map(async (base) => {
+    const startedAt = Date.now();
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 5_000);
-    const res = await fetch(`${base}/health`, {
-      method: 'GET',
-      headers: { Authorization: `Bearer ${process.env.RUNPOD_API_KEY}` },
-      signal: ctrl.signal,
-    }).catch(() => null);
-    clearTimeout(timer);
-    if (res && res.ok) {
-      out.reachable = true;
-      out.latencyMs = Date.now() - startedAt;
-    } else if (res) {
-      // Some RunPod endpoints don't expose /health; a 404/405 still tells
-      // us the gateway is up.
-      out.reachable = res.status < 500;
-      out.latencyMs = Date.now() - startedAt;
+    try {
+      const res = await fetch(`${base}/health`, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${process.env.RUNPOD_API_KEY}` },
+        signal: ctrl.signal,
+      }).catch(() => null);
+      clearTimeout(timer);
+      const latencyMs = Date.now() - startedAt;
+      if (res && res.ok) return { base, id: base.split('/').pop(), reachable: true, latencyMs };
+      // Some endpoints don't expose /health; a 404/405 still means the gateway is up.
+      if (res) return { base, id: base.split('/').pop(), reachable: res.status < 500, latencyMs };
+      return { base, id: base.split('/').pop(), reachable: false, latencyMs: null };
+    } catch (err) {
+      logger.debug({ msg: 'runpod.ping_failed', endpoint: base, err: err.message });
+      return { base, id: base.split('/').pop(), reachable: false, latencyMs: null };
     }
-  } catch (err) {
-    logger.debug({ msg: 'runpod.ping_failed', err: err.message });
+  }));
+  out.endpoints = results.map((r, i) =>
+    r.status === 'fulfilled' ? r.value : { base: endpoints[i], id: endpoints[i].split('/').pop(), reachable: false, latencyMs: null }
+  );
+  out.reachable = out.endpoints.some((e) => e.reachable);
+  const reachable = out.endpoints.filter((e) => e.reachable && e.latencyMs != null);
+  if (reachable.length > 0) {
+    out.latencyMs = Math.min(...reachable.map((e) => e.latencyMs));
   }
   return out;
 }
