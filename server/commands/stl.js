@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
+import sharp from 'sharp';
 import { logger } from '../logger.js';
 import { db, hasDb } from '../db.js';
 import { designStore } from '../design-store.js';
@@ -20,6 +21,63 @@ const VALVE_CAP = path.resolve(__dirname, '..', 'assets', 'valve_cap.stl');
 const PYTHON_BIN = process.env.PYTHON_BIN || 'python3';
 const TRELLIS_ENABLED = (process.env.TRELLIS_ENABLED || 'true').toLowerCase() !== 'false';
 const MAX_IMAGE_BYTES = Number(process.env.MAX_IMAGE_BYTES) || 5 * 1024 * 1024;
+
+// Server-side downsample envelope. TRELLIS internally resizes to ~518 px
+// for its dinov2 backbone, so anything we ship above ~1024 px is wasted
+// bandwidth across the trans-Atlantic hop to the RO endpoint and inflates
+// the base64 payload by ~33%. Cap at 1024 px on the long edge with
+// quality-88 mozjpeg — typical 12 MP iPhone selfie drops from ~3–5 MB to
+// ~150–400 KB without any visible quality loss after TRELLIS preprocesses.
+// Tunable via env so ops can roll back without a deploy.
+const RESIZE_MAX_EDGE = Number(process.env.IMAGE_RESIZE_MAX_EDGE) || 1024;
+const RESIZE_QUALITY  = Number(process.env.IMAGE_RESIZE_QUALITY)  || 88;
+const RESIZE_ENABLED  = (process.env.IMAGE_RESIZE_ENABLED || 'true').toLowerCase() !== 'false';
+
+async function downsampleForGpu(buf) {
+  if (!RESIZE_ENABLED) return buf;
+  try {
+    // failOnError: false — best-effort, never fail an upload because of
+    // a recoverable libvips warning (e.g. truncated EXIF).
+    const meta = await sharp(buf, { failOnError: false }).metadata();
+    const w = meta.width || 0;
+    const h = meta.height || 0;
+    if (!w || !h || (w <= RESIZE_MAX_EDGE && h <= RESIZE_MAX_EDGE)) {
+      return buf;
+    }
+    const out = await sharp(buf, { failOnError: false })
+      .rotate() // honor EXIF orientation BEFORE resize so the saved bytes
+                // are upright; handler.py's exif_transpose then becomes a
+                // no-op on the post-resize buffer.
+      .resize({
+        width: RESIZE_MAX_EDGE,
+        height: RESIZE_MAX_EDGE,
+        fit: 'inside',
+        withoutEnlargement: true,
+      })
+      .jpeg({ quality: RESIZE_QUALITY, mozjpeg: true })
+      .toBuffer();
+    logger.info({
+      msg: 'stl.image_downsampled',
+      origBytes: buf.length,
+      newBytes: out.length,
+      origEdge: Math.max(w, h),
+      maxEdge: RESIZE_MAX_EDGE,
+      pctRetained: Math.round((out.length / buf.length) * 100),
+    });
+    return out;
+  } catch (err) {
+    // Sharp / libvips can choke on a few corrupted or HEIC-without-heif
+    // inputs depending on the build. Pass through with the original
+    // buffer — handler.py's PIL pipeline will still decode + downsize
+    // its way through anything we miss here.
+    logger.warn({
+      msg: 'stl.image_downsample_failed',
+      err: err.message,
+      bytes: buf.length,
+    });
+    return buf;
+  }
+}
 
 // P0-012: settings/payload schema. Slider bounds match what's safe for the
 // post-processing pipeline; exceeding them either silently clamps (current
@@ -107,20 +165,31 @@ export const stlCommands = {
       });
     }
 
+    // Downsample BEFORE the GPU dispatch but AFTER the upload size cap
+    // — the cap protects against malicious uploads, the downsample
+    // protects the trans-Atlantic bandwidth budget. The original bytes
+    // (`imageBuf` rebound below) are what gets persisted to user_photos
+    // for re-runs; the downsampled version only goes to the GPU.
+    const gpuImageBuf = await downsampleForGpu(imageBuf);
+
     const designId = randomUUID();
     const workDir = await fs.mkdtemp(path.join(os.tmpdir(), 'stemdomez-'));
     const imagePath = path.join(workDir, sanitizeFilename(imageName));
     const outputPath = path.join(workDir, `${designId}.stl`);
 
     try {
-      await fs.writeFile(imagePath, imageBuf);
+      // Use the downsampled bytes for whatever the GPU side reads —
+      // local worker reads the file at imagePath; RunPod reads imageBuf
+      // arg directly. Original `imageBuf` is preserved so user_photos
+      // persists the upload as the user sent it.
+      await fs.writeFile(imagePath, gpuImageBuf);
 
       let stlBytes;
       let backend;
       if (runpodEnabled()) {
         backend = 'runpod';
         logger.info({ msg: 'stl.backend', backend });
-        stlBytes = await runRunpod({ socket, commandId: id, imageBuf, settings });
+        stlBytes = await runRunpod({ socket, commandId: id, imageBuf: gpuImageBuf, settings });
       } else {
         backend = 'local_spawn';
         logger.info({ msg: 'stl.backend', backend, trellis_enabled: TRELLIS_ENABLED });
