@@ -49,6 +49,7 @@ from .constants import get as _get_constants
 from .errors import CODE_SCHEMA_VERSION, ErrorCode, PipelineError, USER_MESSAGES
 from .stages import (
     stage1_5_repair,
+    stage1_7_watertight_head,
     stage1_normalize,
     stage2_crop,
     stage3_subtract_negative_core,
@@ -170,7 +171,8 @@ __all__ = [
 # downstream consumers (the Three.js viewer, the Node-side polling
 # loop) already expect monotonic increases. These are the v1 contract.
 _PROGRESS_STAGE1 = ("stage1_normalize", 20)
-_PROGRESS_STAGE1_5 = ("stage1_5_repair", 30)
+_PROGRESS_STAGE1_5 = ("stage1_5_repair", 28)
+_PROGRESS_STAGE1_7 = ("stage1_7_watertight_head", 38)
 _PROGRESS_STAGE2 = ("stage2_crop", 50)
 _PROGRESS_STAGE3 = ("stage3_subtract_negative_core", 65)
 _PROGRESS_STAGE4 = ("stage4_union_valve_cap", 80)
@@ -287,6 +289,19 @@ def run_v1(
         timeout_s=stage_budget, job_remaining_s=_remaining(),
     )
     _emit(*_PROGRESS_STAGE1_5)
+
+    # Stage 1.7 — make the head genuinely watertight before stages 2-4.
+    # Per owner: fix the head first, then run booleans against the
+    # known-good cap asset. Without this, the manifold3d CSG union in
+    # stage 4 routinely falls back to mesh concatenation, leaving us
+    # with a multi-shell output that stage 6 has to patchwork around
+    # without touching the cap's threading.
+    head = run_with_timeout(
+        "stage1_7_watertight_head", stage1_7_watertight_head,
+        head, C,
+        timeout_s=stage_budget, job_remaining_s=_remaining(),
+    )
+    _emit(*_PROGRESS_STAGE1_7)
 
     # Crop + cavity carve. Stage 3 no longer raises on thin walls
     # (see stages.py warn-and-continue change); instead it tags the

@@ -386,6 +386,113 @@ def _repair_pymeshlab(head: trimesh.Trimesh) -> trimesh.Trimesh:
     return rep
 
 
+# ---- Stage 1.7 — Watertight head before booleans ---------------------------
+
+
+def stage1_7_watertight_head(
+    head: trimesh.Trimesh, C: Constants, target_tris: int = 250_000,
+) -> trimesh.Trimesh:
+    """Make the TRELLIS head genuinely watertight before stages 2–4.
+
+    Per owner ask after v0.1.40: "fix the head to be solid, then do the
+    boolean operations with the known good cap assets — we don't want
+    to change the threads much at all". Stage 1.5's pymeshlab pass
+    closes small holes but the post-TRELLIS mesh routinely keeps
+    open edges + non-manifold vertices that defeat manifold3d's CSG
+    booleans in stages 2–4. The fallback (mesh concatenation) leaves
+    a multi-shell output, and stage 6's PyMeshFix can't unify it
+    without touching the cap's threading.
+
+    Solution: run PyMeshFix here, on the head ONLY (the cap hasn't
+    been introduced yet), so stages 2–4 operate on a guaranteed
+    watertight + 2-manifold input. The valve_cap.stl asset arrives
+    in stage 4 and stays untouched all the way to the final STL.
+
+    Steps:
+    1. Skip if the head is already watertight (rare with TRELLIS but
+       cheap to check).
+    2. Pre-decimate to ~target_tris if larger — PyMeshFix is O(n) in
+       triangle count and a 475K-tri input takes 30–60s. Stages 2–5
+       will further decimate to the §0 50–80K band; we just need
+       enough resolution for the booleans.
+    3. Run PyMeshFix; return cleaned head.
+    4. Fall through with the original head if pymeshfix is missing or
+       raises — never block the export.
+    """
+    import time as _time
+    started = _time.monotonic()
+    n_in = len(head.faces)
+    was_watertight = bool(head.is_watertight)
+
+    if _pmf is None:
+        sys.stderr.write(
+            "[stage1.7] pymeshfix unavailable — skipping watertight pass; "
+            "stages 2–4 booleans may fall back to non-CSG paths.\n"
+        )
+        return head
+
+    if was_watertight:
+        sys.stderr.write(
+            f"[stage1.7] head already watertight (faces={n_in}); skipping.\n"
+        )
+        return head
+
+    # Pre-decimate. Skip if fast_simplification isn't installed (the
+    # later stage 5 decimate is the safety net) — better to ship a big
+    # mesh through PyMeshFix than to ship the un-repaired one.
+    working = head
+    if _fs is not None and len(working.faces) > target_tris:
+        try:
+            working = _decimate(working, target_tris=target_tris)
+            sys.stderr.write(
+                f"[stage1.7] pre-pymeshfix decimate {n_in} → "
+                f"{len(working.faces)} tris\n"
+            )
+        except PipelineError as exc:
+            sys.stderr.write(
+                f"[stage1.7] WARNING: pre-pymeshfix decimate failed "
+                f"({exc.detail}); shipping {n_in}-tri mesh to PyMeshFix.\n"
+            )
+
+    try:
+        repaired = _meshfix_one(working)
+    except Exception as exc:  # noqa: BLE001
+        sys.stderr.write(
+            f"[stage1.7] WARNING: pymeshfix raised {exc!r}; "
+            f"shipping un-repaired head to stage 2.\n"
+        )
+        return head
+
+    is_watertight_out = bool(repaired.is_watertight)
+    is_winding_consistent = bool(getattr(repaired, "is_winding_consistent", False))
+    elapsed_ms = int((_time.monotonic() - started) * 1000)
+    sys.stderr.write(
+        f"[stage1.7] watertight head ready in {elapsed_ms}ms — "
+        f"in_tris={n_in} out_tris={len(repaired.faces)} "
+        f"watertight_in={was_watertight} watertight_out={is_watertight_out} "
+        f"winding_consistent={is_winding_consistent}\n"
+    )
+
+    # Structured warning frame if PyMeshFix couldn't seal everything —
+    # stages 2–4 will probably still fall back to non-CSG paths but
+    # the operator should know.
+    if not is_watertight_out:
+        try:
+            sys.stdout.write(
+                json.dumps({
+                    "type": "warning",
+                    "stage": "stage1.7",
+                    "code": "head_not_watertight_after_pymeshfix",
+                    "in_tris": int(n_in),
+                    "out_tris": int(len(repaired.faces)),
+                }) + "\n"
+            )
+            sys.stdout.flush()
+        except Exception:  # noqa: BLE001
+            pass
+    return repaired
+
+
 # ---- Stage 2 — Crop --------------------------------------------------------
 
 
