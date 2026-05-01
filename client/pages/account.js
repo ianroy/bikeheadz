@@ -525,6 +525,26 @@ export function AccountPage({ socket }) {
                       'Full ✗'
                     )
                   : null,
+              // Email both STLs — sends a single Resend email with
+              // whichever STLs exist on the design (head + final, or
+              // just head if final_failed). Shown alongside the
+              // download buttons so the rider can grab the files in
+              // their inbox without re-downloading. Only meaningful
+              // when the design is actually downloadable (paid OR
+              // free-MVP mode), and when at least ONE STL exists.
+              ((d.paid || paymentsOff) && (d.has_head_stl !== false || !d.final_failed))
+                ? el(
+                    'button',
+                    {
+                      class: 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-colors',
+                      style: { borderColor: '#0E0A12', background: '#FFFFFF', color: '#0E0A12', fontSize: '0.75rem', fontWeight: 700, boxShadow: '2px 2px 0 #2EFF8C' },
+                      onClick: () => emailDesign(d),
+                      title: 'Email both STLs to your account email',
+                    },
+                    icon('mail', { size: 14 }),
+                    'Email'
+                  )
+                : null,
               el(
                 'button',
                 {
@@ -914,6 +934,38 @@ export function AccountPage({ socket }) {
       /* ignore */
     }
     window.location.href = '/';
+  }
+
+  // Email both STLs (head + final, whichever exist on the design)
+  // as Resend attachments to the user's account address. Server
+  // command stl.emailMe handles the actual send + skip-missing-kind
+  // logic. We just confirm the recipient and show success/failure.
+  async function emailDesign(design) {
+    try {
+      const res = await socket.request('stl.emailMe', { designId: design.id });
+      const where = res.sent_to ? ` to ${res.sent_to}` : '';
+      const count = res.attachments === 2 ? 'Both STLs' : 'Your STL';
+      window.alert(`✉️  ${count} sent${where}. Check your inbox.`);
+    } catch (err) {
+      if (err.message === 'auth_required') {
+        window.alert("Please sign in to email your STLs.");
+        window.location.assign(`/login?next=${encodeURIComponent('/account')}`);
+        return;
+      }
+      if (err.message === 'no_email_on_account') {
+        window.alert('Your account has no email on file. Add one in Settings to use this feature.');
+        return;
+      }
+      if (err.message === 'no_stl_to_send') {
+        window.alert('No STLs are available for this design. Re-generate to create new files.');
+        return;
+      }
+      if (err.message === 'stls_too_large_for_email') {
+        window.alert('The STLs are too large to email (over 35 MB). Use Download instead.');
+        return;
+      }
+      window.alert(err.message || 'Email failed');
+    }
   }
 
   async function downloadStl(design, kind = 'final') {
