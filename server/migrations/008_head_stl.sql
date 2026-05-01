@@ -48,8 +48,13 @@ ALTER TABLE design_feedback
     CHECK (stage IN ('head', 'final'));
 
 -- Drop the old single-stage uniqueness, add the new tri-key one.
--- Wrapped in DO block because the constraint name varies by Postgres
--- version (auto-generated suffix) — find it by columns instead.
+-- The constraint name varies by Postgres version (auto-generated
+-- suffix), so we look it up by the column set instead.
+--
+-- Cast notes: pg_attribute.attname is `name` type and our literal
+-- ARRAY[…] is `text[]` — direct = comparison errors with
+-- "operator does not exist: name[] = text[]". The fix is to cast
+-- attname to text inside the array constructor.
 DO $mig$
 DECLARE
   cname TEXT;
@@ -59,16 +64,22 @@ BEGIN
    WHERE conrelid = 'design_feedback'::regclass
      AND contype = 'u'
      AND ARRAY(
-       SELECT attname
+       SELECT a.attname::text
          FROM unnest(conkey) AS k
          JOIN pg_attribute a ON a.attnum = k AND a.attrelid = 'design_feedback'::regclass
-        ORDER BY attname
-     ) = ARRAY['account_id', 'design_id'];
+        ORDER BY a.attname::text
+     ) = ARRAY['account_id', 'design_id']::text[];
   IF cname IS NOT NULL THEN
     EXECUTE format('ALTER TABLE design_feedback DROP CONSTRAINT %I', cname);
   END IF;
 END
 $mig$;
+
+-- Idempotent: this migration can re-run if the previous boot crashed
+-- after creating the constraint (it didn't here, but defensive). Drop
+-- the new one too if it exists.
+ALTER TABLE design_feedback
+  DROP CONSTRAINT IF EXISTS design_feedback_design_account_stage_uniq;
 
 ALTER TABLE design_feedback
   ADD CONSTRAINT design_feedback_design_account_stage_uniq
