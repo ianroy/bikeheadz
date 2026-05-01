@@ -27,6 +27,12 @@ export function GeneratorPage({ socket }) {
     finalStlData: null,
     finalFailed: false,
     finalErrorMessage: null,
+    // v0.1.43 — object mode. True when the pipeline couldn't detect a
+    // head and fell back to glueing the cap onto whatever TRELLIS
+    // produced (a coffee mug, a sticker, a doodle). UI shows a
+    // prominent "Head not detected — switching to object mode"
+    // banner and relabels the panels.
+    objectModeUsed: false,
     headScale: 0.85,
     headTilt: 0,              // v1: pitch about X (chin up/down), -30..+30
     cropTightness: 0.60,      // v1: shoulder_taper_fraction, 0.40..0.85
@@ -245,11 +251,47 @@ export function GeneratorPage({ socket }) {
   // Each panel is a self-contained micro-component (header + canvas +
   // download button + apology overlay if applicable). Two viewer
   // instances are kept in sync via pushViewer().
+  // v0.1.43 — object-mode banner. Mounted ABOVE the viewer grid so
+  // the user sees it before they see the panels. Only renders when
+  // state.objectModeUsed === true. Uses brand spraypaint vocabulary
+  // (magenta accent3 + ink) to feel like part of the design system,
+  // not a generic alert.
+  const objectModeBanner = el('div', { style: { display: 'none' } });
+  center.appendChild(objectModeBanner);
+
   const viewerGrid = el('div', {
     class: 'grid gap-4',
     style: { gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' },
   });
   center.appendChild(viewerGrid);
+
+  function renderObjectModeBanner() {
+    clear(objectModeBanner);
+    if (!state.objectModeUsed || !state.stlReady) {
+      objectModeBanner.style.display = 'none';
+      return;
+    }
+    objectModeBanner.style.display = 'block';
+    const card = el('div', {
+      class: 'rounded-2xl border-2 px-4 py-3 flex items-start gap-3',
+      style: {
+        background: '#FFFFFF',
+        borderColor: '#FF2EAB',
+        color: '#0E0A12',
+        boxShadow: '4px 4px 0 #0E0A12',
+      },
+    });
+    card.appendChild(el('span', { style: { fontSize: '1.6rem', flexShrink: 0 } }, '🤖'));
+    card.appendChild(el('div', { style: { flex: 1 } },
+      el('p', {
+        style: { fontWeight: 800, fontSize: '0.95rem', fontStyle: 'italic', color: '#0E0A12', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.04em' },
+      }, 'Head not detected — switching to object mode'),
+      el('p', {
+        style: { color: '#3D2F4A', fontSize: '0.85rem', lineHeight: 1.5 },
+      }, "We couldn't find a face in your photo, so we're making a valve cap out of whatever you uploaded. Both panels still work — your scan on the left, scan + cap on the right. Print at your own risk."),
+    ));
+    objectModeBanner.appendChild(card);
+  }
 
   function buildPanel(kind) {
     // kind: 'head' | 'final'
@@ -319,7 +361,13 @@ export function GeneratorPage({ socket }) {
   function renderPanelHeader(panel) {
     clear(panel.header);
     const isHead = panel.kind === 'head';
-    const titleText = isHead ? '1 \u00b7 Your head' : '2 \u00b7 Head + valve cap';
+    // v0.1.43 \u2014 relabel panels when object-mode kicked in. The
+    // pipeline couldn't find a head, so calling panel 1 "Your head"
+    // would be a lie. Use neutral wording.
+    const omu = state.objectModeUsed;
+    const titleText = isHead
+      ? (omu ? '1 \u00b7 Your scan' : '1 \u00b7 Your head')
+      : (omu ? '2 \u00b7 Scan + valve cap' : '2 \u00b7 Head + valve cap');
     const titleColor = isHead ? '#5A1FCE' : '#0E0A12';
     const leftRow = el('div.flex.items-center.gap-2',
       icon(isHead ? 'user' : 'layers', { size: 14, color: titleColor }),
@@ -902,11 +950,13 @@ export function GeneratorPage({ socket }) {
     state.finalStlData = null;
     state.finalFailed = false;
     state.finalErrorMessage = null;
+    state.objectModeUsed = false;
     state.designId = null;
     state.designTriangles = 0;
     renderUploader();
     pushViewer();
     renderViewerHeader();
+    renderObjectModeBanner();
     renderActions();
     renderFeedback();
     announce(`Photo "${file.name}" ready. Tap Generate when you're set.`);
@@ -1055,12 +1105,14 @@ export function GeneratorPage({ socket }) {
     state.finalStlData = null;
     state.finalFailed = false;
     state.finalErrorMessage = null;
+    state.objectModeUsed = false;
     state.progress = 0;
     state.processingStep = '';
     state.designId = null;
     state.lastError = null; // clear any previous error banner
     renderActions();
     renderViewerHeader();
+    renderObjectModeBanner();
     pushViewer();
     renderFeedback();
 
@@ -1102,10 +1154,18 @@ export function GeneratorPage({ socket }) {
       state.finalStlData = result.final_stl_b64 || (result.stl_b64 && !result.final_failed ? result.stl_b64 : null);
       state.finalFailed  = !!result.final_failed;
       state.finalErrorMessage = result.final_error_message || null;
+      // v0.1.43 — object_mode_used: head not detected, cap glued onto
+      // raw TRELLIS output. Drives the prominent banner + relabels
+      // both panel headers from "Your head" → "Your scan".
+      state.objectModeUsed = !!result.object_mode_used;
       state.stlData = state.finalStlData || state.headStlData; // legacy alias
       state.stlReady = !!(state.headStlData || state.finalStlData);
-      // Tailored success / partial-success copy.
-      if (state.finalFailed && state.headStlData) {
+      // Tailored success / partial-success copy. Object-mode gets
+      // the loudest treatment because the rider almost certainly
+      // expected a head and got something else.
+      if (state.objectModeUsed) {
+        announce("We couldn't find a face in your photo, so we made a valve cap out of whatever you uploaded. Both STLs are ready — your scan and scan-plus-cap.", true);
+      } else if (state.finalFailed && state.headStlData) {
         announce('Boolean step failed but your head STL is ready — download it from the head panel.', true);
       } else if (state.finalStlData) {
         announce(paymentsOff
@@ -1116,6 +1176,7 @@ export function GeneratorPage({ socket }) {
       }
       sessionStorage.setItem('stemdomez.designId', result.designId);
       renderViewerHeader();
+      renderObjectModeBanner();
       renderFeedback();
     } catch (err) {
       console.error('stl.generate failed', err);
@@ -1198,6 +1259,7 @@ export function GeneratorPage({ socket }) {
   // First paint
   renderUploader();
   renderViewerHeader();
+  renderObjectModeBanner();
   renderSettings();
   renderActions();
   renderFeedback();

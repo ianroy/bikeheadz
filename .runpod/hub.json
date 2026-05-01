@@ -18,14 +18,6 @@
     ],
     "env": [
       {
-        "key": "HF_TOKEN",
-        "input": {
-          "name": "Hugging Face token (SECRET)",
-          "type": "string",
-          "description": "Required. Read-token for the gated TRELLIS-image-large model. Without this, every cold start fails to download weights and the worker queues forever — the most common silent killer. Token must have read access AND the HF account must have accepted the TRELLIS license at huggingface.co/microsoft/TRELLIS-image-large. Account-wide; the same token works on every region."
-        }
-      },
-      {
         "key": "TRELLIS_MODEL",
         "input": {
           "name": "TRELLIS model id",

@@ -13,10 +13,17 @@ v0.1.42 dual-output protocol — frame shapes:
     {"type": "result_chunk", "kind": "head"|"final", "index": 0, "total": 5, "data": "…"}
     {"type": "result",       "kind": "head",  "triangles": 12345, "chunks": 5, "stl_bytes_len": 1234567}
     {"type": "result",       "kind": "final", "triangles": 67890, "chunks": 7, "stl_bytes_len": 2345678,
-                              "final_failed": false}
+                              "final_failed": false, "object_mode_used": false}
     {"type": "result",       "kind": "final", "final_failed": true, "final_error": "NECK_NOT_FOUND",
                               "final_error_message": "…"}      # if the boolean phase failed
     {"type": "error",        "error": "…"}                     # only fires if the head phase fails too
+
+v0.1.43 added ``object_mode_used`` to the final result frame. When
+true, neck-finding couldn't get a clean cut on the input (because the
+input wasn't a head — TRELLIS will mesh anything you give it: a coffee
+mug, a sticker, a doodle), and we fell back to a flat-bottom crop.
+The cap got glued onto whatever shape TRELLIS produced. The UI labels
+this panel "object mode" so the rider knows what they're getting.
 
 Why two STLs: the head-only mesh comes out of stage 1.7 (watertight
 repair, pre-boolean). It's the rider's face, ready for printing on its
@@ -119,7 +126,7 @@ os.environ.setdefault("SPARSE_ATTN_BACKEND", "xformers")
 # Version banner — prints unconditionally at module load so the worker
 # logs always confess which image tag is actually running. Trust this
 # more than you trust the RunPod dashboard.
-HANDLER_VERSION = "v0.1.42"
+HANDLER_VERSION = "v0.1.43"
 sys.stderr.write(f"[stemdomez] handler.py {HANDLER_VERSION} booting (pid={os.getpid()})\n")
 sys.stderr.flush()
 
@@ -845,11 +852,28 @@ def handler(job):
             timings["legacy_merge_ms"] = int((_time.perf_counter() - t) * 1000)
 
         # ── Final-success path (v1 or legacy) ────────────────────────
+        # v0.1.43 — read object_mode_used off the mesh metadata. The
+        # pipeline sets this when neck-finding failed and we fell back
+        # to a flat-bottom crop because the input wasn't a head +
+        # shoulders. The UI uses this to label the panel "object mode"
+        # ("we couldn't see a face — making a cap out of whatever you
+        # uploaded").
+        object_mode_used = False
+        try:
+            object_mode_used = bool(getattr(merged, "metadata", {}).get("sdz_object_mode_used", False))
+        except Exception:  # noqa: BLE001
+            object_mode_used = False
+        if object_mode_used:
+            sys.stderr.write("[stemdomez] object-mode finalize — head not detected, valve cap glued onto raw TRELLIS output\n")
+
         yield {"type": "progress", "step": "Exporting final STL…", "pct": 92}
         t = _time.perf_counter()
         final_bytes_len = 0
         final_tris = 0
-        for frame in _emit_stl_frames(merged, kind="final", extra={"final_failed": False}):
+        for frame in _emit_stl_frames(merged, kind="final", extra={
+            "final_failed": False,
+            "object_mode_used": object_mode_used,
+        }):
             if frame.get("type") == "result":
                 final_bytes_len = frame.get("stl_bytes_len", 0)
                 final_tris = frame.get("triangles", 0)
@@ -857,6 +881,7 @@ def handler(job):
         timings["export_ms"] = int((_time.perf_counter() - t) * 1000)
         timings["final_stl_bytes"] = final_bytes_len
         timings["final_tris"] = final_tris
+        timings["object_mode_used"] = object_mode_used
         timings["total_ms"] = int((_time.perf_counter() - t_start) * 1000)
 
         # Single structured log line for the run. §9.5 telemetry schema.

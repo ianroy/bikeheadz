@@ -633,6 +633,80 @@ def stage2_crop(
     return cropped, info
 
 
+def stage2_crop_flat(
+    mesh: trimesh.Trimesh,
+    C: Constants,
+    *,
+    bottom_trim_fraction: float = 0.05,
+) -> Tuple[trimesh.Trimesh, dict]:
+    """Object-mode fallback: a dumb flat-bottom crop, no neck-finding.
+
+    When stage2_crop raises NECK_NOT_FOUND (because the input wasn't a
+    head + shoulders — TRELLIS will happily mesh a coffee mug, a
+    sticker, a doodle), we still want to give the rider a printable
+    valve cap on whatever they uploaded. This trims a small slice off
+    the bottom of the bbox to give stages 3-4 a clean flat surface to
+    union the cap onto.
+
+    No rotation search, no taper math, no min-wall-thickness check.
+    The cap will fit the cross-section at z=trim height. If that
+    cross-section is bizarre (TRELLIS produced a hollow cylinder, the
+    user uploaded a doodle of a stick figure), the boolean phase will
+    still fail downstream and the rider will get the apology overlay
+    on the final panel — exactly the same fallback as today.
+
+    Returns
+    -------
+    (cropped, info)  matching stage2_crop's return shape.
+        ``info["object_mode"]`` is True so the handler can flag this
+        on the wire and the UI can label the panel as "object mode".
+    """
+    bottom_trim_fraction = float(np.clip(bottom_trim_fraction, 0.01, 0.20))
+    z_min = float(mesh.bounds[0, 2])
+    z_max = float(mesh.bounds[1, 2])
+    height = z_max - z_min
+    if height <= 0:
+        raise PipelineError(
+            code=ErrorCode.NECK_NOT_FOUND,
+            stage="stage2_flat",
+            detail="degenerate mesh — zero z-extent, can't crop bottom.",
+        )
+    z_cut = z_min + bottom_trim_fraction * height
+
+    cropped = _boolean_crop_below(mesh, z_cut)
+    if cropped is None or len(getattr(cropped, "faces", [])) == 0:
+        # Last-ditch: the boolean cut failed (rare on a freshly-repaired
+        # mesh from stage 1.7, but possible on degenerate TRELLIS
+        # output). Surface as NECK_NOT_FOUND so the caller's apology
+        # path takes over.
+        raise PipelineError(
+            code=ErrorCode.NECK_NOT_FOUND,
+            stage="stage2_flat",
+            detail=(
+                f"flat boolean crop produced empty mesh at z_cut={z_cut:.3f} "
+                f"(input mesh may be degenerate or non-manifold)."
+            ),
+        )
+
+    # Match stage2_crop's contract — bottom plane at z=0.
+    new_z_min = float(cropped.bounds[0, 2])
+    if abs(new_z_min) > 1e-6:
+        cropped.apply_translation([0.0, 0.0, -new_z_min])
+
+    info = {
+        "z_cut": z_cut,
+        "rotation_applied_deg": 0.0,
+        "head_radius_at_cut_mm": None,  # not measured in flat mode
+        "object_mode": True,
+    }
+    import sys as _sys
+    _sys.stderr.write(
+        f"[stage2_flat] object-mode crop: trimmed bottom {bottom_trim_fraction*100:.1f}% "
+        f"of mesh ({height:.2f} mm extent → z_cut={z_cut:.3f}); shipping to stage 3.\n"
+    )
+    return cropped, info
+
+
 def _find_neck(
     mesh: trimesh.Trimesh,
     *,

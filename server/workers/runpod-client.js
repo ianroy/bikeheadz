@@ -537,6 +537,10 @@ async function streamAndAssemble({
       chunks: [], total: null, bytesLen: null, bytes: null,
       resultSeen: false, finalFailed: false,
       finalError: null, finalErrorMessage: null,
+      // v0.1.43 object-mode marker. True when the pipeline couldn't
+      // detect a head and fell back to glueing the cap onto whatever
+      // shape TRELLIS produced.
+      objectModeUsed: false,
     };
   }
 
@@ -608,6 +612,13 @@ async function streamAndAssemble({
             ? out.final_error_message
             : null;
         }
+        // v0.1.43: pull object_mode_used flag off the final result.
+        // True = head not detected, cap was glued onto raw TRELLIS
+        // output via flat-bottom crop. UI shows "Head not detected —
+        // switching to object mode" copy.
+        if (kind === 'final' && out.object_mode_used === true) {
+          b.objectModeUsed = true;
+        }
         tryAssemble(kind);
       } else if (out.type === 'error') {
         // Hard handler-level error — no STLs of any kind. Surface up.
@@ -663,6 +674,7 @@ async function streamAndAssemble({
     final_bytes: buckets.final.bytes?.length || 0,
     final_failed: buckets.final.finalFailed,
     final_error: buckets.final.finalError,
+    object_mode_used: buckets.final.objectModeUsed,
   });
   return {
     head: buckets.head.bytes || null,
@@ -670,6 +682,7 @@ async function streamAndAssemble({
     finalFailed: buckets.final.finalFailed,
     finalError: buckets.final.finalError,
     finalErrorMessage: buckets.final.finalErrorMessage,
+    objectModeUsed: buckets.final.objectModeUsed,
   };
 }
 

@@ -52,6 +52,7 @@ from .stages import (
     stage1_7_watertight_head,
     stage1_normalize,
     stage2_crop,
+    stage2_crop_flat,
     stage3_subtract_negative_core,
     stage4_union_valve_cap,
     stage5_postprocess,
@@ -292,6 +293,13 @@ def run_v1_finalize(
         return max(1.0, job_budget - (time.perf_counter() - job_started))
 
     head = head_clean
+    # v0.1.43 — object-mode tracking. Set true if we fall back to the
+    # flat-bottom crop because the input wasn't a head + shoulders
+    # (TRELLIS will mesh anything: a coffee mug, a sticker, a cat).
+    # The handler reads ``final.metadata["sdz_object_mode_used"]`` and
+    # surfaces it as ``object_mode_used`` on the wire so the UI can
+    # label the panel "object mode" instead of "head + cap".
+    object_mode_used = False
 
     # Crop + cavity carve. Same auto-retry logic as the original run_v1.
     def _run_crop_and_carve(taper: float):
@@ -307,20 +315,58 @@ def run_v1_finalize(
         )
         return c, s
 
+    # Object-mode fallback. When neck-finding can't get a clean cut on
+    # ANY attempt, we trim a thin slice off the bottom of the bbox
+    # (stage2_crop_flat) and let stages 3-6 union the cap onto whatever
+    # TRELLIS produced. The cap may end up on the bottom of a mug, a
+    # cat's belly, or a blob — that's fine, the rider asked for it.
+    def _run_flat_crop_and_carve():
+        c, _ = run_with_timeout(
+            "stage2_crop_flat", stage2_crop_flat,
+            head, C,
+            timeout_s=stage_budget, job_remaining_s=_remaining(),
+        )
+        s = run_with_timeout(
+            "stage3_subtract_negative_core", stage3_subtract_negative_core,
+            c, negative_core, C,
+            timeout_s=stage_budget, job_remaining_s=_remaining(),
+        )
+        return c, s
+
     try:
         cropped, socketed = _run_crop_and_carve(shoulder_taper_fraction)
     except PipelineError as exc:
         if exc.code != ErrorCode.NECK_NOT_FOUND:
             raise
         relaxed_first = max(0.40, float(shoulder_taper_fraction) - 0.15)
-        if abs(relaxed_first - shoulder_taper_fraction) <= 1e-6:
-            raise
-        sys.stderr.write(
-            f"[run_v1_finalize] stage2 raised NECK_NOT_FOUND; auto-retrying "
-            f"stage2+stage3 with shoulder_taper_fraction "
-            f"{shoulder_taper_fraction:.2f} → {relaxed_first:.2f}\n"
-        )
-        cropped, socketed = _run_crop_and_carve(relaxed_first)
+        if abs(relaxed_first - shoulder_taper_fraction) > 1e-6:
+            sys.stderr.write(
+                f"[run_v1_finalize] stage2 raised NECK_NOT_FOUND; auto-retrying "
+                f"stage2+stage3 with shoulder_taper_fraction "
+                f"{shoulder_taper_fraction:.2f} → {relaxed_first:.2f}\n"
+            )
+            try:
+                cropped, socketed = _run_crop_and_carve(relaxed_first)
+            except PipelineError as exc2:
+                if exc2.code != ErrorCode.NECK_NOT_FOUND:
+                    raise
+                # Both head-mode attempts exhausted. Object-mode fallback.
+                sys.stderr.write(
+                    "[run_v1_finalize] head-mode crop exhausted (relaxed taper "
+                    "also raised NECK_NOT_FOUND); engaging object-mode flat crop. "
+                    "Final mesh will glue the cap onto whatever shape TRELLIS produced.\n"
+                )
+                cropped, socketed = _run_flat_crop_and_carve()
+                object_mode_used = True
+        else:
+            # Already at minimum taper; no retry possible. Go straight
+            # to object-mode fallback.
+            sys.stderr.write(
+                "[run_v1_finalize] stage2 raised NECK_NOT_FOUND at minimum taper "
+                "(no head-mode retry possible); engaging object-mode flat crop.\n"
+            )
+            cropped, socketed = _run_flat_crop_and_carve()
+            object_mode_used = True
     _emit(*_PROGRESS_STAGE2)
 
     thin = float(getattr(socketed, "metadata", {}).get("sdz_thin_wall_min_mm", 0.0) or 0.0)
@@ -361,6 +407,17 @@ def run_v1_finalize(
         timeout_s=stage_budget, job_remaining_s=_remaining(),
     )
     _emit(*_PROGRESS_STAGE6)
+
+    # Stamp object-mode marker onto the final mesh's metadata so the
+    # handler can read it and surface ``object_mode_used`` on the wire.
+    # trimesh.Trimesh.metadata is a plain dict; safe to write.
+    if object_mode_used:
+        try:
+            final.metadata["sdz_object_mode_used"] = True
+        except Exception:  # noqa: BLE001
+            # Defensive: if metadata is somehow read-only on this trimesh
+            # version, swallow — the handler defaults to False on read.
+            pass
 
     _emit(*_PROGRESS_DONE)
     return final

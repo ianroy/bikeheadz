@@ -245,6 +245,7 @@ export const stlCommands = {
       let finalFailed = false;
       let finalError = null;
       let finalErrorMessage = null;
+      let objectModeUsed = false;
       let backend;
       if (runpodEnabled()) {
         backend = 'runpod';
@@ -255,6 +256,7 @@ export const stlCommands = {
         finalFailed       = !!runpodResult.finalFailed;
         finalError        = runpodResult.finalError        || null;
         finalErrorMessage = runpodResult.finalErrorMessage || null;
+        objectModeUsed    = !!runpodResult.objectModeUsed;
       } else {
         backend = 'local_spawn';
         logger.info({ msg: 'stl.backend', backend, trellis_enabled: TRELLIS_ENABLED });
@@ -337,6 +339,7 @@ export const stlCommands = {
         final_bytes: finalBytes?.length || 0,
         final_failed: finalFailed,
         final_error: finalError,
+        object_mode_used: objectModeUsed,
         backend,
         accountId,
       });
@@ -354,6 +357,10 @@ export const stlCommands = {
         final_failed: finalFailed,
         final_error: finalError,
         final_error_message: finalErrorMessage,
+        // v0.1.43: object_mode_used = head not detected; cap glued
+        // onto raw TRELLIS output via flat-bottom crop. UI shows the
+        // "Head not detected — switching to object mode" banner.
+        object_mode_used: objectModeUsed,
       };
     } finally {
       fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
