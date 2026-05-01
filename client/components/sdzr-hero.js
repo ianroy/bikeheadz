@@ -50,7 +50,7 @@ function variantCap() {
     el('svg', { class: 'sdzr-splatter absolute pointer-events-none', 'aria-hidden': 'true', style: { inset: '0', width: '100%', height: '100%' } }),
     el('div', { class: 'sdzr-hero__inner' },
       el('div', null,
-        el('span', { class: 'sdzr-eyebrow' }, 'EST. 1993 · DROP 001 · STEMDOMEZ.COM'),
+        el('span', { class: 'sdzr-eyebrow' }, 'EST. 2026 · DROP 001 · STEMDOMEZ.COM'),
         el('h1', { class: 'sdzr-hero__title sdzr-display sdzr-shadow-tri' },
           'YOUR FACE.',
           el('br'),
@@ -101,7 +101,7 @@ function variantCard() {
         ),
         el('div', { class: 'trading__bot' },
           el('div', null,
-            el('div', { class: 'sdzr-eyebrow' }, 'MONGOOSE BMX SERIES · 1993'),
+            el('div', { class: 'sdzr-eyebrow' }, 'MONGOOSE BMX SERIES · 2026'),
             el('h1', {
               class: 'sdz-display sdzr-shadow-green',
               style: { fontSize: 'clamp(2.6rem, 7vw, 4.6rem)', margin: '0.5rem 0 0' },

@@ -50,7 +50,7 @@ export function createSiteFooter({ paymentsOff } = {}) {
             el('span', { class: 'z' }, 'Z'),
           ),
           el('p', { style: { color: '#2EFF8C', fontStyle: 'italic', fontSize: '0.85rem', marginTop: '0.75rem' } },
-            'Race day at the trails, 1993.'),
+            'Race day at the trails, 2026.'),
         ),
       ),
       el('div', {

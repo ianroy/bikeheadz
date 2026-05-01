@@ -72,7 +72,7 @@ function topMarquee() {
 function midMarquee() {
   return buildMarquee([
     'SHIPPED FROM THE WORKSHOP', '7-STAGE CAD PIPELINE',
-    'TRELLIS IMAGE→3D', 'MONGOOSE BMX PALETTE', 'EST. 1993 · SOFTLY',
+    'TRELLIS IMAGE→3D', 'MONGOOSE BMX PALETTE', 'EST. 2026 · SOFTLY',
   ], { variantClass: 'sdzr-marquee--purple', reverse: true });
 }
 
@@ -124,7 +124,7 @@ function heroCap({ paymentsOff }) {
     splatter,
     el('div', { class: 'wrap hero__inner' },
       el('div', null,
-        el('span', { class: 'sdzr-eyebrow' }, 'EST. 1993 · DROP 001 · STEMDOMEZ.COM'),
+        el('span', { class: 'sdzr-eyebrow' }, 'EST. 2026 · DROP 001 · STEMDOMEZ.COM'),
         el('h1', { class: 'hero__title sdzr-display sdzr-shadow-tri' },
           'YOUR FACE.',
           el('br'),
