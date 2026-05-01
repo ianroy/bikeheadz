@@ -333,9 +333,18 @@ def stage1_5_repair(head: trimesh.Trimesh, C: Constants) -> trimesh.Trimesh:
         try:
             if _fs is not None:
                 target = max(int(cap * 0.95), 200_000)
+                # fast_simplification's actual API is `simplify(v, f,
+                # target_reduction=...)` — same signature stage 5 uses.
+                # The `simplify_mesh(...)` symbol with a `target_count`
+                # kwarg doesn't exist in any 0.1.x release we ship and
+                # was the source of the AttributeError that left every
+                # over-cap mesh shipping un-decimated to stage 2.
+                reduction = 1.0 - (target / n_tris)
                 v = np.asarray(head.vertices, dtype=np.float32)
                 f = np.asarray(head.faces, dtype=np.uint32)
-                v_dec, f_dec = _fs.simplify_mesh(v, f, target_count=target)
+                v_dec, f_dec = _fs.simplify(
+                    v, f, target_reduction=float(reduction), agg=7, lossless=False,
+                )
                 head = trimesh.Trimesh(vertices=v_dec, faces=f_dec, process=True)
                 sys.stderr.write(
                     f"[stage1.5] WARNING: mesh exceeded cap (tris={n_tris} cap={cap}); "
@@ -946,17 +955,29 @@ def stage6_print_repair(
     try:
         v_in = np.asarray(final.vertices, dtype=np.float64)
         f_in = np.asarray(final.faces, dtype=np.int32)
-        mfix = _pmf.MeshFix(v_in, f_in)
-        # joincomp=True   — joins disconnected components (e.g. cap concat
-        #                   fallback from stage 4) into one solid.
-        # remove_smallest_components=False — keep the cap even if
-        #                   somehow it's the smallest piece.
-        mfix.repair(joincomp=True, remove_smallest_components=False)
-        v_out = np.asarray(mfix.v, dtype=np.float64)
-        f_out = np.asarray(mfix.f, dtype=np.int64)
+        # Modern pymeshfix exposes a high-level convenience entry point:
+        # `clean_from_arrays(v, f, ...)` returns the cleaned arrays
+        # directly without needing to navigate `MeshFix.mesh.points` /
+        # `mesh.faces` (which is a flat pyvista-prefixed array). The old
+        # `mfix.v` / `mfix.f` attributes were removed in 0.15+, which
+        # was the source of every "shipping un-repaired mesh" warning.
+        # joincomp=True merges disconnected components (e.g. the
+        # stage-4 concat fallback for cap+head) into one solid.
+        # remove_smallest_components=False keeps the cap even if it
+        # happens to be the smallest piece.
+        v_out, f_out = _pmf.clean_from_arrays(
+            v_in, f_in,
+            verbose=False,
+            joincomp=True,
+            remove_smallest_components=False,
+        )
         if len(v_out) == 0 or len(f_out) == 0:
             raise RuntimeError("pymeshfix produced an empty mesh")
-        repaired = trimesh.Trimesh(v_out, f_out, process=True)
+        repaired = trimesh.Trimesh(
+            np.asarray(v_out, dtype=np.float64),
+            np.asarray(f_out, dtype=np.int64),
+            process=True,
+        )
         repaired.merge_vertices()
         repaired.fix_normals()
     except Exception as exc:  # noqa: BLE001
