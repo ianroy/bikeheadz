@@ -133,7 +133,7 @@ function heroCap({ paymentsOff }) {
           'CAP.',
         ),
         el('p', { class: 'hero__sub' },
-          'Drop a portrait. Microsoft TRELLIS sculpts your dome. We graft it onto a Schrader thread. Print STL. Screw on rim. Roll out.',
+          'Drop in a portrait. A GPU running TRELLIS sculpts your dome in 3D. We graft it into a Schrader thread. 3D Print the STL. Screw on your tire valve. Roll out.',
           el('br'),
           el('span', { style: { color: 'var(--sdzr-brand)', fontStyle: 'italic', fontWeight: 700 } }, subPrice),
         ),

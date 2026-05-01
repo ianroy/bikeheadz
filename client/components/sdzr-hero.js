@@ -58,7 +58,7 @@ function variantCap() {
           el('br'),
           'CAP.',
         ),
-        el('p', { class: 'sdzr-hero__sub' }, 'Drop a portrait. Microsoft TRELLIS sculpts your dome. We graft it onto a Schrader thread. Print STL. Screw on rim. Roll out.'),
+        el('p', { class: 'sdzr-hero__sub' }, 'Drop in a portrait. A GPU running TRELLIS sculpts your dome in 3D. We graft it into a Schrader thread. 3D Print the STL. Screw on your tire valve. Roll out.'),
         el('div', { style: { display: 'flex', gap: '0.8rem', flexWrap: 'wrap' } },
           el('a', { class: 'sdzr-cta', href: '/stemdome-generator', 'data-link': '' }, 'Make Yours →'),
           el('a', { class: 'sdzr-cta sdzr-cta--ghost', href: '/#how', 'data-link': '' }, 'How it works'),
