@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 760" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, 'Helvetica Neue', sans-serif">
+  <!--
+    StemDomeZ — Multi-region RunPod race
+    POST /run to N regions in parallel · poll /stream/<id> on each ·
+    first to flip IN_PROGRESS wins · cancel losers · stream from winner.
+
+    Read top-to-bottom: each row is a phase of one generation.
+  -->
+
+  <defs>
+    <pattern id="dots-bg" x="0" y="0" width="10" height="10" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1.2" fill="#0E0A12" opacity="0.13"/>
+    </pattern>
+    <marker id="ar" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M 0 0 L 10 6 L 0 12 z" fill="#0E0A12"/>
+    </marker>
+    <marker id="ar-green" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M 0 0 L 10 6 L 0 12 z" fill="#2EFF8C"/>
+    </marker>
+    <marker id="ar-magenta" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M 0 0 L 10 6 L 0 12 z" fill="#FF2EAB"/>
+    </marker>
+    <marker id="ar-x" markerWidth="14" markerHeight="14" refX="7" refY="7">
+      <line x1="2" y1="2" x2="12" y2="12" stroke="#FF2EAB" stroke-width="3"/>
+      <line x1="12" y1="2" x2="2" y2="12" stroke="#FF2EAB" stroke-width="3"/>
+    </marker>
+  </defs>
+
+  <rect width="1280" height="760" fill="#F5F2E5"/>
+  <rect x="700" y="540" width="580" height="220" fill="url(#dots-bg)"/>
+
+  <g transform="translate(40 50)">
+    <text x="0" y="0" font-style="italic" font-weight="900" font-size="36" fill="#0E0A12"
+          style="text-shadow: 4px 4px 0 #FF2EAB;">MULTI-REGION RACE.</text>
+    <text x="0" y="22" font-family="ui-monospace, monospace" font-size="12" font-weight="700"
+          letter-spacing="0.18em" fill="#7B2EFF">RUNPOD_ENDPOINT_URLS · WHICHEVER STARTS FIRST WINS</text>
+  </g>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       PHASE 1 — submit
+       ═══════════════════════════════════════════════════════════════════ -->
+  <text x="40" y="135" font-family="ui-monospace, monospace" font-size="11" font-weight="700"
+        letter-spacing="0.12em" fill="#7B2EFF">PHASE 1 · SUBMIT</text>
+  <line x1="40" y1="142" x2="1240" y2="142" stroke="#7B2EFF" stroke-width="1" stroke-dasharray="3 3"/>
+
+  <!-- DO node -->
+  <g transform="translate(40 160)">
+    <rect width="200" height="80" fill="#0E0A12" stroke="#0E0A12" stroke-width="3" rx="6"/>
+    <text x="100" y="22" text-anchor="middle" font-style="italic" font-weight="900" font-size="14" fill="#2EFF8C">DigitalOcean</text>
+    <text x="100" y="40" text-anchor="middle" font-family="ui-monospace, monospace" font-size="10" fill="#FFFFFF">runpod-client.js</text>
+    <text x="100" y="58" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" fill="#F5F2E5">submitJob() × N regions</text>
+    <text x="100" y="72" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" fill="#F5F2E5">Promise.allSettled</text>
+  </g>
+
+  <!-- POST /run arrows -->
+  <line x1="240" y1="180" x2="540" y2="180" stroke="#0E0A12" stroke-width="2" marker-end="url(#ar)"/>
+  <text x="390" y="172" text-anchor="middle" font-family="ui-monospace, monospace" font-size="10" fill="#0E0A12">POST /run</text>
+
+  <line x1="240" y1="220" x2="540" y2="220" stroke="#0E0A12" stroke-width="2" marker-end="url(#ar)"/>
+  <text x="390" y="240" text-anchor="middle" font-family="ui-monospace, monospace" font-size="10" fill="#0E0A12">POST /run</text>
+
+  <!-- US region -->
+  <g transform="translate(540 152)">
+    <rect width="280" height="60" fill="#F5F2E5" stroke="#0E0A12" stroke-width="3" rx="4"/>
+    <rect x="-4" y="-4" width="8" height="8" fill="#7B2EFF" stroke="#0E0A12" stroke-width="2"/>
+    <text x="14" y="22" font-style="italic" font-weight="900" font-size="14" fill="#0E0A12">US endpoint</text>
+    <text x="14" y="40" font-family="ui-monospace, monospace" font-size="9" fill="#3D2F4A">Returns { id: "abc-123", status: "IN_QUEUE" }</text>
+    <text x="14" y="52" font-family="ui-monospace, monospace" font-size="9" fill="#3D2F4A">Worker assigned: warm</text>
+  </g>
+
+  <!-- RO region -->
+  <g transform="translate(540 192)">
+    <rect width="280" height="60" fill="#F5F2E5" stroke="#0E0A12" stroke-width="3" rx="4"/>
+    <rect x="-4" y="-4" width="8" height="8" fill="#7B2EFF" stroke="#0E0A12" stroke-width="2"/>
+    <text x="14" y="22" font-style="italic" font-weight="900" font-size="14" fill="#0E0A12">RO endpoint</text>
+    <text x="14" y="40" font-family="ui-monospace, monospace" font-size="9" fill="#3D2F4A">Returns { id: "def-456", status: "IN_QUEUE" }</text>
+    <text x="14" y="52" font-family="ui-monospace, monospace" font-size="9" fill="#3D2F4A">Worker assigned: scaling up (cold)</text>
+  </g>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       PHASE 2 — race / poll
+       ═══════════════════════════════════════════════════════════════════ -->
+  <text x="40" y="305" font-family="ui-monospace, monospace" font-size="11" font-weight="700"
+        letter-spacing="0.12em" fill="#7B2EFF">PHASE 2 · RACE · POLL /stream/&lt;id&gt; @ 1.5s · FIRST IN_PROGRESS WINS</text>
+  <line x1="40" y1="312" x2="1240" y2="312" stroke="#7B2EFF" stroke-width="1" stroke-dasharray="3 3"/>
+
+  <!-- US trace -->
+  <g transform="translate(40 330)">
+    <text x="0" y="14" font-family="ui-monospace, monospace" font-size="11" font-weight="700" fill="#7B2EFF">US ↓</text>
+    <rect x="40" y="0" width="100" height="28" fill="#FFD400" stroke="#0E0A12" stroke-width="2" rx="3"/>
+    <text x="90" y="20" text-anchor="middle" font-family="ui-monospace, monospace" font-size="11" font-weight="700" fill="#0E0A12">IN_QUEUE</text>
+    <line x1="140" y1="14" x2="170" y2="14" stroke="#0E0A12" stroke-width="2" marker-end="url(#ar)"/>
+    <rect x="170" y="0" width="120" height="28" fill="#2EFF8C" stroke="#0E0A12" stroke-width="2" rx="3"/>
+    <text x="230" y="20" text-anchor="middle" font-family="ui-monospace, monospace" font-size="11" font-weight="700" fill="#0E0A12">IN_PROGRESS</text>
+    <text x="230" y="48" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" fill="#0E0A12" font-weight="700">@ poll #1 · ~1.5s · WINNER</text>
+    <line x1="290" y1="14" x2="380" y2="14" stroke="#2EFF8C" stroke-width="3" marker-end="url(#ar-green)"/>
+    <rect x="380" y="0" width="180" height="28" fill="#F5F2E5" stroke="#0E0A12" stroke-width="2" rx="3"/>
+    <text x="470" y="20" text-anchor="middle" font-family="ui-monospace, monospace" font-size="11" fill="#0E0A12">progress · result_chunk × N · result</text>
+    <text x="470" y="48" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" fill="#0E0A12" font-weight="700">~30–60s warm</text>
+    <line x1="560" y1="14" x2="600" y2="14" stroke="#0E0A12" stroke-width="2" marker-end="url(#ar)"/>
+    <rect x="600" y="0" width="120" height="28" fill="#0E0A12" stroke="#0E0A12" stroke-width="2" rx="3"/>
+    <text x="660" y="20" text-anchor="middle" font-style="italic" font-weight="900" font-size="11" fill="#2EFF8C">COMPLETED</text>
+  </g>
+
+  <!-- RO trace -->
+  <g transform="translate(40 410)">
+    <text x="0" y="14" font-family="ui-monospace, monospace" font-size="11" font-weight="700" fill="#7B2EFF">RO ↓</text>
+    <rect x="40" y="0" width="240" height="28" fill="#FFD400" stroke="#0E0A12" stroke-width="2" rx="3"/>
+    <text x="160" y="20" text-anchor="middle" font-family="ui-monospace, monospace" font-size="11" font-weight="700" fill="#0E0A12">IN_QUEUE (cold-starting)</text>
+    <line x1="280" y1="14" x2="380" y2="14" stroke="#FF2EAB" stroke-width="3" stroke-dasharray="6 4" marker-end="url(#ar-x)"/>
+    <text x="330" y="-2" text-anchor="middle" font-family="ui-monospace, monospace" font-size="10" font-weight="700" fill="#FF2EAB">CANCEL</text>
+    <rect x="380" y="0" width="200" height="28" fill="#FF2EAB" stroke="#0E0A12" stroke-width="2" rx="3"/>
+    <text x="480" y="20" text-anchor="middle" font-family="ui-monospace, monospace" font-size="11" font-weight="700" fill="#0E0A12">/cancel/&lt;id&gt; · best-effort</text>
+    <text x="480" y="48" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" fill="#3D2F4A">no GPU billed for the loser</text>
+  </g>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       PHASE 3 — stream from winner
+       ═══════════════════════════════════════════════════════════════════ -->
+  <text x="40" y="500" font-family="ui-monospace, monospace" font-size="11" font-weight="700"
+        letter-spacing="0.12em" fill="#7B2EFF">PHASE 3 · STREAM FROM WINNER</text>
+  <line x1="40" y1="507" x2="1240" y2="507" stroke="#7B2EFF" stroke-width="1" stroke-dasharray="3 3"/>
+
+  <!-- Winner stream chain -->
+  <g transform="translate(40 525)">
+    <rect width="200" height="46" fill="#2EFF8C" stroke="#0E0A12" stroke-width="2" rx="4"/>
+    <text x="100" y="20" text-anchor="middle" font-style="italic" font-weight="900" font-size="13" fill="#0E0A12">US worker</text>
+    <text x="100" y="36" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" fill="#0E0A12">handler.py v0.1.41</text>
+  </g>
+
+  <line x1="240" y1="548" x2="320" y2="548" stroke="#0E0A12" stroke-width="2" marker-end="url(#ar)"/>
+  <text x="280" y="540" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" fill="#0E0A12">streams</text>
+
+  <g transform="translate(320 525)">
+    <rect width="200" height="46" fill="#F5F2E5" stroke="#0E0A12" stroke-width="2" rx="4"/>
+    <text x="100" y="20" text-anchor="middle" font-style="italic" font-weight="900" font-size="13" fill="#0E0A12">progress frames</text>
+    <text x="100" y="36" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" fill="#3D2F4A">{ step, pct }</text>
+  </g>
+
+  <line x1="520" y1="548" x2="600" y2="548" stroke="#0E0A12" stroke-width="2" marker-end="url(#ar)"/>
+
+  <g transform="translate(600 525)">
+    <rect width="200" height="46" fill="#F5F2E5" stroke="#0E0A12" stroke-width="2" rx="4"/>
+    <text x="100" y="20" text-anchor="middle" font-style="italic" font-weight="900" font-size="13" fill="#0E0A12">result_chunk × N</text>
+    <text x="100" y="36" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" fill="#3D2F4A">~700KB base64 each</text>
+  </g>
+
+  <line x1="800" y1="548" x2="880" y2="548" stroke="#0E0A12" stroke-width="2" marker-end="url(#ar)"/>
+
+  <g transform="translate(880 525)">
+    <rect width="200" height="46" fill="#0E0A12" stroke="#0E0A12" stroke-width="2" rx="4"/>
+    <text x="100" y="20" text-anchor="middle" font-style="italic" font-weight="900" font-size="13" fill="#2EFF8C">STL bytes</text>
+    <text x="100" y="36" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" fill="#F5F2E5">to viewer + design-store</text>
+  </g>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       TELEMETRY CALLOUT
+       ═══════════════════════════════════════════════════════════════════ -->
+  <g transform="translate(720 580)">
+    <rect width="540" height="160" fill="#E5E0CC" stroke="#0E0A12" stroke-width="2" rx="6"/>
+    <text x="14" y="22" font-family="ui-monospace, monospace" font-size="11" font-weight="700" letter-spacing="0.12em" fill="#7B2EFF">TELEMETRY · /admin · REGIONS TAB</text>
+
+    <text x="14" y="48" font-family="ui-monospace, monospace" font-size="10" fill="#0E0A12">submits · wins · losses · errors</text>
+    <text x="14" y="64" font-family="ui-monospace, monospace" font-size="10" fill="#0E0A12">last_win_at · last_win_latency_ms · last_error_at</text>
+
+    <text x="14" y="92" font-family="ui-monospace, monospace" font-size="10" font-weight="700" fill="#7B2EFF">DOUGHNUT — race wins by region</text>
+    <circle cx="80" cy="124" r="22" fill="#7B2EFF" stroke="#0E0A12" stroke-width="2"/>
+    <path d="M 80 102 A 22 22 0 0 1 80 146 L 80 124 z" fill="#2EFF8C" stroke="#0E0A12" stroke-width="2"/>
+    <text x="120" y="120" font-family="ui-monospace, monospace" font-size="10" fill="#0E0A12">US: 47 wins (52%)</text>
+    <text x="120" y="134" font-family="ui-monospace, monospace" font-size="10" fill="#0E0A12">RO: 43 wins (48%)</text>
+
+    <text x="280" y="92" font-family="ui-monospace, monospace" font-size="10" font-weight="700" fill="#7B2EFF">TABLE — per-endpoint breakdown</text>
+    <text x="280" y="108" font-family="ui-monospace, monospace" font-size="9" fill="#3D2F4A">id · reachable · submits · wins ·</text>
+    <text x="280" y="120" font-family="ui-monospace, monospace" font-size="9" fill="#3D2F4A">losses · errors · win-rate · last_win</text>
+    <text x="280" y="146" font-family="ui-monospace, monospace" font-size="9" fill="#7B2EFF" font-weight="700">↻ Refresh button (manual)</text>
+  </g>
+
+  <!-- LEGEND -->
+  <g transform="translate(40 660)">
+    <rect width="660" height="80" fill="#E5E0CC" stroke="#0E0A12" stroke-width="2" rx="6"/>
+    <text x="14" y="22" font-family="ui-monospace, monospace" font-size="11" font-weight="700" letter-spacing="0.12em" fill="#7B2EFF">LEGEND</text>
+
+    <rect x="14" y="34" width="14" height="14" fill="#FFD400" stroke="#0E0A12" stroke-width="2"/>
+    <text x="34" y="46" font-family="ui-monospace, monospace" font-size="11" fill="#0E0A12">IN_QUEUE — submitted, waiting for a worker</text>
+
+    <rect x="14" y="56" width="14" height="14" fill="#2EFF8C" stroke="#0E0A12" stroke-width="2"/>
+    <text x="34" y="68" font-family="ui-monospace, monospace" font-size="11" fill="#0E0A12">IN_PROGRESS — worker picked up · this region wins</text>
+
+    <rect x="346" y="34" width="14" height="14" fill="#FF2EAB" stroke="#0E0A12" stroke-width="2"/>
+    <text x="366" y="46" font-family="ui-monospace, monospace" font-size="11" fill="#0E0A12">CANCELLED — loser sent /cancel/&lt;id&gt;</text>
+
+    <text x="346" y="68" font-family="ui-monospace, monospace" font-size="11" fill="#0E0A12">RUNPOD_FORCE_WARMUP=1 routes 1st post-boot job to RO only</text>
+  </g>
+</svg>

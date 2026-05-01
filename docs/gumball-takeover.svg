@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 760" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, 'Helvetica Neue', sans-serif">
+  <!--
+    StemDomeZ — The Gumball Machine Takeover (non-technical narrative).
+    For pitch deck + onboarding · explains the residency concept and why
+    the "machine is the flyer / capsule is the box / cap is the product".
+  -->
+
+  <defs>
+    <pattern id="dots-bg" x="0" y="0" width="10" height="10" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1.2" fill="#0E0A12" opacity="0.13"/>
+    </pattern>
+    <pattern id="splatter" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
+      <circle cx="6" cy="8" r="1.5" fill="#FF2EAB" opacity="0.5"/>
+      <circle cx="22" cy="14" r="1" fill="#2EFF8C" opacity="0.6"/>
+      <circle cx="32" cy="32" r="1.5" fill="#7B2EFF" opacity="0.5"/>
+      <circle cx="14" cy="28" r="1" fill="#FFD400" opacity="0.5"/>
+    </pattern>
+    <marker id="ar" markerWidth="14" markerHeight="14" refX="11" refY="7" orient="auto">
+      <path d="M 0 0 L 11 7 L 0 14 z" fill="#0E0A12"/>
+    </marker>
+  </defs>
+
+  <rect width="1280" height="760" fill="#F5F2E5"/>
+  <rect width="1280" height="760" fill="url(#splatter)"/>
+
+  <!-- Big sticker -->
+  <g transform="translate(40 60)">
+    <text x="0" y="0" font-style="italic" font-weight="900" font-size="46" fill="#0E0A12"
+          style="text-shadow: 5px 5px 0 #FF2EAB, 9px 9px 0 #7B2EFF;">MADE FOR A GUMBALL MACHINE.</text>
+    <text x="0" y="28" font-family="ui-monospace, monospace" font-size="13" font-weight="700"
+          letter-spacing="0.2em" fill="#7B2EFF">RESIDENCY · SADIE'S BIKES · GREAT FALLS · MA · 2026</text>
+  </g>
+
+  <!-- ─────────────────── 4-PANEL NARRATIVE ─────────────────── -->
+
+  <!-- Panel 1 — The brief -->
+  <g transform="translate(40 200)">
+    <rect width="280" height="240" fill="#F5F2E5" stroke="#0E0A12" stroke-width="3" rx="8"/>
+    <rect x="-8" y="-8" width="60" height="22" fill="#7B2EFF" stroke="#0E0A12" stroke-width="2" transform="rotate(-6 22 4)"/>
+    <text x="22" y="8" text-anchor="middle" font-family="Anton, sans-serif" font-style="italic" font-weight="900"
+          font-size="14" fill="#FFFFFF" transform="rotate(-6 22 4)">THE BRIEF</text>
+
+    <!-- Gumball machine -->
+    <g transform="translate(80 24)">
+      <circle cx="60" cy="60" r="58" fill="#FF2EAB" stroke="#0E0A12" stroke-width="3"/>
+      <circle cx="60" cy="60" r="42" fill="#FFFFFF" stroke="#0E0A12" stroke-width="2"/>
+      <circle cx="40" cy="50" r="6" fill="#7B2EFF"/>
+      <circle cx="70" cy="44" r="6" fill="#FFD400"/>
+      <circle cx="56" cy="64" r="6" fill="#2EFF8C"/>
+      <circle cx="78" cy="68" r="6" fill="#FF2EAB"/>
+      <circle cx="42" cy="74" r="6" fill="#0E0A12"/>
+      <circle cx="64" cy="76" r="6" fill="#7B2EFF"/>
+      <rect x="50" y="118" width="20" height="10" fill="#0E0A12"/>
+      <rect x="40" y="128" width="40" height="6" fill="#0E0A12"/>
+    </g>
+
+    <text x="140" y="180" text-anchor="middle" font-style="italic" font-weight="900" font-size="14" fill="#0E0A12">200 things ·</text>
+    <text x="140" y="198" text-anchor="middle" font-style="italic" font-weight="900" font-size="14" fill="#0E0A12">2-inch capsule · 50¢ each.</text>
+    <text x="140" y="222" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" fill="#3D2F4A">Curatorial constraint from Nik Perry</text>
+  </g>
+
+  <line x1="320" y1="320" x2="340" y2="320" stroke="#0E0A12" stroke-width="3" marker-end="url(#ar)"/>
+
+  <!-- Panel 2 — The cap -->
+  <g transform="translate(340 200)">
+    <rect width="280" height="240" fill="#F5F2E5" stroke="#0E0A12" stroke-width="3" rx="8"/>
+    <rect x="-8" y="-8" width="60" height="22" fill="#FF2EAB" stroke="#0E0A12" stroke-width="2" transform="rotate(-6 22 4)"/>
+    <text x="22" y="8" text-anchor="middle" font-family="Anton, sans-serif" font-style="italic" font-weight="900"
+          font-size="14" fill="#FFFFFF" transform="rotate(-6 22 4)">THE CAP</text>
+
+    <!-- Capsule with cap inside -->
+    <g transform="translate(60 30)">
+      <ellipse cx="80" cy="60" rx="78" ry="56" fill="none" stroke="#0E0A12" stroke-width="3" stroke-dasharray="4 3"/>
+      <ellipse cx="80" cy="50" rx="78" ry="40" fill="#7B2EFF" opacity="0.18"/>
+      <!-- Cap inside -->
+      <ellipse cx="80" cy="84" rx="32" ry="12" fill="#7B2EFF" stroke="#0E0A12" stroke-width="2"/>
+      <ellipse cx="80" cy="62" rx="28" ry="36" fill="#7B2EFF" stroke="#0E0A12" stroke-width="2"/>
+      <ellipse cx="80" cy="42" rx="18" ry="8" fill="#5A1FCE" stroke="#0E0A12" stroke-width="2"/>
+      <circle cx="72" cy="58" r="2" fill="#0E0A12"/>
+      <circle cx="88" cy="58" r="2" fill="#0E0A12"/>
+      <path d="M 72 68 Q 80 72 88 68" stroke="#0E0A12" stroke-width="1.5" fill="none"/>
+    </g>
+
+    <text x="140" y="180" text-anchor="middle" font-style="italic" font-weight="900" font-size="14" fill="#0E0A12">A 3D-printed cap · YOUR face ·</text>
+    <text x="140" y="198" text-anchor="middle" font-style="italic" font-weight="900" font-size="14" fill="#0E0A12">screws onto a bike valve.</text>
+    <text x="140" y="222" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" fill="#3D2F4A">Schrader fit · ~30 mm tall · PLA</text>
+  </g>
+
+  <line x1="620" y1="320" x2="640" y2="320" stroke="#0E0A12" stroke-width="3" marker-end="url(#ar)"/>
+
+  <!-- Panel 3 — The card -->
+  <g transform="translate(640 200)">
+    <rect width="280" height="240" fill="#F5F2E5" stroke="#0E0A12" stroke-width="3" rx="8"/>
+    <rect x="-8" y="-8" width="60" height="22" fill="#2EFF8C" stroke="#0E0A12" stroke-width="2" transform="rotate(-6 22 4)"/>
+    <text x="22" y="8" text-anchor="middle" font-family="Anton, sans-serif" font-style="italic" font-weight="900"
+          font-size="14" fill="#0E0A12" transform="rotate(-6 22 4)">THE CARD</text>
+
+    <!-- Polaroid card -->
+    <g transform="translate(58 26)">
+      <rect width="164" height="120" fill="#FFFFFF" stroke="#0E0A12" stroke-width="3" transform="rotate(-3 82 60)"/>
+      <rect x="10" y="10" width="144" height="76" fill="#0E0A12" transform="rotate(-3 82 60)"/>
+      <text x="82" y="48" text-anchor="middle" font-family="Anton, sans-serif" font-style="italic" font-weight="900"
+            font-size="22" fill="#2EFF8C" transform="rotate(-3 82 60)">YOUR FACE</text>
+      <text x="82" y="68" text-anchor="middle" font-family="Anton, sans-serif" font-style="italic" font-weight="900"
+            font-size="14" fill="#FF2EAB" transform="rotate(-3 82 60)">stemdomez.com</text>
+      <text x="82" y="100" text-anchor="middle" font-family="Permanent Marker, cursive" font-size="10" fill="#0E0A12" transform="rotate(-3 82 60)">drop a photo. roll out.</text>
+    </g>
+
+    <text x="140" y="180" text-anchor="middle" font-style="italic" font-weight="900" font-size="14" fill="#0E0A12">A printed card with a URL ·</text>
+    <text x="140" y="198" text-anchor="middle" font-style="italic" font-weight="900" font-size="14" fill="#0E0A12">tucked in the capsule.</text>
+    <text x="140" y="222" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" fill="#3D2F4A">No QR · just the URL · honest discovery</text>
+  </g>
+
+  <line x1="920" y1="320" x2="940" y2="320" stroke="#0E0A12" stroke-width="3" marker-end="url(#ar)"/>
+
+  <!-- Panel 4 — The site -->
+  <g transform="translate(940 200)">
+    <rect width="300" height="240" fill="#0E0A12" stroke="#0E0A12" stroke-width="3" rx="8"/>
+    <rect x="-8" y="-8" width="60" height="22" fill="#0E0A12" stroke="#0E0A12" stroke-width="2" transform="rotate(-6 22 4)"/>
+    <text x="22" y="8" text-anchor="middle" font-family="Anton, sans-serif" font-style="italic" font-weight="900"
+          font-size="14" fill="#2EFF8C" transform="rotate(-6 22 4)">THE SITE</text>
+
+    <!-- Browser window -->
+    <g transform="translate(20 24)">
+      <rect width="260" height="120" fill="#F5F2E5" stroke="#0E0A12" stroke-width="2" rx="4"/>
+      <rect x="0" y="0" width="260" height="18" fill="#0E0A12"/>
+      <circle cx="10" cy="9" r="3" fill="#FF2EAB"/>
+      <circle cx="22" cy="9" r="3" fill="#FFD400"/>
+      <circle cx="34" cy="9" r="3" fill="#2EFF8C"/>
+      <text x="130" y="14" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" fill="#F5F2E5">stemdomez.com</text>
+
+      <text x="130" y="46" text-anchor="middle" font-style="italic" font-weight="900" font-size="14" fill="#0E0A12">YOUR FACE.</text>
+      <text x="130" y="64" text-anchor="middle" font-style="italic" font-weight="900" font-size="14" fill="#0E0A12">ON A VALVE CAP.</text>
+
+      <rect x="56" y="80" width="144" height="22" fill="#7B2EFF" stroke="#0E0A12" stroke-width="2"/>
+      <text x="128" y="95" text-anchor="middle" font-family="Anton, sans-serif" font-style="italic" font-weight="900"
+            font-size="11" fill="#FFFFFF">MAKE YOURS →</text>
+    </g>
+
+    <text x="150" y="180" text-anchor="middle" font-style="italic" font-weight="900" font-size="14" fill="#FFFFFF">A working e-commerce site ·</text>
+    <text x="150" y="198" text-anchor="middle" font-style="italic" font-weight="900" font-size="14" fill="#2EFF8C">photo → STL → cap.</text>
+    <text x="150" y="222" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" fill="#F5F2E5">Real product · ships today · $0 during launch</text>
+  </g>
+
+  <!-- ─────────────────── BIG QUOTE ─────────────────── -->
+
+  <g transform="translate(40 480)">
+    <rect width="1200" height="160" fill="#2EFF8C" stroke="#0E0A12" stroke-width="3" rx="8"/>
+
+    <text x="40" y="44" font-style="italic" font-weight="900" font-size="22" fill="#0E0A12">The MACHINE is the flyer.</text>
+    <text x="40" y="74" font-style="italic" font-weight="900" font-size="22" fill="#0E0A12">The CAPSULE is the box.</text>
+    <text x="40" y="104" font-style="italic" font-weight="900" font-size="22" fill="#0E0A12">The CAP is the product.</text>
+    <text x="40" y="134" font-style="italic" font-weight="900" font-size="22" fill="#0E0A12">The SITE is real and it ships.</text>
+
+    <text x="1180" y="140" text-anchor="end" font-family="ui-monospace, monospace" font-size="11" fill="#0E0A12" font-style="italic">— founder note · April 2026</text>
+  </g>
+
+  <!-- ─────────────────── BOTTOM STRIP — distribution ─────────────────── -->
+
+  <g transform="translate(40 670)">
+    <rect width="1200" height="80" fill="#F5F2E5" stroke="#0E0A12" stroke-width="3" rx="6"/>
+    <text x="14" y="22" font-family="ui-monospace, monospace" font-size="11" font-weight="700"
+          letter-spacing="0.18em" fill="#7B2EFF">DISTRIBUTION POINTS</text>
+
+    <g transform="translate(14 36)">
+      <circle r="6" fill="#FF2EAB" stroke="#0E0A12" stroke-width="2"/>
+      <text x="14" y="4" font-family="ui-monospace, monospace" font-size="11" fill="#0E0A12" font-weight="700">Waterway Arts</text>
+      <text x="14" y="20" font-family="ui-monospace, monospace" font-size="9" fill="#3D2F4A">First Friday opening · gumball machine</text>
+    </g>
+
+    <g transform="translate(280 36)">
+      <circle r="6" fill="#7B2EFF" stroke="#0E0A12" stroke-width="2"/>
+      <text x="14" y="4" font-family="ui-monospace, monospace" font-size="11" fill="#0E0A12" font-weight="700">The Wagon Wheel</text>
+      <text x="14" y="20" font-family="ui-monospace, monospace" font-size="9" fill="#3D2F4A">Grab-bag machine · leftovers · ride-by retail</text>
+    </g>
+
+    <g transform="translate(580 36)">
+      <circle r="6" fill="#2EFF8C" stroke="#0E0A12" stroke-width="2"/>
+      <text x="14" y="4" font-family="ui-monospace, monospace" font-size="11" fill="#0E0A12" font-weight="700">The Upper Bend</text>
+      <text x="14" y="20" font-family="ui-monospace, monospace" font-size="9" fill="#3D2F4A">Grab-bag machine · run until capsules out</text>
+    </g>
+
+    <g transform="translate(880 36)">
+      <circle r="6" fill="#0E0A12" stroke="#0E0A12" stroke-width="2"/>
+      <text x="14" y="4" font-family="ui-monospace, monospace" font-size="11" fill="#0E0A12" font-weight="700">stemdomez.com/sixpack</text>
+      <text x="14" y="20" font-family="ui-monospace, monospace" font-size="9" fill="#3D2F4A">6 free lore caps · STL drop · always-on</text>
+    </g>
+  </g>
+</svg>
