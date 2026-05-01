@@ -416,56 +416,183 @@ server/
 
 ## 8. Environments & configuration
 
-Everything is read from `process.env` at startup. Canonical list in
-`.env.example`. A few notes that are easy to miss:
+Everything is read from `process.env` (Node) or `os.environ` (Python) at
+startup. Two distinct envelopes:
+
+1. **Node app** (Express + socket.io running on DigitalOcean App Platform).
+2. **RunPod handler** (`handler.py` + the Python pipeline running on the
+   GPU worker container).
+
+The Node `.env` / DO env vars are declared in `.do/app.yaml` (with
+`SECRET` type for credentials and `${db.DATABASE_URL}` injected from
+the managed Postgres). The handler env vars are set per-endpoint in the
+RunPod Console — `.runpod/hub.json` declares the canonical defaults.
 
 ### Node app (DO App Platform)
 
-- **`DATABASE_SSL=false`** is only for local plaintext Postgres. DO Managed
-  DB requires TLS.
-- **SSL posture**: production always runs with `rejectUnauthorized: false`
-  (encrypted channel, no cert verification). DO's managed PG cert chain
-  does not validate under Node's default trust store; this matches DO's
-  own Node.js connection recipe.
-- **`APP_URL`** is used to build Stripe success/cancel URLs. Set it to your
-  production domain (e.g. `https://stemdomez.ondigitalocean.app`).
-- **`STRIPE_PRICE_STL_CENTS`** overrides the STL-download price without code changes.
-- **`RUNPOD_ENDPOINT_URL`** — base URL of the RunPod Serverless endpoint,
-  e.g. `https://api.runpod.ai/v2/k7ys399t88zplj`. When this **and**
-  `RUNPOD_API_KEY` are set, `stl.generate` routes to RunPod; otherwise it
-  spawns the local Python worker.
-- **`RUNPOD_API_KEY`** (SECRET) — RunPod API token. Required alongside
-  `RUNPOD_ENDPOINT_URL`.
-- **`TRELLIS_ENABLED=false`** toggles the procedural fallback head in the
-  *local* Python worker — useful on App Platform (no GPU) and in CI.
-  Has no effect on the RunPod path.
+#### Core boot
 
-### RunPod GPU worker (`handler.py`)
+| Variable           | Required | Default        | Purpose |
+|--------------------|----------|----------------|---------|
+| `PORT`             | platform | platform       | HTTP port (DO injects this; don't override). |
+| `NODE_ENV`         | no       | `production`   | `production` enables prod logging + cookie `Secure`. |
+| `LOG_LEVEL`        | no       | `info`         | `error`/`warn`/`info`/`debug`. |
+| `APP_URL`          | yes      | —              | Public origin (`https://stemdomez.com`). Used for Stripe redirects, sitemap.xml, OG image absolute URLs. |
+| `PUBLIC_URL`       | no       | `APP_URL`      | Override only when the SPA shell needs a different origin from the API (we don't, but the constant is read). |
+| `STATIC_DIR`       | no       | `./dist`       | Where `vite build` output lives. |
+| `BACKEND_PORT`     | dev only | `3000`         | Vite proxy target during `npm run dev`. |
+| `VITE_PORT`        | dev only | `5173`         | Vite dev server port. |
+| `CORS_ORIGIN`      | no       | `APP_URL`      | Tightens `Access-Control-Allow-Origin` for socket.io. |
 
-- **`TRELLIS_MODEL`** — Hugging Face model id (default
-  `microsoft/TRELLIS-image-large`).
-- **`VALVE_CAP_PATH`** — path to the cap STL inside the container
-  (default `/app/valve_cap.stl`, baked in by the Dockerfile).
-- **`HF_HOME` / `TRANSFORMERS_CACHE` / `TORCH_HOME`** — point at
-  `/runpod-volume/hf` and `/runpod-volume/torch` so weights survive cold
-  starts when a Network Volume is mounted on the endpoint.
-- **`ATTN_BACKEND` / `SPARSE_ATTN_BACKEND`** — both set to `xformers`. The
-  two TRELLIS attention modules read different env vars; both must be
-  set or the sparse path falls back to flash_attn (which we don't ship).
+#### Database (DO Managed Postgres 18)
+
+| Variable        | Required | Default | Purpose |
+|-----------------|----------|---------|---------|
+| `DATABASE_URL`  | yes      | —       | Postgres connection string. DO injects via `${db.DATABASE_URL}`. |
+| `DATABASE_SSL`  | no       | on      | Set `false` for local plaintext Postgres only — DO Managed requires TLS, prod always runs with `rejectUnauthorized: false` per DO's recipe. |
+| `DB_POOL_MAX`   | no       | `10`    | `pg` pool max connections. |
+
+#### Auth + sessions
+
+| Variable                | Required | Default        | Purpose |
+|-------------------------|----------|----------------|---------|
+| `AUTH_SECRET` (SECRET)  | yes      | —              | Signs `sd_session` cookies and magic-link tokens. Must be ≥ 32 bytes. Rotating invalidates every session. |
+| `AUTH_COOKIE_NAME`      | no       | `sd_session`   | Cookie name. |
+| `AUTH_COOKIE_MAX_AGE_S` | no       | `2592000` (30d)| Session lifetime in seconds. |
+| `AUTH_TOKEN_TTL_MS`     | no       | `900000` (15m) | Magic-link token expiry. |
+| `AUTH_LIMIT_PER_EMAIL`  | no       | `5`            | Magic-link request rate limit per email per hour. |
+| `AUTH_LIMIT_PER_IP`     | no       | `20`           | Same per IP per hour. |
+| `ADMIN_EMAILS`          | no       | —              | Comma-separated list. Accounts created with these emails get `role=admin` at boot. |
+| `SHARE_LINK_SECRET` (SECRET) | yes | —             | Signs `/d/<token>` permalinks. |
+
+#### Email
+
+| Variable               | Required | Default                  | Purpose |
+|------------------------|----------|--------------------------|---------|
+| `RESEND_API_KEY` (SECRET) | yes  | —                        | Resend.com outbound provider. Falls back to console-log devUrl in development. |
+| `EMAIL_FROM`           | no       | `hello@stemdomez.com`    | `From:` header. |
+| `POSTMARK_TOKEN`       | no       | —                        | Legacy provider, used only if Resend fails to load. |
+| `POSTMARK_STREAM`      | no       | `outbound`               | Postmark message stream. |
+
+#### Payments (Stripe)
+
+| Variable                          | Required           | Default      | Purpose |
+|-----------------------------------|--------------------|--------------|---------|
+| `STRIPE_SECRET_KEY` (SECRET)      | when payments_enabled | —         | `sk_test_…` / `sk_live_…`. |
+| `STRIPE_WEBHOOK_SECRET` (SECRET)  | when webhook on    | —            | Verifies Stripe webhook signatures. |
+| `STRIPE_WEBHOOK_ENABLED`          | no                 | `false`      | Webhook is opt-in; redirect-return verification works without it. |
+| `STRIPE_PRICE_STL_CENTS`          | no                 | `200`        | $2 STL — overridable without a deploy. |
+| `STRIPE_PRICE_PRINT_CENTS`        | no                 | `1999`       | $19.99 printed cap. |
+| `STRIPE_PRICE_PACK_CENTS`         | no                 | `5999`       | $59.99 pack of four. |
+| `STRIPE_CURRENCY`                 | no                 | `usd`        | ISO 4217. |
+| `STRIPE_TAX_ENABLED`              | no                 | `false`      | Toggle Stripe Tax automatic calculation. |
+| `STRIPE_SHIPPING_COUNTRIES`       | no                 | `US`         | Comma-separated country codes for Checkout shipping. |
+| `STRIPE_CUSTOMER_PORTAL_CONFIG_ID`| no                 | —            | Optional billing-portal config id. |
+
+#### Image processing (server-side, before GPU dispatch)
+
+| Variable                  | Required | Default | Purpose |
+|---------------------------|----------|---------|---------|
+| `MAX_IMAGE_BYTES`         | no       | `5242880` (5 MB) | Hard upload cap. Exceed = `IMAGE_TOO_LARGE` error. |
+| `IMAGE_RESIZE_ENABLED`    | no       | `true`  | `false` to disable the `sharp` downsample pass entirely. |
+| `IMAGE_RESIZE_MAX_EDGE`   | no       | `1024`  | Long-edge cap in pixels. TRELLIS internally resizes to ~518 px, so values above ~1024 are wasted bandwidth. |
+| `IMAGE_RESIZE_QUALITY`    | no       | `88`    | mozjpeg quality. |
+
+#### RunPod GPU dispatch
+
+| Variable                      | Required | Default | Purpose |
+|-------------------------------|----------|---------|---------|
+| `RUNPOD_ENDPOINT_URL`         | one of   | —       | Single-region legacy. `https://api.runpod.ai/v2/<endpoint-id>`. |
+| `RUNPOD_ENDPOINT_URLS`        | one of   | —       | Multi-region racing. Comma-separated URLs (no spaces). When 2+ entries, every generation is submitted to all regions in parallel; first to start processing wins, losers cancelled. |
+| `RUNPOD_API_KEY` (SECRET)     | yes      | —       | RunPod bearer token. Account-wide — same key authenticates against every region. |
+| `RUNPOD_FORCE_WARMUP`         | no       | unset   | Set to `1` to route the first generation after server boot to the LAST endpoint in `RUNPOD_ENDPOINT_URLS` only (no race). Auto-consumed after one successful job; re-arms on app restart. Safe to leave set indefinitely. |
+
+#### TRELLIS pipeline (Node side)
+
+| Variable           | Required | Default     | Purpose |
+|--------------------|----------|-------------|---------|
+| `PIPELINE_VERSION` | no       | `legacy`    | `v1` runs the seven-stage CAD pipeline (recommended). `legacy` runs the old `_merge` concat. Unknown values fall back to legacy with a warning. |
+| `TRELLIS_ENABLED`  | no       | `true`      | `false` toggles the procedural fallback head in the LOCAL Python worker only — useful for CI / Docker dev without a GPU. No effect on the RunPod path. |
+| `PYTHON_BIN`       | no       | `python3`   | Python interpreter for the local worker. |
+
+#### Rate limits + telemetry + observability
+
+| Variable                       | Required | Default | Purpose |
+|--------------------------------|----------|---------|---------|
+| `STL_RATE_LIMIT_PER_IP`        | no       | `10/h`  | `stl.generate` requests per IP per hour. |
+| `STL_RATE_LIMIT_PER_SOCKET`    | no       | `5/m`   | Same per socket per minute (faster window catches accidental loops). |
+| `FLAG_CACHE_TTL_MS`            | no       | `30000` | `feature_flags` cache TTL. |
+| `IPINFO_TOKEN`                 | no       | —       | ipinfo.io token for `/admin` Map tab. Without it, geo lookups fall back to country-only. |
+| `METRICS_TOKEN` (SECRET)       | no       | —       | Bearer auth for `GET /metrics` (Prometheus exposition). Omit to disable the endpoint. |
+| `SENTRY_DSN`                   | no       | —       | Server-side Sentry. Auto-disabled when missing. |
+| `SENTRY_ENVIRONMENT`           | no       | `production` | Sentry env tag. |
+| `SENTRY_RELEASE`               | no       | git sha | Sentry release tag. |
+| `SENTRY_TRACES_SAMPLE_RATE`    | no       | `0.05`  | Performance trace sampling. |
+
+### RunPod handler (`handler.py` + pipeline)
+
+Set per-endpoint in the RunPod Console. Required env vars are listed
+in `.runpod/hub.json` so the Hub deploy flow prompts for them.
+
+#### Required
+
+| Variable          | Default                              | Purpose |
+|-------------------|--------------------------------------|---------|
+| `HF_TOKEN` (SECRET)  | —                                 | Hugging Face token for the TRELLIS-image-large gated model download. **Without this, every cold start fails to download weights and the worker silently can't generate anything** — the most common "queued forever" cause. Token must have read access AND the HF account must have accepted the TRELLIS license at huggingface.co/microsoft/TRELLIS-image-large. |
+
+#### Cache paths (point at the network volume)
+
+| Variable                  | Default                  | Purpose |
+|---------------------------|--------------------------|---------|
+| `HF_HOME`                 | `/runpod-volume/hf`      | HuggingFace cache root. |
+| `HUGGINGFACE_HUB_CACHE`   | `/runpod-volume/hf`      | Same path — both vars are read by different versions of `huggingface_hub`. |
+| `TRANSFORMERS_CACHE`      | `/runpod-volume/hf`      | `transformers` library cache. |
+| `TORCH_HOME`              | `/runpod-volume/torch`   | `torch.hub` cache (dinov2, u2net). |
+
+Without these, every cold start re-downloads ~3.8 GB of weights to
+ephemeral container storage and loses them at scale-to-zero.
+
+#### Static asset paths (baked into the image)
+
+| Variable             | Default                   | Purpose |
+|----------------------|---------------------------|---------|
+| `TRELLIS_MODEL`      | `microsoft/TRELLIS-image-large` | HF repo for the image-to-3D pipeline. |
+| `VALVE_CAP_PATH`     | `/app/valve_cap.stl`      | Threaded Schrader cap STL — Stage 4 union target. |
+| `NEGATIVE_CORE_PATH` | `/app/negative_core.stl`  | Boolean-cutter STL for Stage 3 cavity carve. |
+
+#### Performance backends
+
+| Variable                | Default     | Purpose |
+|-------------------------|-------------|---------|
+| `SPCONV_ALGO`           | `native`    | TRELLIS sparse-conv backend. |
+| `ATTN_BACKEND`          | `xformers`  | Dense-attention kernel for `trellis.modules.attention`. |
+| `SPARSE_ATTN_BACKEND`   | `xformers`  | **Both must be set** — sparse attention reads a different env var and only accepts `xformers` or `flash_attn`. |
+
+#### Pipeline tunables
+
+| Variable                  | Default                       | Purpose |
+|---------------------------|-------------------------------|---------|
+| `PIPELINE_VERSION`        | `legacy` (Node-driven)        | Same toggle as Node side; the handler reads it from the request body, not env. |
+| `MAX_TRIS_AFTER_REPAIR`   | `500000`                      | Stage 1.5 cap. Above this, `fast_simplification` auto-decimates to fit. |
+| `STAGE_TIMEOUT_S`         | `60`                          | Per-stage wall-clock budget. |
+| `JOB_TIMEOUT_S`           | `300`                         | Total pipeline budget (TRELLIS itself runs separately in handler.py). |
+| `TRELLIS_CACHE_DIR`       | `/runpod-volume/cache/trellis`| Slider-tweak cache (skip TRELLIS when only post-process sliders changed). |
+| `TRELLIS_CACHE_TTL_S`     | `86400` (24 h)                | Cache TTL. Matches the design-store TTL. |
+| `FAILURE_CORPUS_DIR`      | `/runpod-volume/failures`     | Bad-job snapshots for debug replay. |
+| `PIPELINE_CONSTANTS_PATH` | `/app/pipeline/pipeline_constants.json` | Override the locked-constants JSON for experimentation. |
 
 ### Print process (locked, see [3D_Pipeline.md §0](3D_Pipeline.md))
 
-Not env vars, but downstream constants that drive Stage 5 print-prep:
+Not env vars, but downstream constants that drive Stage 5 + Stage 6:
 
 - Process: FDM, PLA filament, 0.4 mm nozzle.
 - Layer height target: 0.12–0.16 mm.
 - Triangle budget: 50–80K out of Stage 5.
 - Min wall thickness: 1.2 mm.
 - Negative-core clearance: 0.25 mm radial.
-
-The DO `app.yaml` declares the Node-side variables, promotes Stripe and
-RunPod secrets to `SECRET` type, and injects `${db.DATABASE_URL}` from the
-managed database. RunPod-worker variables live in `.runpod/hub.json`.
+- Stage 6 watertight repair via PyMeshFix (`joincomp=False`,
+  `remove_smallest_components=False`) — preserves the head + cap as
+  separately-sealed shells.
 
 ---
 

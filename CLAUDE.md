@@ -15,12 +15,27 @@ the doc it belongs to.
   pinned-literal cream (`#F5F2E5`), inset cards are beige
   (`#E5E0CC`) with 2px ink borders, body type is full ink
   (`#0E0A12`) not ink-muted. Applies to `/admin`, `/account`,
-  `/how-it-works`, `/showcase`, `/help`, every legal page. The
-  landing (`/`) and generator (`/stemdome-generator`) keep their
-  Memphis / halftone treatment — don't apply the operator cue
-  there.
+  `/showcase`, `/help`, `/press`, `/changelog`, `/incidents`,
+  every legal page. The landing (`/`) and generator
+  (`/stemdome-generator`) keep their Memphis / halftone treatment
+  — don't apply the operator cue there.
 - **Wordmark + Z signature**: trailing Z always neon purple
   italic with a fluoro-green drop shadow (§1, §4).
+- **Pin colors with `var(--sdzr-*)`** anywhere a card/strip/sticker
+  has a pinned background. The theme tokens `var(--ink)`,
+  `var(--paper)`, `var(--brand)` flip in dark mode; the `--sdzr-*`
+  set in `client/styles/sdz-radical.css` does NOT. Mixing the two
+  on a pinned surface produces invisible cream-on-cream text in
+  dark mode — already burned us once on `/sixpack`.
+- **`/sixpack` and `/how-it-works` are landing anchors**, not
+  separate pages. Header + footer + legal-quicklink links use
+  `/#sixpack` and `/#how`. The router strips the fragment, renders
+  `/`, and scrolls to the matching id with retry-after-layout-settle.
+  The full inline Sixpack gallery lives in `client/pages/home.js`.
+- **Brand footer is mounted globally** in `client/main.js` below
+  the router's `<main>` element — every page gets it. Re-renders
+  on `onAppConfigChange` so the Pricing graffiti tracks
+  `payments_enabled`.
 
 ## Architecture
 
@@ -34,10 +49,41 @@ the doc it belongs to.
   auto-register via `server/commands/index.js`.
 - **Pipeline**: `handler.py` + `server/workers/pipeline/` — RunPod
   serverless TRELLIS + 7-stage CAD. Bumps to `HANDLER_VERSION`
-  require a GHA build (release tag) + RunPod release.
+  require a GHA build (release tag) + RunPod release. Stage 6
+  (PyMeshFix watertight repair) is the final pass before STL
+  export — guarantees a 2-manifold solid for slicer input.
 - **Architecture diagram**: [architecture.svg](./architecture.svg)
   is the current source of truth. The brand-styled version on
   `/`'s "How it really works." block mirrors it.
+
+## Multi-region GPU (RunPod racing)
+
+- **Backend races configured RunPod regions in parallel.** Set
+  `RUNPOD_ENDPOINT_URLS=<us-url>,<ro-url>` (comma-separated) on DO
+  to enable. Single-URL `RUNPOD_ENDPOINT_URL` still works as the
+  legacy single-region path.
+- **How it resolves**: POST `/run` to all endpoints in parallel →
+  poll `/stream/<id>` on each → first endpoint whose worker picks
+  up the job (status `IN_PROGRESS` or any frames) wins → losers
+  get `/cancel/<id>`. One GPU bill per generation.
+- **Force-warmup the new region**: `RUNPOD_FORCE_WARMUP=1` routes
+  the first generation after server boot to the LAST endpoint in
+  `RUNPOD_ENDPOINT_URLS` only (no race), so its volume populates
+  with weights. Auto-consumed after one successful job. Safe to
+  leave set indefinitely.
+- **Telemetry** lives in `server/workers/runpod-client.js` (in-
+  memory `getRunpodTelemetry()`) and surfaces in `/admin` →
+  Regions tab.
+
+## Image processing
+
+- **Server-side downsample** before GPU dispatch.
+  `server/commands/stl.js` runs uploads through `sharp` and caps
+  the long edge at 1024 px (mozjpeg q88) before posting to
+  RunPod. TRELLIS internally resizes to ~518 px so anything above
+  ~1024 is wasted bandwidth. Tunable via env (see ProductSpec §8).
+  Original upload bytes are still persisted to `user_photos` for
+  re-runs; only the GPU-bound payload is shrunk.
 
 ## Auth + sessions
 
@@ -105,9 +151,18 @@ the doc it belongs to.
 - Memory: `~/.claude/projects/-Users-ianroy-...-bikeheadz/memory/`
   is auto-loaded; consult before doing anything that depends on
   prior decisions.
-- Owner inbox: `ianroy@stemdomez.com` (forwarded), test account
-  `makerlab@protonmail.com`.
+- Owner inbox: `ianroy@stemdomez.com` (forwarded via ImprovMX),
+  test account `makerlab@protonmail.com`.
 - Production URL: `https://stemdomez.com` (DO App Platform).
+- **Current handler image**: `v0.1.39` (PyMeshFix-cap-preserved
+  + stage-2 None guard). Bump checklist lives in §"Architecture"
+  above; the env-var matrix is in
+  [ProductSpec.md §8](./ProductSpec.md#8-environments--configuration).
+- **Both endpoints must be on the same image tag.** Roll US first,
+  smoke-test, then roll RO. Race results are inconsistent if one
+  region runs an older handler.
+- **`RUNPOD_FORCE_WARMUP=1` is permanently set** on DO so freshly
+  rolled regions get warmed by the first real job after boot.
 - RunPod release flow: `gh release create vX.Y.Z` → GHA builds
   GHCR image (~17–25 min) → RunPod dashboard → New Release →
   paste GHCR URL → confirm boot banner.
