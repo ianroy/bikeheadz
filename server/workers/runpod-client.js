@@ -298,34 +298,172 @@ async function raceAndStream({ socket, commandId, endpoints, input }) {
     throw new Error('runpod_race_timeout');
   }
 
-  // Winner found — record telemetry, cancel losers.
+  // Winner found — record telemetry, but DO NOT cancel losers yet.
+  //
+  // The previous behavior was to cancel losers immediately. That's
+  // optimal in cost (one GPU bill, queue-time on the loser refunded by
+  // the cancel) but turns the race into a single point of failure: if
+  // the picked winner crashes mid-pipeline (broken HF_TOKEN, dead GPU
+  // worker, OOM during boolean phase), we've already killed the only
+  // backup and have to report a hard failure to the rider.
+  //
+  // New posture: keep losers as STANDBY jobs. They sit in the
+  // RunPod queue (free — RunPod only bills GPU-seconds, not queue
+  // time) until either (a) winner succeeds → we cancel them, or
+  // (b) winner crashes → we fail over to whichever standby is
+  // furthest along.
+  //
+  // Worst case: every endpoint actually starts running concurrently
+  // and we pay double GPU. Acceptable price for not eating our
+  // redundancy on the race-pick step.
   const latencyMs = Date.now() - startedAt;
   bumpStat(winner.base, 'wins');
   bumpStat(winner.base, 'lastWinAt', new Date().toISOString());
   bumpStat(winner.base, 'lastWinLatencyMs', latencyMs);
-  const losers = accepted.filter((a) => a.base !== winner.base);
-  for (const loser of losers) {
-    bumpStat(loser.base, 'losses');
-    cancelJob(loser.base, loser.jobId).catch((err) =>
-      logger.debug({ msg: 'runpod.cancel_failed', endpoint: loser.base, jobId: loser.jobId, err: err.message })
-    );
-  }
+  const standby = accepted.filter((a) => a.base !== winner.base);
   logger.info({
     msg: 'runpod.race_winner',
     winner: winner.base,
     jobId: winner.jobId,
     latencyMs,
-    losers: losers.length,
+    standby_count: standby.length,
+    standby: standby.map((s) => ({ base: s.base, jobId: s.jobId })),
   });
 
-  return streamAndAssemble({
-    socket, commandId,
+  // Failover loop. Try the winner; if it throws, walk the standby
+  // list and try each one until something succeeds or we're out of
+  // candidates. Each failover candidate has to be polled for its
+  // own IN_PROGRESS flip first, since we held off canceling them
+  // before they had a chance to start working.
+  const tried = new Set([winner.base]);
+  let activeAttempt = {
     base: winner.base,
     jobId: winner.jobId,
-    deadline,
     initialFrames,
     initialStatus: winner.chunk.status,
-  });
+  };
+  let lastError = null;
+
+  while (true) {
+    try {
+      const result = await streamAndAssemble({
+        socket, commandId,
+        base: activeAttempt.base,
+        jobId: activeAttempt.jobId,
+        deadline,
+        initialFrames: activeAttempt.initialFrames,
+        initialStatus: activeAttempt.initialStatus,
+      });
+      // Success path. Cancel any standby jobs still pending.
+      for (const s of standby) {
+        if (tried.has(s.base)) continue;
+        bumpStat(s.base, 'losses');
+        cancelJob(s.base, s.jobId).catch((err) =>
+          logger.debug({ msg: 'runpod.cancel_failed', endpoint: s.base, jobId: s.jobId, err: err.message })
+        );
+      }
+      return result;
+    } catch (err) {
+      lastError = err;
+      bumpStat(activeAttempt.base, 'errors');
+      bumpStat(activeAttempt.base, 'lastErrorAt', new Date().toISOString());
+      logger.warn({
+        msg: 'runpod.race_winner_failed',
+        endpoint: activeAttempt.base,
+        jobId: activeAttempt.jobId,
+        err: err.message,
+        standby_remaining: standby.filter((s) => !tried.has(s.base)).length,
+      });
+
+      // Find the next standby that hasn't been tried.
+      const nextStandby = standby.find((s) => !tried.has(s.base));
+      if (!nextStandby) {
+        // Out of candidates. Re-throw the last error.
+        throw lastError;
+      }
+      tried.add(nextStandby.base);
+
+      // Poll the standby until it flips to a usable state OR fails.
+      // It may already be IN_PROGRESS, IN_QUEUE, COMPLETED, or FAILED.
+      logger.info({
+        msg: 'runpod.race_failover',
+        from: activeAttempt.base,
+        to: nextStandby.base,
+        jobId: nextStandby.jobId,
+      });
+      const standbyState = await waitForStandbyReady(nextStandby, deadline);
+      if (!standbyState) {
+        // Standby itself failed before reaching usable state. Loop
+        // around — the catch will record this as another error and
+        // try the next standby.
+        bumpStat(nextStandby.base, 'errors');
+        lastError = new Error(`runpod_standby_${nextStandby.base.split('/').pop()}_failed_before_ready`);
+        // Synthesize a "failure" for the loop's next iteration by
+        // pointing activeAttempt at this dead one — streamAndAssemble
+        // would re-detect the failure but we can short-circuit by
+        // throwing into the next iteration manually.
+        activeAttempt = nextStandby;
+        // Re-enter the loop top with a fake attempt that
+        // streamAndAssemble will immediately fail on, OR just throw
+        // and let the next standby get picked. Cleaner to skip the
+        // streamAndAssemble call entirely:
+        continue; // this re-runs the while(true), the streamAndAssemble call will likely fail fast against a dead job
+      }
+      activeAttempt = {
+        base: nextStandby.base,
+        jobId: nextStandby.jobId,
+        initialFrames: standbyState.frames,
+        initialStatus: standbyState.status,
+      };
+      bumpStat(nextStandby.base, 'wins'); // counted as the eventual winner
+      bumpStat(nextStandby.base, 'lastWinAt', new Date().toISOString());
+      bumpStat(nextStandby.base, 'lastWinLatencyMs', Date.now() - startedAt);
+    }
+  }
+}
+
+// Poll a standby endpoint's job until it either reaches IN_PROGRESS
+// (worker has picked it up — usable) or terminal failure
+// (FAILED/CANCELLED/TIMED_OUT). Returns
+//   { status, frames }   when the job is usable
+//   null                  when the job failed before reaching usable
+async function waitForStandbyReady(standby, deadline) {
+  const auth = authHeaders();
+  while (Date.now() < deadline) {
+    let chunk;
+    try {
+      chunk = await fetchJson(`${standby.base}/stream/${standby.jobId}`, { headers: auth });
+    } catch (err) {
+      logger.warn({
+        msg: 'runpod.standby_poll_failed',
+        endpoint: standby.base,
+        jobId: standby.jobId,
+        err: err.message,
+      });
+      // One transient failure isn't enough to give up — keep polling
+      // until either deadline or a terminal status. The 2-strike
+      // policy in the main race loop is the right default; here we
+      // just back off and retry.
+      await sleep(POLL_INTERVAL_MS);
+      continue;
+    }
+    const status = chunk.status;
+    const frames = Array.isArray(chunk.stream) ? chunk.stream : [];
+    if (status === 'FAILED' || status === 'CANCELLED' || status === 'TIMED_OUT') {
+      logger.warn({
+        msg: 'runpod.standby_terminal_failure',
+        endpoint: standby.base,
+        jobId: standby.jobId,
+        status,
+      });
+      return null;
+    }
+    if (status === 'IN_PROGRESS' || status === 'COMPLETED' || frames.length > 0) {
+      return { status, frames };
+    }
+    await sleep(POLL_INTERVAL_MS);
+  }
+  return null;
 }
 
 // ── HTTP helpers ────────────────────────────────────────────────────
