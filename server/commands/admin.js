@@ -14,6 +14,7 @@ import { db, hasDb } from '../db.js';
 import { CommandError, ErrorCode } from '../errors.js';
 import { logger } from '../logger.js';
 import { sendEmail } from '../email.js';
+import { getRunpodTelemetry, pingRunpod } from '../workers/runpod-client.js';
 
 const RangeSchema = z.object({
   range: z.enum(['7d', '30d', '90d']).default('30d'),
@@ -541,5 +542,23 @@ export const adminCommands = {
       targetId: target.id,
     });
     return { ok: true, target: { id: target.id, email: target.email } };
+  },
+
+  // RunPod multi-region race telemetry. Returns per-endpoint counters
+  // (submits / wins / losses / errors / last-win) plus a live ping
+  // (reachable / latency per region). The /admin "Regions" tab reads
+  // this to render the race-winner pie + reachability table.
+  'admin.metrics.runpod': async ({ socket }) => {
+    requireAdmin({ socket });
+    const [ping] = await Promise.all([pingRunpod()]);
+    const telemetry = getRunpodTelemetry();
+    return {
+      // Telemetry rows are the source of truth for win-rate. Endpoints
+      // that have never been raced won't appear here yet.
+      endpoints: telemetry,
+      // Live reachability — surfaces endpoints even before they've
+      // served a request, so the operator can see they're configured.
+      ping,
+    };
   },
 };

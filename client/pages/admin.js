@@ -132,6 +132,7 @@ export function AdminPage({ socket }) {
       ['devices',   'Devices'],
       ['referrers', 'Referrers'],
       ['pipeline',  'Pipeline'],
+      ['regions',   'Regions'],
       ['costs',     'Costs'],
       ['email',     'Email'],
       ['failures',  'Failures'],
@@ -1198,6 +1199,172 @@ export function AdminPage({ socket }) {
     return wrap;
   }
 
+  // Region win-rate dashboard. Surfaces the per-endpoint counters
+  // accumulated by server/workers/runpod-client.js when racing
+  // multiple RUNPOD_ENDPOINT_URLS regions. Pie = lifetime wins;
+  // table = full breakdown (submits / wins / losses / errors / live
+  // reachability). Manual refresh button — telemetry is in-memory and
+  // updates live, so a full re-fetch is enough.
+  function renderRegions() {
+    const wrap = el('div', { style: { display: 'flex', flexDirection: 'column', gap: '14px' } });
+
+    const refreshBtn = el('button', {
+      style: {
+        alignSelf: 'flex-start',
+        padding: '8px 14px',
+        background: '#5A1FCE',
+        color: '#FFFFFF',
+        border: '2px solid #0E0A12',
+        boxShadow: '3px 3px 0 #0E0A12',
+        fontFamily: 'ui-monospace, monospace',
+        fontWeight: 700,
+        fontSize: '0.85rem',
+        letterSpacing: '0.04em',
+        textTransform: 'uppercase',
+        cursor: 'pointer',
+      },
+      onClick: async () => {
+        refreshBtn.disabled = true;
+        refreshBtn.textContent = 'Refreshing…';
+        try {
+          state.runpod = await socket.request('admin.metrics.runpod');
+        } catch { /* leave previous data */ }
+        renderContent();
+      },
+    }, '↻ Refresh');
+    wrap.appendChild(refreshBtn);
+
+    if (!state.runpod) {
+      wrap.appendChild(el('p', {}, 'Loading…'));
+      return wrap;
+    }
+
+    const endpoints = state.runpod.endpoints || [];
+    const ping = state.runpod.ping || { endpoints: [] };
+
+    if (endpoints.length === 0 && (ping.endpoints || []).length === 0) {
+      wrap.appendChild(emptyTabPlaceholder(
+        'No RunPod endpoints configured',
+        'Set RUNPOD_ENDPOINT_URLS (comma-separated) on DigitalOcean to enable multi-region racing. Telemetry will start populating after the first generation.'
+      ));
+      return wrap;
+    }
+
+    // Top stat row — total submits / total wins / endpoints active.
+    const totalSubmits = endpoints.reduce((s, e) => s + (e.submits || 0), 0);
+    const totalWins    = endpoints.reduce((s, e) => s + (e.wins    || 0), 0);
+    const totalErrors  = endpoints.reduce((s, e) => s + (e.errors  || 0), 0);
+    const reachableCount = (ping.endpoints || []).filter((e) => e.reachable).length;
+    const configured     = (ping.endpoints || []).length;
+
+    wrap.appendChild(el('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '14px' } },
+      statBox('Endpoints', `${reachableCount} / ${configured}`, 'reachable now'),
+      statBox('Total submits', totalSubmits.toLocaleString(), 'jobs raced since boot'),
+      statBox('Total wins', totalWins.toLocaleString(), `${totalErrors} errors`),
+    ));
+
+    // Pie chart — wins per endpoint.
+    if (totalWins > 0) {
+      const t = chartTheme();
+      const labels = endpoints.map((e) => e.id);
+      const wins   = endpoints.map((e) => e.wins || 0);
+      const colors = labels.map((_, i) => CHART_PALETTE[i % CHART_PALETTE.length]);
+
+      wrap.appendChild(el('h3', {
+        style: { fontSize: '0.9rem', fontWeight: 800, fontStyle: 'italic', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#0E0A12' },
+      }, 'Race wins by region'));
+
+      wrap.appendChild(makeChart('runpod-wins', () => ({
+        type: 'doughnut',
+        data: {
+          labels,
+          datasets: [{
+            data: wins,
+            backgroundColor: colors.map((c) => c.fill),
+            borderColor: colors.map((c) => c.stroke),
+            borderWidth: 2,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'right', labels: { color: t.muted, font: { family: 'ui-monospace' } } },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => {
+                  const pct = totalWins ? ((ctx.parsed / totalWins) * 100).toFixed(1) : '0.0';
+                  return `${ctx.label}: ${ctx.parsed} wins (${pct}%)`;
+                },
+              },
+            },
+          },
+        },
+      })));
+    } else if (totalSubmits === 0) {
+      wrap.appendChild(el('p', {
+        style: { color: '#3D2F4A', fontStyle: 'italic', padding: '12px' },
+      }, 'No races yet. Telemetry will populate after the first generation.'));
+    }
+
+    // Per-endpoint table.
+    wrap.appendChild(el('h3', {
+      style: { fontSize: '0.9rem', fontWeight: 800, fontStyle: 'italic', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#0E0A12', marginTop: '8px' },
+    }, 'Per-endpoint breakdown'));
+
+    // Merge ping reachability into the telemetry rows so configured-but-
+    // never-raced endpoints still show up.
+    const byUrl = new Map(endpoints.map((e) => [e.url, e]));
+    for (const p of (ping.endpoints || [])) {
+      if (!byUrl.has(p.base)) {
+        byUrl.set(p.base, {
+          url: p.base, id: p.id, submits: 0, wins: 0, losses: 0, errors: 0,
+          lastWinAt: null, lastWinLatencyMs: null, lastErrorAt: null,
+        });
+      }
+    }
+    const reachByUrl = new Map((ping.endpoints || []).map((e) => [e.base, e]));
+
+    const rows = Array.from(byUrl.values()).map((e) => {
+      const reach = reachByUrl.get(e.url);
+      const winPct = e.submits ? ((e.wins / e.submits) * 100).toFixed(1) + '%' : '—';
+      const reachLabel = reach
+        ? (reach.reachable ? `✓ ${reach.latencyMs ?? '?'}ms` : '✗ unreachable')
+        : '—';
+      const lastWin = e.lastWinAt
+        ? new Date(e.lastWinAt).toLocaleString()
+        : '—';
+      return [
+        e.id,
+        reachLabel,
+        (e.submits || 0).toLocaleString(),
+        (e.wins || 0).toLocaleString(),
+        (e.losses || 0).toLocaleString(),
+        (e.errors || 0).toLocaleString(),
+        winPct,
+        e.lastWinLatencyMs != null ? `${e.lastWinLatencyMs}ms` : '—',
+        lastWin,
+      ];
+    });
+
+    wrap.appendChild(simpleTable(
+      ['Endpoint ID', 'Reachable', 'Submits', 'Wins', 'Losses', 'Errors', 'Win-rate', 'Last win latency', 'Last win'],
+      rows,
+      { empty: 'No endpoints to show.' }
+    ));
+
+    wrap.appendChild(el('p', {
+      style: { color: '#3D2F4A', fontStyle: 'italic', fontSize: '0.85rem', padding: '12px 0 0' },
+    },
+      'Counters are in-memory; they reset whenever the DigitalOcean app restarts. ',
+      'Win-rate = wins / submits — values close to 50/50 mean both regions are healthy ',
+      'and load is naturally balanced. A lopsided ratio means the losing region is ',
+      'cold-starting / queued / unreachable on most jobs.'
+    ));
+
+    return wrap;
+  }
+
   function renderCosts() {
     const wrap = el('div', { style: { display: 'flex', flexDirection: 'column', gap: '14px' } });
     wrap.appendChild(rangeSelector(loadAndRender));
@@ -1361,6 +1528,7 @@ export function AdminPage({ socket }) {
     else if (t === 'devices') content.appendChild(renderDevices());
     else if (t === 'referrers') content.appendChild(renderReferrers());
     else if (t === 'pipeline') content.appendChild(renderPipeline());
+    else if (t === 'regions') content.appendChild(renderRegions());
     else if (t === 'costs') content.appendChild(renderCosts());
     else if (t === 'email') content.appendChild(renderEmail());
     else if (t === 'failures') content.appendChild(renderFailures());
@@ -1397,7 +1565,7 @@ export function AdminPage({ socket }) {
     const [
       summary, users, live, slow, promos, flags, invites,
       timeseries, funnel, geo, devices, referrers, cohorts,
-      pipeline, cost, emailHealth, failures, activity,
+      pipeline, cost, emailHealth, failures, activity, runpod,
     ] = await Promise.all([
       socket.request('admin.metrics.summary', { range: r }).catch(() => null),
       socket.request('admin.users.list', { page: 1, pageSize: 50 }).catch(() => ({ rows: [] })),
@@ -1417,6 +1585,7 @@ export function AdminPage({ socket }) {
       socket.request('admin.metrics.email', { range: r }).catch(() => null),
       socket.request('admin.metrics.failures').catch(() => null),
       socket.request('admin.metrics.activity').catch(() => null),
+      socket.request('admin.metrics.runpod').catch(() => null),
     ]);
     state.summary = summary;
     state.users = users?.rows || [];
@@ -1436,6 +1605,7 @@ export function AdminPage({ socket }) {
     state.emailHealth = emailHealth;
     state.failures = failures;
     state.activity = activity;
+    state.runpod = runpod;
     state.loaded = true;
   }
 
