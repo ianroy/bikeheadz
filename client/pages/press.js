@@ -1,332 +1,546 @@
-// X-015 — /press kit page. Sections for Logo, Monogram, Workshop
-// Palette, Product Photos, About blurb. Logo + monogram are inline
-// SVG so press sites can copy-paste the markup; product photos are
-// SVG silhouette placeholders until the real photo set lands under
-// client/public/press/.
+// /press — press kit / brand assets / about page.
+//
+// Pinned-light shell using sdzr-* tokens so it renders the same in
+// light and dark mode (matches /sixpack and the legal pages). Section
+// flow: hero + contact → boilerplate (3 lengths) → quick facts →
+// brand assets (wordmark + monogram + palette) → product imagery →
+// long-form about → press contact + ZIP placeholder.
 
 import { el } from '../dom.js';
 
+// ── Brand palette — pinned Mongoose-BMX literals per brandstandards.MD §14
 const PALETTE = [
-  { name: 'Workshop ink', hex: '#0E0A12', token: '--ink', light: false },
-  { name: 'Workshop paper', hex: '#F5F2E5', token: '--paper', light: true },
-  { name: 'Paper soft', hex: '#FFFFFF', token: '--paper-soft', light: true },
-  { name: 'Brand red', hex: '#7B2EFF', token: 'red-600', light: false },
-  { name: 'Workshop gold', hex: '#D89E2F', token: 'gold-700', light: false },
-  { name: 'Muted clay', hex: '#3D2F4A', token: 'muted-500', light: false },
+  { name: 'Workshop ink',    hex: '#0E0A12', token: '--sdzr-ink',        light: false, note: 'Body type, borders, dark surfaces.' },
+  { name: 'Workshop paper',  hex: '#F5F2E5', token: '--sdzr-paper',      light: true,  note: 'Default page background.' },
+  { name: 'Paper soft',      hex: '#E5E0CC', token: '--sdzr-paper-soft', light: true,  note: 'Inset cards on operator pages (§17).' },
+  { name: 'Neon purple',     hex: '#7B2EFF', token: '--sdzr-brand',      light: false, note: 'Primary brand. The trailing Z.' },
+  { name: 'Fluoro green',    hex: '#2EFF8C', token: '--sdzr-accent2',    light: true,  note: 'Drop shadows. Accent stickers.' },
+  { name: 'Hot magenta',     hex: '#FF2EAB', token: '--sdzr-accent3',    light: false, note: 'Secondary accent. Memphis offsets.' },
 ];
 
-const ABOUT =
-  'StemDomeZ is a small workshop that turns a portrait photo into a printable bike-valve cap shaped like the rider\'s head. The pipeline hands heavy work to a TRELLIS GPU worker and ships a binary STL the user can print at home on a 0.4 mm-nozzle FDM printer, or order shipped from us. The product is built for clubs, group rides, and shops that want personalisation on every bike. We are independent, based in California, and answer the phone.';
+const BOILERPLATE_TWEET = "StemDomeZ turns a portrait photo into a 3D-printable Schrader valve cap shaped like your face. Made in a workshop. Free during launch. → stemdomez.com";
 
-function sectionShell(title, body) {
-  return el(
-    'section',
-    { style: { marginTop: '40px' } },
-    el(
-      'h2',
-      {
-        style: {
-          fontSize: '20px',
-          fontWeight: 600,
-          marginBottom: '14px',
-          color: '#0E0A12',
-          borderBottom: '1px solid #D7CFB6',
-          paddingBottom: '6px',
-        },
+const BOILERPLATE_SHORT = "StemDomeZ is an indie maker product that takes a portrait photo and outputs a 3D-printable bike-valve cap shaped like the rider’s head. Built for the Gumball Machine Takeover residency at Sadie’s Bikes (Great Falls, MA). Free during launch.";
+
+const BOILERPLATE_LONG = "StemDomeZ is a working e-commerce site that turns a portrait photo into a personalised, 3D-printable Schrader valve-stem cap — your face, on the rim. Built for the Gumball Machine Takeover, a curatorial residency run by Sadie's Bikes out of Great (Turners) Falls, Massachusetts, the project ships caps in 50¢ gumball-machine capsules at Waterway Arts during First Friday and points buyers to a URL inside the capsule. The pipeline runs Microsoft TRELLIS image-to-3D on a serverless GPU, then a 7-stage CAD process grafts the head onto a fixed Schrader thread. Output is a binary STL the user prints at home on a 0.4 mm-nozzle FDM printer (or orders printed and shipped). The machine is the flyer. The capsule is the box. The cap is the product. The site is real and it ships.";
+
+const QUICK_FACTS = [
+  ['Launched',      '2026 — Gumball Machine Takeover · Sadie’s Bikes'],
+  ['Based in',      'Great (Turners) Falls, Massachusetts'],
+  ['Maker',         'Ian Roy · ianroy.org'],
+  ['Pricing',       'Free during launch · $2 STL after (use SADYSBIKES)'],
+  ['Tech stack',    'Vite · Three.js · Node 22 · Express · socket.io · Postgres 18 · DigitalOcean · RunPod GPU · Microsoft TRELLIS · Stripe'],
+  ['Print spec',    'FDM · PLA · 0.4 mm nozzle · 0.12–0.16 mm layer · ~30 mm tall · 50–80K tris · binary STL'],
+  ['Source',        'github.com/ianroy/bikeheadz · MIT'],
+  ['Contact',       'press@stemdomez.com'],
+];
+
+const ABOUT_LONG_PARAGRAPHS = [
+  ['StemDomeZ was built for the ', el('strong', null, 'Gumball Machine Takeover'),
+   ' — a curatorial residency run by ',
+   el('a', { href: 'https://www.instagram.com/sadiesbikes/', target: '_blank', rel: 'noopener noreferrer',
+            style: { color: '#0E0A12', textDecoration: 'underline', textDecorationColor: '#7B2EFF', textDecorationThickness: '3px' } },
+      'Sadie’s Bikes'),
+   ' out of Great (Turners) Falls, Massachusetts. The brief: come up with 200 things that fit inside a 2″ capsule, and sell each one for 50¢.'],
+  ['So I made a working e-commerce site that prints custom valve-stem caps from a photo of your face, packed it into capsules at ',
+   el('strong', null, 'Waterway Arts'), ', and pointed people at the URL on the card inside. The machine is the flyer. The capsule is the box. The cap is the product. The site is real and it ships.'],
+  ['Opens First Friday with snacks. ', el('strong', null, 'Anything left over rides around in the grab-bag machine'),
+   ' at The Wagon Wheel and The Upper Bend until the capsules run out. Big thanks to ',
+   el('strong', null, 'Nik Perry'), ' for the invitation and the constraints — both of which made the work better.'],
+];
+
+// ── Style helpers — all pinned literals so dark-mode doesn't break it ─────
+
+const PAPER     = '#F5F2E5';
+const PAPER_SOFT= '#E5E0CC';
+const INK       = '#0E0A12';
+const INK_MUTED = '#3D2F4A';
+const BRAND     = '#7B2EFF';
+const ACCENT2   = '#2EFF8C';
+const ACCENT3   = '#FF2EAB';
+
+function card(children, opts = {}) {
+  return el('section', {
+    style: {
+      position: 'relative',
+      background: opts.bg || PAPER_SOFT,
+      border: '2px solid ' + INK,
+      borderRadius: '12px',
+      padding: opts.pad || '20px 22px',
+      marginTop: '20px',
+      ...(opts.style || {}),
+    },
+  }, ...children);
+}
+
+function sectionHeading(eyebrow, title, shadowColor = ACCENT2) {
+  return el('div', { style: { marginBottom: '14px' } },
+    el('span', {
+      style: {
+        display: 'inline-block',
+        fontFamily: 'ui-monospace, monospace',
+        fontSize: '0.74rem',
+        fontWeight: 700,
+        letterSpacing: '0.18em',
+        textTransform: 'uppercase',
+        color: BRAND,
+        marginBottom: '4px',
       },
-      title
-    ),
-    body
+    }, eyebrow),
+    el('h2', {
+      class: 'sdz-display',
+      style: {
+        fontSize: 'clamp(1.6rem, 3vw, 2rem)',
+        color: INK,
+        textShadow: '3px 3px 0 ' + shadowColor,
+        margin: '0 0 0.4rem',
+        fontStyle: 'italic',
+        lineHeight: '1',
+        textTransform: 'uppercase',
+        letterSpacing: '-0.02em',
+      },
+    }, title),
   );
 }
 
-function logoSvg() {
-  // Wordmark: BIKE HEADZ. Workshop red, simple geometric sans, bracketed
-  // by two thin chevrons.
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('viewBox', '0 0 360 80');
-  svg.setAttribute('width', '320');
-  svg.setAttribute('height', '72');
-  svg.setAttribute('aria-label', 'StemDomeZ wordmark');
-  svg.innerHTML = `
-    <g fill="#7B2EFF">
-      <path d="M14 18 L4 40 L14 62 L20 62 L12 40 L20 18 Z" />
-      <path d="M346 18 L356 40 L346 62 L340 62 L348 40 L340 18 Z" />
-      <text x="180" y="50" text-anchor="middle"
-            font-family="Georgia, 'Times New Roman', serif"
-            font-size="34" font-weight="700"
-            letter-spacing="3"
-            fill="#7B2EFF">STEMDOMEZ</text>
-      <rect x="32" y="58" width="296" height="2" />
-    </g>`;
-  return svg;
+function copyButton(label, value) {
+  return el('button', {
+    type: 'button',
+    style: {
+      padding: '6px 12px',
+      background: INK,
+      color: PAPER,
+      border: '2px solid ' + INK,
+      fontFamily: 'ui-monospace, monospace',
+      fontSize: '0.75rem',
+      fontWeight: 700,
+      letterSpacing: '0.06em',
+      textTransform: 'uppercase',
+      cursor: 'pointer',
+      boxShadow: '3px 3px 0 ' + ACCENT3,
+    },
+    onClick: (e) => {
+      navigator.clipboard?.writeText(value).then(() => {
+        const btn = e.currentTarget;
+        const orig = btn.textContent;
+        btn.textContent = '✓ COPIED';
+        setTimeout(() => { btn.textContent = orig; }, 1200);
+      }).catch(() => {});
+    },
+  }, label);
 }
 
-function monogramSvg() {
-  // Bold "B" with a wheel motif — initial-only monogram for favicons.
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('viewBox', '0 0 100 100');
-  svg.setAttribute('width', '96');
-  svg.setAttribute('height', '96');
-  svg.setAttribute('aria-label', 'StemDomeZ monogram');
-  svg.innerHTML = `
-    <circle cx="50" cy="50" r="46" fill="#7B2EFF" />
-    <text x="50" y="64" text-anchor="middle"
-          font-family="Georgia, 'Times New Roman', serif"
-          font-size="56" font-weight="700"
-          fill="#F5F2E5">B</text>
-    <circle cx="50" cy="50" r="46" fill="none" stroke="#F5F2E5" stroke-width="2" stroke-dasharray="2 6" />`;
-  return svg;
-}
+// ── Brand assets ──────────────────────────────────────────────────────────
 
-function productSilhouette(label) {
-  // Generic head-and-cap silhouette so the layout is real even before
-  // the photographer sends final images.
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('viewBox', '0 0 200 200');
-  svg.setAttribute('width', '100%');
-  svg.setAttribute('height', 'auto');
-  svg.setAttribute('aria-label', label);
-  svg.innerHTML = `
-    <rect width="200" height="200" fill="#F5F2E5" />
-    <ellipse cx="100" cy="86" rx="44" ry="52" fill="#0E0A12" opacity="0.85" />
-    <rect x="68" y="138" width="64" height="20" rx="3" fill="#0E0A12" opacity="0.85" />
-    <rect x="76" y="158" width="48" height="22" rx="3" fill="#D89E2F" />
-    <rect x="76" y="158" width="48" height="3" fill="#0E0A12" opacity="0.4" />
-    <rect x="76" y="166" width="48" height="3" fill="#0E0A12" opacity="0.4" />
-    <rect x="76" y="174" width="48" height="3" fill="#0E0A12" opacity="0.4" />`;
-  return svg;
-}
-
-function paletteSwatch({ name, hex, token, light }) {
-  return el(
-    'div',
-    {
+function wordmarkBlock() {
+  return el('div', { style: { display: 'grid', gridTemplateColumns: '1fr', gap: '14px' } },
+    el('div', {
       style: {
-        background: hex,
-        color: light ? '#0E0A12' : '#FFFFFF',
-        borderRadius: '10px',
-        border: '1px solid #D7CFB6',
-        padding: '20px 16px',
-        minHeight: '110px',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'space-between',
-        boxShadow: '0 2px 6px rgba(34, 24, 12, 0.04)',
+        background: PAPER,
+        border: '2px solid ' + INK,
+        borderRadius: '8px',
+        padding: '40px 24px',
+        textAlign: 'center',
       },
     },
-    el('span', { style: { fontWeight: 600, fontSize: '15px' } }, name),
-    el(
-      'div',
-      { style: { fontFamily: 'monospace', fontSize: '13px', opacity: 0.85 } },
-      el('div', null, hex.toUpperCase()),
-      el('div', { style: { opacity: 0.7 } }, token)
-    )
+      // Brand wordmark — italic, magenta Z + green drop shadow per §1.
+      el('span', {
+        class: 'sdz-display sdz-wordmark',
+        style: {
+          fontSize: 'clamp(3rem, 8vw, 5rem)',
+          color: INK,
+          textShadow: '5px 5px 0 ' + ACCENT2,
+          fontStyle: 'italic',
+          fontWeight: 900,
+          letterSpacing: '-0.03em',
+          lineHeight: '1',
+        },
+      },
+        'StemDome',
+        el('span', { style: { color: BRAND, fontStyle: 'italic', fontSize: '1.15em', marginLeft: '-0.05em' } }, 'Z'),
+      ),
+    ),
+    el('div', { style: { display: 'flex', gap: '10px', flexWrap: 'wrap' } },
+      el('a', {
+        href: '/press/logo-wordmark.png',
+        download: 'stemdomez-wordmark.png',
+        style: assetButtonStyle(),
+      }, '↓ PNG'),
+      el('a', {
+        href: '/press/logo-wordmark.svg',
+        download: 'stemdomez-wordmark.svg',
+        style: assetButtonStyle(),
+      }, '↓ SVG'),
+      copyButton('COPY WORDMARK SPEC', 'StemDomeZ — italic, weight 900, letter-spacing -0.03em. The trailing "Z" is neon purple #7B2EFF; the wordmark sits on cream paper #F5F2E5 with a fluoro-green drop shadow #2EFF8C at 5px/5px offset.'),
+    ),
   );
 }
 
-function productCard(caption) {
-  return el(
-    'figure',
-    {
+function monogramBlock() {
+  return el('div', { style: { display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '20px', alignItems: 'center' } },
+    el('div', {
       style: {
-        background: '#FFFFFF',
-        border: '1px solid #D7CFB6',
-        borderRadius: '12px',
-        padding: '14px',
+        background: PAPER,
+        border: '2px solid ' + INK,
+        borderRadius: '8px',
+        padding: '20px',
+        display: 'grid',
+        placeItems: 'center',
+        minWidth: '160px',
+      },
+    },
+      el('img', {
+        src: '/press/logo-monogram.png',
+        alt: 'StemDomeZ monogram — cap, head, and the SDZ letterform',
+        style: { width: '120px', height: 'auto', display: 'block' },
+      }),
+    ),
+    el('div', null,
+      el('p', {
+        style: { color: INK, fontSize: '0.95rem', lineHeight: '1.5', margin: '0 0 10px' },
+      },
+        'For favicons, app icons, and tight spaces. The cap-and-head mark sits on a magenta tile with a fluoro-green Memphis offset behind it. Background-safe at 24 px and up.',
+      ),
+      el('div', { style: { display: 'flex', gap: '10px', flexWrap: 'wrap' } },
+        el('a', { href: '/press/logo-monogram.png', download: 'stemdomez-monogram.png', style: assetButtonStyle() }, '↓ PNG'),
+        el('a', { href: '/press/logo-monogram.svg', download: 'stemdomez-monogram.svg', style: assetButtonStyle() }, '↓ SVG'),
+      ),
+    ),
+  );
+}
+
+function paletteSwatch({ name, hex, token, light, note }) {
+  return el('div', {
+    style: {
+      background: hex,
+      color: light ? INK : '#FFFFFF',
+      borderRadius: '8px',
+      border: '2px solid ' + INK,
+      padding: '16px 14px',
+      minHeight: '140px',
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'space-between',
+      gap: '8px',
+    },
+  },
+    el('div', null,
+      el('div', { style: { fontFamily: 'Anton, sans-serif', fontStyle: 'italic', fontWeight: 900, fontSize: '1.05rem', letterSpacing: '0.02em', textTransform: 'uppercase' } }, name),
+      el('div', { style: { fontFamily: 'ui-monospace, monospace', fontSize: '0.78rem', opacity: 0.92, marginTop: '2px' } }, hex.toUpperCase()),
+      el('div', { style: { fontFamily: 'ui-monospace, monospace', fontSize: '0.7rem', opacity: 0.78 } }, token),
+    ),
+    el('div', { style: { fontSize: '0.72rem', lineHeight: '1.35', opacity: 0.92, fontStyle: 'italic' } }, note),
+  );
+}
+
+function assetButtonStyle() {
+  return {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '0.4rem',
+    background: INK,
+    color: ACCENT2,
+    border: '2px solid ' + INK,
+    padding: '8px 14px',
+    fontFamily: 'Anton, sans-serif',
+    fontStyle: 'italic',
+    fontSize: '0.95rem',
+    letterSpacing: '0.04em',
+    textDecoration: 'none',
+    boxShadow: '3px 3px 0 ' + ACCENT3,
+  };
+}
+
+// ── Product imagery — Sixpack lore + the existing product PNGs ────────────
+
+function productGrid() {
+  const items = [
+    { src: '/valve-models/thumbs/professor.png',     name: 'The Professor',     sub: 'Sixpack · № 01' },
+    { src: '/valve-models/thumbs/captain.png',       name: 'The Captain',       sub: 'Sixpack · № 02' },
+    { src: '/valve-models/thumbs/big-mick.png',      name: 'Big Mick',          sub: 'Sixpack · № 03' },
+    { src: '/valve-models/thumbs/the-wooly.png',     name: 'Little Space Bear', sub: 'Sixpack · № 04' },
+    { src: '/valve-models/thumbs/old-reliable.png',  name: 'Old Reliable',      sub: 'Sixpack · № 05' },
+    { src: '/valve-models/thumbs/the-cobra.png',     name: 'Sasquatch Foot',    sub: 'Sixpack · № 06' },
+    { src: '/press/product-1-cap-on-valve.png',      name: 'Cap on a valve',    sub: 'Product photo' },
+    { src: '/press/product-2-cap-closeup.png',       name: 'Cap close-up',      sub: 'Product photo' },
+    { src: '/press/product-3-pack-of-four.png',      name: 'Pack of four',      sub: 'Product photo' },
+  ];
+  return el('div', {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+      gap: '14px',
+    },
+  },
+    ...items.map((item) => el('figure', {
+      style: {
         margin: 0,
+        background: PAPER,
+        border: '2px solid ' + INK,
+        borderRadius: '8px',
+        padding: '10px',
         display: 'flex',
         flexDirection: 'column',
-        gap: '10px',
+        gap: '8px',
       },
     },
-    el(
-      'div',
-      {
+      el('div', {
         style: {
-          background: '#F5F2E5',
-          borderRadius: '8px',
+          aspectRatio: '1 / 1',
+          background: INK,
+          border: '2px solid ' + INK,
+          borderRadius: '4px',
+          display: 'grid',
+          placeItems: 'center',
           overflow: 'hidden',
-          border: '1px solid #D7CFB6',
         },
       },
-      productSilhouette(caption)
-    ),
-    el(
-      'figcaption',
-      { style: { color: '#3D2F4A', fontSize: '13px', lineHeight: 1.5 } },
-      caption,
-      el('br'),
-      el(
-        'span',
-        { style: { color: '#D89E2F' } },
-        'photo coming soon — replace under client/public/press/'
-      )
-    )
+        el('img', {
+          src: item.src,
+          alt: item.name,
+          loading: 'lazy',
+          decoding: 'async',
+          style: { width: '88%', height: '88%', objectFit: 'contain' },
+        }),
+      ),
+      el('figcaption', null,
+        el('div', { style: { fontFamily: 'Anton, sans-serif', fontStyle: 'italic', fontWeight: 900, fontSize: '0.95rem', color: INK, lineHeight: '1' } }, item.name),
+        el('div', { style: { fontFamily: 'ui-monospace, monospace', fontSize: '0.7rem', color: INK_MUTED, marginTop: '3px', textTransform: 'uppercase', letterSpacing: '0.06em' } }, item.sub),
+      ),
+    )),
   );
 }
+
+// ── Page ──────────────────────────────────────────────────────────────────
 
 export function PressPage() {
-  const root = el('main', {
-    style: {
-      maxWidth: '880px',
-      margin: '48px auto',
-      padding: '0 24px',
-      color: 'var(--ink, #0E0A12)',
-    },
+  const root = el('div', {
+    class: 'sdzr-bg-paper-soft',
+    style: { padding: '48px 0 64px', borderTop: '3px solid ' + INK, borderBottom: '3px solid ' + INK },
   });
 
-  root.appendChild(
-    el('h1', { style: { fontSize: '32px', marginBottom: '8px', color: '#7B2EFF' } }, 'Press kit')
-  );
-  root.appendChild(
-    el(
-      'p',
-      { style: { color: '#3D2F4A', fontSize: '14px', marginBottom: '8px', lineHeight: 1.5 } },
-      'Brand assets, palette, product photos, and a short about-us blurb. Use these freely — credit appreciated, not required.'
-    )
-  );
+  const wrap = el('main', {
+    style: {
+      maxWidth: '960px',
+      margin: '0 auto',
+      padding: '0 24px',
+      color: INK,
+      position: 'relative',
+    },
+  });
+  root.appendChild(wrap);
 
-  // Logo
-  root.appendChild(
-    sectionShell(
-      'Logo',
-      el(
-        'div',
-        {
-          style: {
-            background: '#F5F2E5',
-            border: '1px solid #D7CFB6',
-            borderRadius: '12px',
-            padding: '32px 24px',
-            display: 'flex',
-            justifyContent: 'center',
-          },
-        },
-        logoSvg()
-      )
-    )
-  );
+  // ── Hero ──────────────────────────────────────────────────────────────
+  wrap.appendChild(el('span', {
+    style: {
+      display: 'inline-block',
+      fontFamily: 'ui-monospace, monospace',
+      fontSize: '0.78rem',
+      fontWeight: 700,
+      letterSpacing: '0.2em',
+      textTransform: 'uppercase',
+      color: BRAND,
+      marginBottom: '4px',
+    },
+  }, 'PRESS · BRAND ASSETS · BOILERPLATE'));
+  wrap.appendChild(el('h1', {
+    class: 'sdz-display',
+    style: {
+      fontSize: 'clamp(2.6rem, 6vw, 4rem)',
+      color: INK,
+      textShadow: '5px 5px 0 ' + ACCENT2 + ', 9px 9px 0 ' + BRAND,
+      margin: '0 0 16px',
+      fontStyle: 'italic',
+      lineHeight: '0.92',
+      textTransform: 'uppercase',
+      letterSpacing: '-0.02em',
+    },
+  }, 'PRESS KIT.'));
+  wrap.appendChild(el('p', {
+    style: { color: INK, fontSize: '1.05rem', lineHeight: '1.55', maxWidth: '60ch', margin: '0 0 18px' },
+  },
+    'Brand assets, palette, product imagery, and three lengths of boilerplate. Use them freely — credit appreciated, not required. For interview requests, samples to print, or anything not covered here, email ',
+    el('a', { href: 'mailto:press@stemdomez.com', style: { color: BRAND, fontWeight: 700, textDecoration: 'underline', textDecorationThickness: '2px' } }, 'press@stemdomez.com'),
+    '.',
+  ));
+  // Sticker
+  wrap.appendChild(el('span', {
+    style: {
+      position: 'absolute',
+      top: '0',
+      right: '24px',
+      background: ACCENT3,
+      color: INK,
+      border: '2px solid ' + INK,
+      padding: '4px 10px',
+      fontFamily: 'Anton, sans-serif',
+      fontStyle: 'italic',
+      fontWeight: 900,
+      fontSize: '0.78rem',
+      letterSpacing: '0.1em',
+      textTransform: 'uppercase',
+      transform: 'rotate(8deg)',
+      boxShadow: '3px 3px 0 ' + INK,
+      whiteSpace: 'nowrap',
+    },
+  }, 'CC0 · USE FREELY'));
 
-  // Monogram
-  root.appendChild(
-    sectionShell(
-      'Monogram',
-      el(
-        'div',
-        {
-          style: {
-            background: '#F5F2E5',
-            border: '1px solid #D7CFB6',
-            borderRadius: '12px',
-            padding: '24px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '20px',
-          },
-        },
-        monogramSvg(),
-        el(
-          'p',
-          { style: { color: '#3D2F4A', fontSize: '14px', lineHeight: 1.5, margin: 0 } },
-          'For favicons, app icons, and tight spaces. Background-safe at 16 px and up.'
-        )
-      )
-    )
-  );
+  // ── Boilerplate ──────────────────────────────────────────────────────
+  wrap.appendChild(card([
+    sectionHeading('THE PITCH', 'BOILERPLATE.', ACCENT3),
+    el('div', { style: { display: 'grid', gap: '14px' } },
+      boilerplateBlock('Tweet (140 chars)', BOILERPLATE_TWEET),
+      boilerplateBlock('Short (50 words)',  BOILERPLATE_SHORT),
+      boilerplateBlock('Long (150 words)',  BOILERPLATE_LONG),
+    ),
+  ]));
 
-  // Palette
-  root.appendChild(
-    sectionShell(
-      'Workshop palette',
-      el(
-        'div',
-        {
-          style: {
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-            gap: '14px',
-          },
-        },
-        ...PALETTE.map(paletteSwatch)
-      )
-    )
-  );
-
-  // Product photos
-  root.appendChild(
-    sectionShell(
-      'Product photos',
-      el(
-        'div',
-        {
-          style: {
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-            gap: '14px',
-          },
-        },
-        productCard('Cap on a road bike valve, side angle.'),
-        productCard('Pair of caps in workshop palette, top-down.'),
-        productCard('A printed cap held in hand for scale.')
-      )
-    )
-  );
-
-  // About
-  root.appendChild(
-    sectionShell(
-      'About StemDomeZ',
-      el(
-        'p',
-        {
-          style: {
-            background: '#FFFFFF',
-            border: '1px solid #D7CFB6',
-            borderRadius: '12px',
-            padding: '20px 22px',
-            lineHeight: 1.65,
-            color: '#0E0A12',
-            margin: 0,
-          },
-        },
-        ABOUT
-      )
-    )
-  );
-
-  // Download all (disabled placeholder)
-  root.appendChild(
-    el(
-      'div',
-      { style: { marginTop: '32px', textAlign: 'center' } },
-      el(
-        'button',
-        {
-          type: 'button',
-          disabled: true,
-          title: 'ZIP coming after launch',
-          'aria-disabled': 'true',
-          style: {
-            padding: '12px 24px',
-            fontSize: '15px',
-            background: '#D7CFB6',
-            color: '#3D2F4A',
-            border: '1px solid #D7CFB6',
-            borderRadius: '10px',
-            cursor: 'not-allowed',
-            fontWeight: '600',
-          },
-        },
-        'Download all (ZIP)'
+  // ── Quick facts ──────────────────────────────────────────────────────
+  wrap.appendChild(card([
+    sectionHeading('AT A GLANCE', 'QUICK FACTS.', ACCENT2),
+    el('table', {
+      style: {
+        width: '100%',
+        borderCollapse: 'collapse',
+        fontSize: '0.95rem',
+        color: INK,
+      },
+    },
+      el('tbody', null,
+        ...QUICK_FACTS.map(([k, v]) => el('tr', { style: { borderBottom: '1px dashed ' + INK } },
+          el('th', {
+            scope: 'row',
+            style: {
+              textAlign: 'left',
+              padding: '8px 10px 8px 0',
+              fontFamily: 'ui-monospace, monospace',
+              fontSize: '0.78rem',
+              fontWeight: 700,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color: BRAND,
+              verticalAlign: 'top',
+              width: '170px',
+            },
+          }, k),
+          el('td', { style: { padding: '8px 0', lineHeight: '1.5' } }, v),
+        )),
       ),
-      el(
-        'p',
-        { style: { color: '#3D2F4A', fontSize: '12px', marginTop: '8px' } },
-        'A consolidated ZIP will be available after launch.'
-      )
-    )
-  );
+    ),
+  ]));
+
+  // ── Brand assets ─────────────────────────────────────────────────────
+  wrap.appendChild(card([
+    sectionHeading('IDENTITY', 'WORDMARK.', ACCENT2),
+    wordmarkBlock(),
+  ]));
+
+  wrap.appendChild(card([
+    sectionHeading('IDENTITY', 'MONOGRAM.', BRAND),
+    monogramBlock(),
+  ]));
+
+  wrap.appendChild(card([
+    sectionHeading('PALETTE', 'MONGOOSE-BMX HEXES.', ACCENT3),
+    el('p', {
+      style: { color: INK, fontSize: '0.9rem', lineHeight: '1.5', margin: '0 0 14px', fontStyle: 'italic' },
+    }, 'Six pinned literals — see brandstandards.MD §14. Tokens are the names exposed in client/styles/sdz-radical.css; theme-flipping equivalents (var(--brand) etc.) live in client/styles/theme.css.'),
+    el('div', {
+      style: {
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+        gap: '12px',
+      },
+    },
+      ...PALETTE.map(paletteSwatch),
+    ),
+  ]));
+
+  // ── Product imagery ──────────────────────────────────────────────────
+  wrap.appendChild(card([
+    sectionHeading('PRODUCT IMAGERY', 'CAPS ON FILE.', ACCENT2),
+    el('p', {
+      style: { color: INK, fontSize: '0.9rem', lineHeight: '1.5', margin: '0 0 14px', fontStyle: 'italic' },
+    }, 'Six lore caps from the Sadie’s Sixpack drop + three product photos. Each is downloadable as a PNG; the Sixpack STLs are at /sixpack on the site if you’d rather print + photograph your own.'),
+    productGrid(),
+  ]));
+
+  // ── About ────────────────────────────────────────────────────────────
+  wrap.appendChild(card([
+    sectionHeading('ABOUT', 'MADE FOR A GUMBALL MACHINE.', BRAND),
+    el('div', { style: { display: 'flex', flexDirection: 'column', gap: '14px', color: INK, lineHeight: '1.6', fontSize: '1rem' } },
+      ...ABOUT_LONG_PARAGRAPHS.map((children) => el('p', { style: { margin: 0 } }, ...children)),
+    ),
+  ]));
+
+  // ── Contact ──────────────────────────────────────────────────────────
+  wrap.appendChild(card([
+    sectionHeading('CONTACT', 'GET IN TOUCH.', ACCENT3),
+    el('div', { style: { display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.95rem', color: INK } },
+      el('div', null, el('strong', { style: { color: BRAND } }, 'Press inquiries: '), el('a', { href: 'mailto:press@stemdomez.com', style: { color: INK, textDecoration: 'underline' } }, 'press@stemdomez.com')),
+      el('div', null, el('strong', { style: { color: BRAND } }, 'General: '),         el('a', { href: 'mailto:hello@stemdomez.com', style: { color: INK, textDecoration: 'underline' } }, 'hello@stemdomez.com')),
+      el('div', null, el('strong', { style: { color: BRAND } }, 'Source code: '),     el('a', { href: 'https://github.com/ianroy/bikeheadz', target: '_blank', rel: 'noopener noreferrer', style: { color: INK, textDecoration: 'underline' } }, 'github.com/ianroy/bikeheadz')),
+      el('div', null, el('strong', { style: { color: BRAND } }, 'Maker: '),           el('a', { href: 'https://ianroy.org/', target: '_blank', rel: 'noopener noreferrer', style: { color: INK, textDecoration: 'underline' } }, 'ianroy.org')),
+    ),
+  ]));
+
+  // ── ZIP download placeholder ─────────────────────────────────────────
+  wrap.appendChild(el('div', {
+    style: {
+      marginTop: '28px',
+      padding: '18px 22px',
+      background: PAPER,
+      border: '2px dashed ' + INK,
+      borderRadius: '8px',
+      textAlign: 'center',
+      color: INK_MUTED,
+      fontSize: '0.85rem',
+      fontStyle: 'italic',
+    },
+  },
+    'A consolidated ',
+    el('strong', null, 'press-kit.zip'),
+    ' (logos + palette + product photos) is on the way. For now: download assets individually above, or email ',
+    el('a', { href: 'mailto:press@stemdomez.com', style: { color: BRAND, textDecoration: 'underline' } }, 'press@stemdomez.com'),
+    ' and we’ll send you the lot.',
+  ));
 
   return { el: root };
+}
+
+function boilerplateBlock(label, text) {
+  return el('div', {
+    style: {
+      background: PAPER,
+      border: '2px solid ' + INK,
+      borderRadius: '8px',
+      padding: '14px 16px',
+    },
+  },
+    el('div', {
+      style: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: '8px',
+        gap: '10px',
+        flexWrap: 'wrap',
+      },
+    },
+      el('span', {
+        style: {
+          fontFamily: 'ui-monospace, monospace',
+          fontSize: '0.72rem',
+          fontWeight: 700,
+          letterSpacing: '0.1em',
+          textTransform: 'uppercase',
+          color: BRAND,
+        },
+      }, label),
+      copyButton('COPY', text),
+    ),
+    el('p', {
+      style: { margin: 0, color: INK, lineHeight: '1.55', fontSize: '0.95rem' },
+    }, text),
+  );
 }
