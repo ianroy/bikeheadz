@@ -1,8 +1,14 @@
 # ProductSpec — StemDomeZ developer onboarding
 
 > **Who this is for**: engineers (human or agentic) who need to build,
-> extend, or operate StemDomeZ. Start at the top; skim the TL;DR; deep-dive
-> into the section that matches your task.
+> extend, or operate StemDomeZ. Start at the top, skim the TL;DR,
+> deep-dive into the section that matches your task. If you are about
+> to make architectural changes, also read the relevant SVGs in
+> [docs/](./docs/) — there are six and they are accurate as of v0.1.41.
+>
+> Tone of these docs is plain and load-bearing. If a sentence sounds
+> grumpy that is because the lesson it encodes was paid for in
+> production minutes nobody is getting back.
 
 ---
 
@@ -28,27 +34,46 @@
 
 ## 1. TL;DR
 
-- **What it is**: a web app that turns a portrait photo into a 3D-printable
-  bike valve stem cap with the user's head on top. Target output is FDM/PLA
-  printable on a Bambu A1 / Prusa MK4 / Elegoo Centauri Carbon-class
-  printer at 0.4 mm nozzle / 0.12–0.16 mm layer height.
-- **Production status (v0.1.34)**: the v1 mesh pipeline runs end-to-end on
-  the RunPod GPU worker. Photo → TRELLIS head mesh (~780 K tris) →
-  7-stage CAD pipeline (validate / normalize / repair / crop / subtract /
-  union / print-prep) → chunk-streamed STL → Three.js viewer in the
-  browser → Stripe Checkout → download. Pipeline details in
-  [3D_Pipeline.md](3D_Pipeline.md); GPU-tier production gotchas (chunked
-  delivery, `return_aggregate_stream`, Dockerfile traps) in
-  [docs/RUNPOD_TRELLIS_PLAYBOOK.md](docs/RUNPOD_TRELLIS_PLAYBOOK.md).
-- **How it's built**: vanilla JS + Three.js WebGL viewer client, socket.io
-  command pattern, Node 22 Express server, RunPod Serverless GPU worker
-  (Python TRELLIS + manifold3d + pymeshlab) with a local Python fallback
-  for dev, Postgres 18 for state.
-- **How it deploys**: DigitalOcean App Platform serves the Node app,
-  Managed Postgres attached. The TRELLIS image is built by GitHub Actions
-  on each release tag, pushed to GHCR, and pulled by RunPod Serverless.
-  Stripe Checkout verified on user return via `payments.verifySession`
-  (no webhook, no REST surface).
+- **What it is**: a web app that turns a portrait photo into a
+  3D-printable Schrader-thread bike valve cap with the user's head on
+  top. Target output is FDM/PLA-printable on any 0.4 mm-nozzle printer
+  at 0.12–0.16 mm layer height (Bambu A1, Prusa MK4, Elegoo Centauri
+  Carbon, etc.). Free during the launch window; $2 STL after.
+- **Production status (v0.1.41)**: the 8-stage mesh pipeline runs
+  end-to-end on RunPod GPU workers in two regions (US + RO) raced
+  in parallel. Photo → server-side `sharp` resize (≤1024 px) →
+  whichever region's worker picks up first → TRELLIS head mesh
+  (~750k tris) → stage 1 normalize → stage 1.5 pymeshlab close-holes →
+  **stage 1.7 PyMeshFix watertight** (added v0.1.41) → stage 2 crop →
+  stage 3 carve cavity → stage 4 union cap → stage 5 decimate →
+  **stage 6 split-and-process safety net** → chunked binary STL →
+  Three.js viewer → free download (or Stripe Checkout when payments
+  flag flips on). Pipeline details in
+  [3D_Pipeline.md](3D_Pipeline.md); production gotchas in
+  [docs/RUNPOD_TRELLIS_PLAYBOOK.md](docs/RUNPOD_TRELLIS_PLAYBOOK.md);
+  visual diagrams in [docs/](./docs/).
+- **How it's built**: vanilla JS + Three.js WebGL viewer client (no
+  React, no JSX, ~50-line History API router); socket.io command
+  pattern (single `'command'` event surface); Node 22 + Express
+  server; RunPod Serverless GPU workers running TRELLIS + manifold3d +
+  pymeshlab + pymeshfix; sharp on the Node side for image resize;
+  Postgres 18 for state.
+- **How it deploys**: DigitalOcean App Platform serves the Node app
+  with Managed Postgres attached. Migrations run on every boot via an
+  idempotent migrate-on-boot hook (DO PRE_DEPLOY also runs them but
+  it skips the first deploy of every new app, which we discovered the
+  exciting way). The TRELLIS image is built by GitHub Actions on each
+  release tag, pushed to GHCR, and pulled by RunPod Serverless via a
+  manual "New Release" click per region (no API exists for serverless
+  endpoint releases — yes, we asked). Stripe Checkout verified on
+  user return via `payments.verifySession` (no webhook required, no
+  REST surface anywhere).
+- **Brand context**: built for the Gumball Machine Takeover residency
+  at Sadie's Bikes in Great (Turners) Falls, MA. The site lives at
+  [stemdomez.com](https://stemdomez.com); 50¢ capsules at Waterway
+  Arts on First Friday point at the URL. The machine is the flyer,
+  the capsule is the box, the cap is the product, the site is real
+  and it ships.
 
 ---
 

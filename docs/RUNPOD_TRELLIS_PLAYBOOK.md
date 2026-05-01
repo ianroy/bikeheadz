@@ -1,14 +1,24 @@
 # RunPod × TRELLIS playbook
 
-Battle-tested patterns for shipping a TRELLIS image-to-3D handler on
-RunPod Serverless. Everything here was learned the expensive way during
-the v0.1.27 → v0.1.34 stabilization run on stemdomez; future agents
-should read this **before** touching `handler.py` or `Dockerfile`.
+Patterns we wish someone had handed us before the v0.1.27 → v0.1.41
+stabilisation run. Everything in here was paid for in production
+minutes you don't get back. Read it **before** you touch `handler.py`
+or `Dockerfile`. If you skip it, the next person opening this file
+will be you, swearing in the dark.
 
 If a single rule had to survive: **don't trust the success path until
-you've watched the bytes arrive in the browser.** Every layer between
-your generator and the user's network has its own size cap, its own
-buffering behavior, and its own way of failing silently.
+you have watched the bytes arrive in the browser.** Every layer
+between your generator and the user's network has its own size cap,
+its own buffering behaviour, and its own preferred way of failing
+silently. The dashboard says it shipped. The browser says nothing.
+The user emails support. You owe Future-You a smoke test.
+
+Updated for v0.1.41: stage 1.7 PyMeshFix watertight pass before
+stages 2–4, stage 6 split-and-process safety net, multi-region race
+in `server/workers/runpod-client.js`, server-side `sharp` resize
+before the trans-Atlantic hop. The visual companion is
+[docs/pipeline.svg](./pipeline.svg) and
+[docs/system-architecture.svg](./system-architecture.svg).
 
 ---
 

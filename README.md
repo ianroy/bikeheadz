@@ -11,23 +11,31 @@
   <a href="https://console.runpod.io/hub/ianroy/stemdomez"><img alt="RunPod Hub" src="https://api.runpod.io/badge/ianroy/stemdomez"></a>
 </p>
 
-> Upload a portrait → 3D-printable Schrader valve cap with your head on
-> top. $2 STL download. Optional print-and-ship tiers on the way.
+> Drop in a portrait. A GPU running TRELLIS sculpts your dome in 3D.
+> We graft it into a Schrader thread. 3D-print the STL. Screw on your
+> tire valve. Roll out. Free during launch.
 
-StemDomeZ turns a selfie into an FDM/PLA-printable bike valve stem cap.
-Photo lands on the server, Microsoft's
-[TRELLIS](https://github.com/Microsoft/TRELLIS) image-to-3D model
-generates a head mesh on a RunPod Serverless GPU, a seven-stage CAD
-pipeline grafts it onto the threaded valve cap, and the result streams
-back to the browser. Stripe Checkout handles the $2 transaction. **No
-REST endpoints** — every interaction rides one socket.io `"command"`
-event.
+StemDomeZ turns a selfie into an FDM/PLA-printable bike valve stem
+cap. Photo lands on the server, gets downsampled by `sharp`, ships
+to one of two RunPod Serverless GPU regions (whichever picks up the
+job first wins), Microsoft's
+[TRELLIS](https://github.com/Microsoft/TRELLIS) sculpts the head, an
+8-stage CAD pipeline grafts it onto a Schrader-threaded valve cap, the
+result streams back to the browser through one socket.io `"command"`
+event, and the user prints it. **No REST endpoints**, **no webhooks
+required**, **no JSX**. Built for the Gumball Machine Takeover
+residency at [Sadie's Bikes](https://www.instagram.com/sadiesbikes/)
+in Great (Turners) Falls, Massachusetts.
 
-The current production handler is **v0.1.34**; the v1 mesh pipeline
-runs end-to-end on the four reference inputs and produces printable
-STLs. See [3D_Pipeline.md](./3D_Pipeline.md) for the pipeline details
-and [docs/RUNPOD_TRELLIS_PLAYBOOK.md](./docs/RUNPOD_TRELLIS_PLAYBOOK.md)
-for the production gotchas we burned days learning.
+Current production handler is **v0.1.41** (stage 1.7 watertight head
+before booleans + stage 6 PyMeshFix safety net). Site lives at
+[stemdomez.com](https://stemdomez.com). The full env-var matrix is in
+[ProductSpec.md §8](./ProductSpec.md#8-environments--configuration);
+the production gotchas we burned days learning are in
+[docs/RUNPOD_TRELLIS_PLAYBOOK.md](./docs/RUNPOD_TRELLIS_PLAYBOOK.md);
+the visual diagrams are at [docs/](./docs/) — pipeline,
+system-architecture, multi-region-race, data-flow, user-journey,
+gumball-takeover.
 
 ---
 
@@ -76,38 +84,62 @@ Print tiers ($19.99 single, $59.99 pack-of-4) reuse the same checkout.
 ## End-to-end flow
 
 ```
- Browser ─upload photo─▶ Node socket.io ─POST /run─▶ RunPod handler
+ Browser ─upload photo─▶ Node socket.io ─sharp resize─┐
                                                        │
-                            ◀──progress frames─────── │ TRELLIS (~30s warm)
-                            ◀──progress frames─────── │ stage 1 / 1.5 / 2
-                            ◀──progress frames─────── │ stage 3 / 4
-                            ◀──result_chunk × N────── │ stage 5 export
-                            ◀──result {chunks=N}───── │ generator returns
-                                                       │
- Browser ◀─progress frames─ Node ─reassemble bytes─◀──┘
+                                                       ▼
+                          ┌─POST /run──▶ RunPod handler (US)
+                          │                  │
+                          │     ◀─/stream/<id>─ progress (in_progress wins)
+                          │
+              ── race ────┤
+                          │
+                          └─POST /run──▶ RunPod handler (RO)
+                                             │
+                                  ◀─/cancel/<id>─ (loser cancelled)
+
+  WINNER (whichever picks up first):
+       │
+       │ TRELLIS  (~30s warm · 5–10 min cold)
+       │ stage 1  · normalize
+       │ stage 1.5 · pymeshlab close-holes
+       │ stage 1.7 · PyMeshFix watertight (NEW v0.1.41)
+       │ stage 2  · crop neck (CSG)
+       │ stage 3  · subtract negative_core (CSG)
+       │ stage 4  · union valve_cap (CSG)
+       │ stage 5  · decimate to 50–80k tris
+       │ stage 6  · split-and-process safety net (PyMeshFix)
+       │
+       ▼
+  result_chunk × N (~700KB base64 each, ~1MB RunPod cap)
+       │
+       ▼
+ Browser ◀─progress frames─ Node ─reassemble bytes─◀
                               │
                               ├─ store.save(stlBytes, 24h TTL)
-                              └─ emit stl.generate.result with stl_b64
+                              └─ emit stl.generate.result
 
  Browser ─renders Three.js viewer with the actual STL─
 
- Browser ─[user clicks Buy]─▶ Stripe Checkout ──pay──▶ Stripe.com
-                                                          │
- Browser ◀──redirect with session_id───────────────────── ┘
-                              │
- Browser ─verifySession(id)─▶ Node ─stripe.retrieve()─▶ Stripe API
-                              │
- Browser ◀─paid + stl bytes── Node
-   │
-   └─ Blob download
+ [Free during launch — payments_enabled flag OFF]
+ Browser ─stl.downloadFree──▶ Node ──signed bytes──▶ Blob download
 ```
 
-See [`ProductSpec.md`](./ProductSpec.md) for the annotated data flow,
+The diagram above is the prose version. See visual SVGs at
+[docs/system-architecture.svg](./docs/system-architecture.svg),
+[docs/multi-region-race.svg](./docs/multi-region-race.svg),
+[docs/pipeline.svg](./docs/pipeline.svg),
+[docs/data-flow.svg](./docs/data-flow.svg),
+[docs/user-journey.svg](./docs/user-journey.svg) (rider perspective),
+and [docs/gumball-takeover.svg](./docs/gumball-takeover.svg)
+(residency narrative).
+
+Cross-doc nav:
+[`ProductSpec.md`](./ProductSpec.md) for the annotated data flow,
 [`3D_Pipeline.md`](./3D_Pipeline.md) for the mesh pipeline,
 [`docs/RUNPOD_TRELLIS_PLAYBOOK.md`](./docs/RUNPOD_TRELLIS_PLAYBOOK.md)
 for the GPU-tier gotchas, and
-[`FEATUREROADMAP_workplan.md`](./FEATUREROADMAP_workplan.md) for what's
-next.
+[`FEATUREROADMAP_workplan.md`](./FEATUREROADMAP_workplan.md) for
+what's next.
 
 ## Quick start
 
@@ -265,24 +297,27 @@ gotchas) live in
 
 ## Environment variables
 
-See [`.env.example`](./.env.example) for the complete catalogue. Highlights:
+The full matrix lives in
+[**ProductSpec.md §8**](./ProductSpec.md#8-environments--configuration)
+— two tables (Node app on DO, RunPod handler) covering every variable
+the codebase reads at startup, what's required, default, and what
+breaks when it's missing. Don't duplicate it here.
 
-| Variable                  | Purpose                                                       |
-| ------------------------- | ------------------------------------------------------------- |
-| `PORT`                    | HTTP port (platform-injected)                                 |
-| `DATABASE_URL`            | Postgres connection string                                    |
-| `DATABASE_SSL`            | `false` to disable TLS for local Postgres                     |
-| `APP_URL`                 | Public URL for Stripe redirects                               |
-| `STRIPE_SECRET_KEY`       | Stripe API secret (`sk_test_…` / `sk_live_…`)                 |
-| `STRIPE_PRICE_STL_CENTS`  | STL price override in cents (default `200`)                   |
-| `TRELLIS_ENABLED`         | `false` to use the procedural fallback head (local path only) |
-| `TRELLIS_PATH`            | Path to a cloned TRELLIS repo (local path only)               |
-| `PYTHON_BIN`              | Python interpreter for the worker (default `python3`)         |
-| `RUNPOD_ENDPOINT_URL`     | `https://api.runpod.ai/v2/<id>` — routes STL gen to RunPod    |
-| `RUNPOD_API_KEY`          | RunPod bearer token (SECRET)                                  |
-| `PIPELINE_VERSION`        | `v1` (default in production) or `legacy` for the old `_merge` |
-| `LOG_LEVEL`               | `error` · `warn` · `info` (default) · `debug`                 |
-| `TRELLIS_CACHE_TTL_S`     | TRELLIS-output cache TTL on the worker (default `86400`)      |
+The handful you cannot start without:
+
+| Variable                       | Where           | Why                                               |
+|--------------------------------|-----------------|---------------------------------------------------|
+| `DATABASE_URL`                 | Node            | DO Managed Postgres (injected via `${db.…}`)      |
+| `AUTH_SECRET`                  | Node (SECRET)   | Signs the `sd_session` cookie                     |
+| `RUNPOD_API_KEY`               | Node (SECRET)   | Bearer for either single or multi-region RunPod   |
+| `RUNPOD_ENDPOINT_URL` *or* `RUNPOD_ENDPOINT_URLS` | Node | Single region or comma-sep multi-region race |
+| `RESEND_API_KEY`               | Node (SECRET)   | Magic-link emails                                 |
+| `HF_TOKEN`                     | RunPod (SECRET) | Gated TRELLIS download — handler boots without it but never produces a result |
+
+Everything else has a sane default. See ProductSpec §8 for the
+complete reference + the recently-added knobs:
+`RUNPOD_FORCE_WARMUP`, `IMAGE_RESIZE_*`, `STL_RATE_LIMIT_*`,
+`SENTRY_*`, `STRIPE_*`, the handler tunables in `.runpod/hub.json`.
 
 ## Project layout
 
