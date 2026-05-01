@@ -974,39 +974,40 @@ def stage6_print_repair(
         return final
 
     try:
-        v_in = np.asarray(final.vertices, dtype=np.float64)
-        f_in = np.asarray(final.faces, dtype=np.int32)
-        # Modern pymeshfix exposes a high-level convenience entry point:
-        # `clean_from_arrays(v, f, ...)` returns the cleaned arrays
-        # directly without needing to navigate `MeshFix.mesh.points` /
-        # `mesh.faces` (which is a flat pyvista-prefixed array).
+        # Split-and-process. Stage 4 routinely falls back to mesh
+        # concatenation when manifold3d's CSG union fails — meaning
+        # `final` is two physically-overlapping but topologically-
+        # disjoint shells: the head (the messy TRELLIS output, ~62K
+        # tris after decimation) and the valve cap (the clean baked
+        # asset, ~7.4K tris). Running PyMeshFix on the combined mesh
+        # — even with joincomp=False — risks the cleaner deciding the
+        # cap's tightly-threaded geometry is "unfixable" and dropping
+        # it (the v0.1.38 / v0.1.39 cap-disappearance regression).
         #
-        # joincomp=False — repair each connected component independently.
-        # When stage 4 falls back to mesh concatenation (head + cap as
-        # 2 separate components), `joincomp=True` would try to STITCH
-        # the cap onto the head by adding seam geometry, collapsing the
-        # cap's threaded shape into a blob and effectively deleting the
-        # valve stem from the output. With joincomp=False, both shells
-        # are sealed independently and the multi-shell output is still
-        # slicer-printable.
-        # remove_smallest_components=False — without this the default
-        # is True, which would discard the smaller of head/cap (always
-        # the cap) and ship a head with no way to attach to the bike.
-        v_out, f_out = _pmf.clean_from_arrays(
-            v_in, f_in,
-            verbose=False,
-            joincomp=False,
-            remove_smallest_components=False,
-        )
-        if len(v_out) == 0 or len(f_out) == 0:
-            raise RuntimeError("pymeshfix produced an empty mesh")
-        repaired = trimesh.Trimesh(
-            np.asarray(v_out, dtype=np.float64),
-            np.asarray(f_out, dtype=np.int64),
-            process=True,
-        )
-        repaired.merge_vertices()
-        repaired.fix_normals()
+        # Fix: separate the components, repair ONLY the largest (the
+        # head, which is what actually needs sealing), and re-attach
+        # every other component (the cap) un-touched. The cap is
+        # already a hand-tuned watertight STL shipping with the image;
+        # there is nothing PyMeshFix can do to it that we want.
+        components = _split_components(final)
+        if len(components) <= 1:
+            # Single shell — repair as today. Stage 4's CSG union
+            # succeeded, so this IS the merged head+cap solid.
+            repaired = _meshfix_one(final)
+        else:
+            components.sort(key=lambda m: len(m.faces), reverse=True)
+            head = components[0]
+            extras = components[1:]
+            extras_tris = sum(len(m.faces) for m in extras)
+            sys.stderr.write(
+                f"[stage6] multi-shell input: {len(components)} components "
+                f"(head={len(head.faces)} tris, cap+extras={extras_tris} tris); "
+                f"repairing head only, preserving extras un-touched\n"
+            )
+            repaired_head = _meshfix_one(head)
+            repaired = trimesh.util.concatenate([repaired_head, *extras])
+            repaired.merge_vertices()
+            repaired.fix_normals()
     except Exception as exc:  # noqa: BLE001
         # PyMeshFix can rarely choke on degenerate input — never block
         # the export. Log + ship the un-repaired mesh.
@@ -1058,3 +1059,56 @@ def stage6_print_repair(
         except Exception:  # noqa: BLE001
             pass
     return repaired
+
+
+def _split_components(mesh: trimesh.Trimesh) -> list[trimesh.Trimesh]:
+    """Split a mesh into connected-component sub-meshes.
+
+    Wraps `trimesh.Trimesh.split` with `only_watertight=False` so we get
+    every shell, watertight or not. trimesh.split can return a numpy
+    array or a list depending on the version; normalise to list.
+    """
+    try:
+        comps = mesh.split(only_watertight=False)
+    except Exception as exc:  # noqa: BLE001
+        sys.stderr.write(
+            f"[stage6] split_components raised {exc!r}; "
+            f"treating mesh as single shell.\n"
+        )
+        return [mesh]
+    if comps is None:
+        return [mesh]
+    # trimesh returns a numpy array of Trimesh objects
+    return [c for c in list(comps) if c is not None and len(getattr(c, "faces", [])) > 0]
+
+
+def _meshfix_one(mesh: trimesh.Trimesh) -> trimesh.Trimesh:
+    """Run PyMeshFix on a single connected mesh.
+
+    Used by stage 6 only on the LARGEST component (the head). Other
+    shells (the cap) are passed through un-touched because they're
+    already hand-tuned watertight assets shipping with the image, and
+    PyMeshFix's per-component cleaner has been observed deleting them
+    when it considers their geometry too messy to repair.
+    """
+    v_in = np.asarray(mesh.vertices, dtype=np.float64)
+    f_in = np.asarray(mesh.faces, dtype=np.int32)
+    # Modern pymeshfix exposes `clean_from_arrays(v, f, ...)` that
+    # returns the cleaned arrays directly. Single-shell input means
+    # joincomp / remove_smallest_components are both no-ops.
+    v_out, f_out = _pmf.clean_from_arrays(  # type: ignore[union-attr]
+        v_in, f_in,
+        verbose=False,
+        joincomp=False,
+        remove_smallest_components=False,
+    )
+    if len(v_out) == 0 or len(f_out) == 0:
+        raise RuntimeError("pymeshfix produced an empty mesh")
+    out = trimesh.Trimesh(
+        np.asarray(v_out, dtype=np.float64),
+        np.asarray(f_out, dtype=np.int64),
+        process=True,
+    )
+    out.merge_vertices()
+    out.fix_normals()
+    return out
