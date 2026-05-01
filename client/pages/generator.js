@@ -358,6 +358,187 @@ export function GeneratorPage({ socket }) {
   viewerGrid.appendChild(headPanel.slot);
   viewerGrid.appendChild(finalPanel.slot);
 
+  // Central CTA bar — the two big buttons that handle BOTH STLs at
+  // once. Sits below the viewer grid. Per-panel download buttons were
+  // removed in favor of these. Both gate on auth: anon clicks → save
+  // designId + intent to sessionStorage, push to /login. After login
+  // the page mount auto-resumes (re-fetches the STLs via
+  // designs.getForViewer, then runs the pending intent).
+  const centralActions = el('div', {
+    style: { display: 'none', flexDirection: 'column', gap: '12px' },
+  });
+  center.appendChild(centralActions);
+
+  function renderCentralActions() {
+    clear(centralActions);
+    if (!state.stlReady) {
+      centralActions.style.display = 'none';
+      return;
+    }
+    centralActions.style.display = 'flex';
+
+    const isDownloading = state.downloadingKind === 'all';
+    const isEmailing   = state.downloadingKind === 'email';
+    const busy = isDownloading || isEmailing || state.processing;
+
+    const buttonRow = el('div', {
+      class: 'flex gap-3 flex-wrap',
+      style: { justifyContent: 'center' },
+    });
+
+    // Download STLs — primary button. Triggers two sequential browser
+    // downloads (head_stl_b64 then final_stl_b64 if available).
+    const downloadBtn = el('button', {
+      onClick: () => downloadAllStls(),
+      disabled: busy,
+      style: {
+        flex: '1 1 240px',
+        padding: '14px 22px',
+        background: busy ? '#D7CFB6' : 'linear-gradient(135deg, #5A1FCE, #3D14AB)',
+        color: busy ? '#3D2F4A' : '#FFFFFF',
+        border: '2px solid #0E0A12',
+        boxShadow: busy ? '2px 2px 0 #0E0A12' : '4px 4px 0 #0E0A12',
+        fontFamily: 'ui-monospace, monospace',
+        fontWeight: 800, fontSize: '0.92rem',
+        letterSpacing: '0.06em', textTransform: 'uppercase',
+        fontStyle: 'italic',
+        cursor: busy ? 'not-allowed' : 'pointer',
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+      },
+    },
+      icon('download', { size: 18, color: busy ? '#3D2F4A' : '#FFFFFF' }),
+      isDownloading ? 'Downloading…' : 'Download STLs',
+    );
+
+    // Email me the STLs — secondary, same shape, fluoro accent.
+    const emailBtn = el('button', {
+      onClick: () => emailAllStls(),
+      disabled: busy,
+      style: {
+        flex: '1 1 240px',
+        padding: '14px 22px',
+        background: busy ? '#D7CFB6' : '#FFFFFF',
+        color: busy ? '#3D2F4A' : '#0E0A12',
+        border: '2px solid #0E0A12',
+        boxShadow: busy ? '2px 2px 0 #0E0A12' : '4px 4px 0 #2EFF8C',
+        fontFamily: 'ui-monospace, monospace',
+        fontWeight: 800, fontSize: '0.92rem',
+        letterSpacing: '0.06em', textTransform: 'uppercase',
+        fontStyle: 'italic',
+        cursor: busy ? 'not-allowed' : 'pointer',
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+      },
+    },
+      icon('mail', { size: 18, color: busy ? '#3D2F4A' : '#0E0A12' }),
+      isEmailing ? 'Sending…' : 'Email me the STLs',
+    );
+
+    buttonRow.appendChild(downloadBtn);
+    buttonRow.appendChild(emailBtn);
+    centralActions.appendChild(buttonRow);
+
+    // Caption row — tells the rider what they're getting + the auth
+    // ask, since the CTA copy alone doesn't explain "we'll bounce
+    // you to sign in if you're not already logged in."
+    const caption = el('p', {
+      style: {
+        textAlign: 'center', color: '#3D2F4A', fontSize: '0.78rem',
+        fontStyle: 'italic', lineHeight: 1.5,
+      },
+    });
+    const stlCount = (state.headStlData ? 1 : 0) + (state.finalStlData ? 1 : 0);
+    caption.textContent = stlCount === 2
+      ? "Both STLs (head-only + head + cap). Free for the MVP launch — sign in if you haven't already."
+      : "Your STL. Free for the MVP launch — sign in if you haven't already.";
+    centralActions.appendChild(caption);
+  }
+
+  // Trigger sequential browser downloads for whichever STLs the rider
+  // has on the design (head + final, or just head if the boolean
+  // phase failed). On auth_required: stash designId + intent and
+  // bounce to /login. Server-side claims the anon design onto the
+  // user's account on first authed access via designs.getForViewer.
+  async function downloadAllStls() {
+    if (!state.designId || state.downloadingKind) return;
+    state.downloadingKind = 'all';
+    renderCentralActions();
+    try {
+      // Sequential calls — head first if present, then final if
+      // present. We use stl.downloadFree for each; the server already
+      // returns the right bytes per kind.
+      const kinds = [];
+      if (state.headStlData)  kinds.push('head');
+      if (state.finalStlData) kinds.push('final');
+      for (const kind of kinds) {
+        const res = await socket.request('stl.downloadFree', {
+          designId: state.designId,
+          kind,
+        });
+        triggerStlDownload(res);
+        // Tiny delay between sequential downloads so the browser
+        // doesn't drop the second one as a popup (rare but happens
+        // on Safari).
+        await new Promise((r) => setTimeout(r, 250));
+      }
+      announce(kinds.length === 2 ? 'Both STLs downloaded.' : 'STL downloaded.');
+    } catch (err) {
+      if (err.message === 'auth_required' || err.message === 'payments_enabled') {
+        // payments_enabled would only fire if someone flipped the
+        // flag mid-session — same recovery: bounce to /login. The
+        // /account flow lets them check out properly when payments
+        // come back online.
+        bounceToSignIn('download');
+        return;
+      }
+      announce(`Download failed: ${friendlyError(err)}`, true);
+      alert(`Could not download: ${friendlyError(err)}`);
+    } finally {
+      state.downloadingKind = null;
+      renderCentralActions();
+    }
+  }
+
+  // Email both STLs as attachments to the logged-in user's email.
+  // Same auth gate + claim semantics. Returns count of attachments
+  // sent so we can confirm in the UI.
+  async function emailAllStls() {
+    if (!state.designId || state.downloadingKind) return;
+    state.downloadingKind = 'email';
+    renderCentralActions();
+    try {
+      const res = await socket.request('stl.emailMe', {
+        designId: state.designId,
+      });
+      const where = res.sent_to ? ` to ${res.sent_to}` : '';
+      announce(`Sent${where}. Check your inbox.`);
+      alert(`✉️  Sent${where}. Check your inbox.`);
+    } catch (err) {
+      if (err.message === 'auth_required') {
+        bounceToSignIn('email');
+        return;
+      }
+      announce(`Email failed: ${friendlyError(err)}`, true);
+      alert(`Could not email: ${friendlyError(err)}`);
+    } finally {
+      state.downloadingKind = null;
+      renderCentralActions();
+    }
+  }
+
+  // Save designId + pending intent so /login can come back here and
+  // we can auto-resume the action. We DON'T save the STL b64 itself
+  // — too big for sessionStorage (~5-10 MB browser cap) and we can
+  // re-fetch via designs.getForViewer after auth.
+  function bounceToSignIn(intent) {
+    if (state.designId) {
+      sessionStorage.setItem('stemdomez.designId', state.designId);
+      sessionStorage.setItem('stemdomez.pendingAction', intent);
+    }
+    announce('Sign in to continue. Redirecting…', true);
+    const next = encodeURIComponent('/stemdome-generator');
+    window.location.assign(`/login?next=${next}`);
+  }
+
   function renderPanelHeader(panel) {
     clear(panel.header);
     const isHead = panel.kind === 'head';
@@ -434,40 +615,16 @@ export function GeneratorPage({ socket }) {
 
   function renderPanelFooter(panel) {
     clear(panel.footer);
-    // Per-panel download button. Uses the kind-aware downloadKind().
+    // Per-panel download buttons removed in favor of central
+    // "Download STLs" + "Email me the STLs" buttons below the grid
+    // (handles both files at once, plus auth gate + claim flow).
+    // The footer just shows a brief description of what each panel is.
     const isHead = panel.kind === 'head';
-    const hasData = isHead ? !!state.headStlData : !!state.finalStlData;
-    const isThisDownloading = state.downloadingKind === panel.kind;
-    const enabled = hasData && state.designId && !isThisDownloading && !state.processing;
-
-    // Re-create button so we can re-style on re-render.
-    const btn = el('button', {
-      onClick: () => downloadKind(panel.kind),
-      disabled: !enabled,
-      style: {
-        padding: '8px 14px',
-        background: enabled ? '#5A1FCE' : '#D7CFB6',
-        color: enabled ? '#FFFFFF' : '#3D2F4A',
-        border: '2px solid #0E0A12',
-        boxShadow: enabled ? '3px 3px 0 #0E0A12' : '2px 2px 0 #0E0A12',
-        fontFamily: 'ui-monospace, monospace', fontWeight: 700,
-        fontSize: '0.78rem', letterSpacing: '0.04em',
-        textTransform: 'uppercase',
-        cursor: enabled ? 'pointer' : 'not-allowed',
-        opacity: enabled ? 1 : 0.7,
-        display: 'inline-flex', alignItems: 'center', gap: '6px',
-      },
-    },
-      icon('download', { size: 14, color: enabled ? '#FFFFFF' : '#3D2F4A' }),
-      isThisDownloading ? 'Downloading\u2026' : (isHead ? 'Head STL' : 'Full STL'),
-    );
-
     panel.footer.appendChild(
       el('span', { style: { color: '#3D2F4A', fontSize: '0.7rem' } },
         isHead ? 'Stage 1.7 watertight head \u2014 always available.'
                : 'Final mesh: head + cap (stages 2-6).')
     );
-    panel.footer.appendChild(btn);
   }
 
   function renderViewerHeader() {
@@ -957,6 +1114,7 @@ export function GeneratorPage({ socket }) {
     pushViewer();
     renderViewerHeader();
     renderObjectModeBanner();
+    renderCentralActions();
     renderActions();
     renderFeedback();
     announce(`Photo "${file.name}" ready. Tap Generate when you're set.`);
@@ -1113,6 +1271,7 @@ export function GeneratorPage({ socket }) {
     renderActions();
     renderViewerHeader();
     renderObjectModeBanner();
+    renderCentralActions();
     pushViewer();
     renderFeedback();
 
@@ -1177,6 +1336,7 @@ export function GeneratorPage({ socket }) {
       sessionStorage.setItem('stemdomez.designId', result.designId);
       renderViewerHeader();
       renderObjectModeBanner();
+      renderCentralActions();
       renderFeedback();
     } catch (err) {
       console.error('stl.generate failed', err);
@@ -1260,10 +1420,75 @@ export function GeneratorPage({ socket }) {
   renderUploader();
   renderViewerHeader();
   renderObjectModeBanner();
+  renderCentralActions();
   renderSettings();
   renderActions();
   renderFeedback();
   renderRight();
+
+  // Post-login auto-resume.
+  //
+  // An anon rider hits Download or Email → we stash designId +
+  // pendingAction in sessionStorage and bounce to /login. After
+  // login, they land back here. This block:
+  //   1. Reads sessionStorage for the stash
+  //   2. Confirms they're now authed (auth.whoami)
+  //   3. Re-fetches the design's STL bytes (designs.getForViewer)
+  //      — this also CLAIMS the anon design onto their account
+  //   4. Populates the panels so the rider sees what they generated
+  //   5. Auto-runs the pending action (download or email)
+  //   6. Clears the stash so a refresh doesn't re-trigger
+  //
+  // Failure modes are swallowed quietly — if anything goes wrong the
+  // page just stays on its empty state and the rider can re-upload.
+  (async () => {
+    const designId = sessionStorage.getItem('stemdomez.designId');
+    const intent   = sessionStorage.getItem('stemdomez.pendingAction');
+    if (!designId || !intent) return;
+
+    let user = null;
+    try {
+      const who = await socket.request('auth.whoami');
+      user = who?.user || null;
+    } catch { /* not authed or socket dead */ }
+    if (!user) return; // still anon — nothing to resume yet
+
+    try {
+      announce('Welcome back. Fetching your design…');
+      const res = await socket.request('designs.getForViewer', { designId });
+      // Re-hydrate state from the fetched design.
+      state.designId = res.designId;
+      state.headStlData  = res.head_stl_b64  || null;
+      state.finalStlData = res.final_stl_b64 || null;
+      state.finalFailed  = !!res.final_failed;
+      state.finalErrorMessage = null; // not persisted; ok to leave empty on resume
+      state.objectModeUsed = !!res.object_mode_used;
+      state.stlData = state.finalStlData || state.headStlData;
+      state.stlReady = !!(state.headStlData || state.finalStlData);
+      renderViewerHeader();
+      renderObjectModeBanner();
+      renderCentralActions();
+      pushViewer();
+      renderFeedback();
+
+      // Clear the stash BEFORE running the action — a failure during
+      // download/email shouldn't trap the rider in a re-trigger loop
+      // on every refresh.
+      sessionStorage.removeItem('stemdomez.pendingAction');
+
+      if (intent === 'download') {
+        announce("Signed in. Downloading your STLs now…");
+        await downloadAllStls();
+      } else if (intent === 'email') {
+        announce("Signed in. Sending your STLs to your email now…");
+        await emailAllStls();
+      }
+    } catch (err) {
+      console.warn('post-login resume failed', err);
+      // Don't kill the page — let the rider see whatever state we
+      // have and proceed manually.
+    }
+  })();
 
   return {
     el: root,

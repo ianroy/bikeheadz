@@ -1,0 +1,16 @@
+Your StemDomeZ STLs are attached.
+
+Design: {{designName}}
+Generated: {{generatedAt}}
+
+What you got:
+{{attachmentList}}
+
+Print at home or take both files to a print shop. The cap is sized
+for a Schrader (American/Presta-compatible) bike valve stem; print
+cap-down on the bed, no supports needed.
+
+Need help? Reply to this email or visit https://stemdomez.com/help.
+
+— StemDomeZ
+https://stemdomez.com

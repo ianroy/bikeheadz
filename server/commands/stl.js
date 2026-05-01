@@ -14,6 +14,7 @@ import { stlGenerateLimiter } from '../rate-limit.js';
 import { CommandError, ErrorCode } from '../errors.js';
 import { maybeUser, requireAuth } from '../auth.js';
 import { paymentsEnabled } from '../app-config.js';
+import { sendEmail } from '../email.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const WORKER = path.resolve(__dirname, '..', 'workers', 'trellis_generate.py');
@@ -113,6 +114,34 @@ const PayloadSchema = z.object({
   photoId: z.string().uuid().optional(),
   settings: SettingsSchema.optional(),
 });
+
+// Claim an anonymously-generated design onto a user's account on
+// first authed access (download, email, or share). The rider may
+// have generated as a guest, then signed up to download — by linking
+// the design to their account we make it appear in /account → My
+// Designs and tie all future ownership checks to them.
+//
+// Idempotent: if the design is already owned by THIS user, the
+// UPDATE is a no-op (WHERE clause excludes already-owned). If it's
+// owned by a DIFFERENT user, the caller has already rejected the
+// request before reaching here (cached.accountId mismatch).
+async function _claimDesignIfAnonymous({ designId, accountId, userId }) {
+  if (accountId != null) return; // already claimed
+  if (!hasDb()) return;
+  try {
+    await db.query(
+      `UPDATE generated_designs
+          SET account_id = $1
+        WHERE id = $2 AND account_id IS NULL`,
+      [userId, designId],
+    );
+    logger.info({ msg: 'design.claimed', designId, accountId: userId });
+  } catch (err) {
+    // Non-fatal: download/email still works against the in-memory
+    // cached object regardless of the claim. Log + move on.
+    logger.warn({ msg: 'design.claim_failed', designId, err: err.message });
+  }
+}
 
 // Resolve a download request to the right STL bytes for the requested
 // kind. Three cases:
@@ -426,7 +455,9 @@ export const stlCommands = {
   // MVP launch — free STL download for logged-in users when the
   // payments_enabled flag is OFF. Refuses unless (a) the admin has
   // disabled payments, (b) the caller is logged in, and (c) the design
-  // belongs to that account.
+  // belongs to that account OR is unclaimed (account_id IS NULL — the
+  // anon-generated case where the rider signed up after generating;
+  // we claim the design onto their account on first authed access).
   //
   // v0.1.42: optional `kind` param ('head' | 'final', default 'final').
   // The single $2-unlocks-both pricing model means BOTH STLs are free
@@ -447,13 +478,157 @@ export const stlCommands = {
     const { designId, kind = 'final' } = parsed.data;
     const cached = await designStore.get(designId);
     if (!cached) throw new CommandError(ErrorCode.DESIGN_NOT_FOUND, 'design_not_found');
-    // node-postgres returns BIGINT as a string; user.id is cast to
-    // Number in loadSessionUser. Without coercion, "1" !== 1 and the
-    // owner of a design can't download it. Number-cast both sides.
     if (cached.accountId != null && Number(cached.accountId) !== Number(user.id)) {
       throw new CommandError(ErrorCode.AUTH_REQUIRED, 'design_belongs_to_other_user');
     }
+    // Claim the design onto the user's account if it was generated
+    // anonymously. This makes it appear in /account → My Designs and
+    // ties future downloads / shares to this owner. Idempotent — if
+    // it's already claimed (cached.accountId == user.id) the UPDATE
+    // is a no-op.
+    await _claimDesignIfAnonymous({ designId, accountId: cached.accountId, userId: user.id });
     return _resolveDownload(cached, kind);
+  },
+
+  // v0.1.43+ — email both STLs as attachments to the logged-in user's
+  // address. Same auth + claim semantics as stl.downloadFree. Sends
+  // ONE email with up to two attachments (head + final). Skips the
+  // attachment for whichever kind is missing (legacy designs without
+  // head_stl_bytes, designs where final_failed=true).
+  'stl.emailMe': async ({ socket, payload }) => {
+    const user = requireAuth({ socket });
+    const Schema = z.object({ designId: z.string().uuid() });
+    const parsed = Schema.safeParse(payload || {});
+    if (!parsed.success) {
+      throw new CommandError(ErrorCode.INVALID_PAYLOAD, 'invalid_email_payload', parsed.error.issues);
+    }
+    const { designId } = parsed.data;
+
+    if (!user.email) {
+      throw new CommandError(ErrorCode.INVALID_PAYLOAD, 'no_email_on_account');
+    }
+
+    const cached = await designStore.get(designId);
+    if (!cached) throw new CommandError(ErrorCode.DESIGN_NOT_FOUND, 'design_not_found');
+    if (cached.accountId != null && Number(cached.accountId) !== Number(user.id)) {
+      throw new CommandError(ErrorCode.AUTH_REQUIRED, 'design_belongs_to_other_user');
+    }
+    await _claimDesignIfAnonymous({ designId, accountId: cached.accountId, userId: user.id });
+
+    // Build the attachment list. Send whichever STL bytes are present.
+    // Legacy designs may have only `cached.stl` (the merged final).
+    // v0.1.42+ designs have `cached.headStl` AND `cached.stl` when the
+    // boolean phase succeeded, or just `cached.headStl` when it failed.
+    const attachments = [];
+    const baseFilename = (cached.filename || 'StemDomeZ.stl').replace(/\.stl$/i, '');
+    if (cached.headStl && cached.headStl.length > 0) {
+      attachments.push({
+        filename: `${baseFilename}_HeadOnly.stl`,
+        content: cached.headStl,
+        contentType: 'model/stl',
+      });
+    }
+    if (!cached.finalFailed && cached.stl && cached.stl.length > 0) {
+      attachments.push({
+        filename: `${baseFilename}_Full.stl`,
+        content: cached.stl,
+        contentType: 'model/stl',
+      });
+    }
+    if (attachments.length === 0) {
+      throw new CommandError(ErrorCode.DESIGN_NOT_FOUND, 'no_stl_to_send');
+    }
+
+    // Total payload size sanity check. Resend's hard cap is 40 MB per
+    // email; we should be well under (typical STLs ~2-5 MB). If a
+    // future pipeline produces larger meshes, this catches it before
+    // Resend rejects with a confusing error.
+    const totalBytes = attachments.reduce((s, a) => s + a.content.length, 0);
+    if (totalBytes > 35 * 1024 * 1024) {
+      throw new CommandError(ErrorCode.IMAGE_TOO_LARGE, 'stls_too_large_for_email', {
+        totalBytes,
+        maxBytes: 35 * 1024 * 1024,
+      });
+    }
+
+    const designName = cached.photoName || cached.filename || 'StemDomeZ design';
+    const generatedAt = new Date().toLocaleString('en-US', {
+      year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+    });
+    const attachmentListLines = attachments.map((a) =>
+      `  • ${a.filename} (${(a.content.length / 1024).toFixed(0)} KB)`
+    ).join('\n');
+    const attachmentListHtml = attachments.map((a) =>
+      `<div>📎 ${a.filename} <span style="color:#3D2F4A;">(${(a.content.length / 1024).toFixed(0)} KB)</span></div>`
+    ).join('');
+    const attachmentSummary = attachments.length === 2
+      ? "We've attached both STLs — your head-only mesh and the head + valve-cap final."
+      : `We've attached ${attachments.length === 1 ? 'the available STL' : 'your STLs'} below.`;
+
+    const result = await sendEmail({
+      to: user.email,
+      template: 'stl-delivery',
+      data: {
+        designName,
+        generatedAt,
+        attachmentList: attachmentListLines,
+        attachmentListHtml,
+        attachmentSummary,
+      },
+      attachments,
+      accountId: user.id,
+    });
+
+    if (!result.ok) {
+      logger.warn({ msg: 'stl.email_failed', designId, reason: result.reason });
+      throw new CommandError(ErrorCode.WORKER_ERROR, 'email_delivery_failed');
+    }
+
+    logger.info({
+      msg: 'stl.emailed', designId, accountId: user.id,
+      attachments: attachments.length, total_bytes: totalBytes,
+    });
+    return { ok: true, attachments: attachments.length, sent_to: user.email };
+  },
+
+  // Re-fetch dual-output STL bytes for an existing design id. Used
+  // by the post-login resume flow on /stemdome-generator: an anon
+  // rider generates → clicks Download → gets bounced to /login →
+  // returns to a blank generator page. We re-hydrate the panels by
+  // calling this with the designId we stashed in sessionStorage,
+  // then the rider can complete the download/email they originally
+  // wanted. Auth required; claims the design onto the user's account
+  // if it was anonymously generated. Returns the same shape as
+  // stl.generate's success response (head_stl_b64 + final_stl_b64 +
+  // final_failed + object_mode_used) so the client can reuse the
+  // existing renderer.
+  'designs.getForViewer': async ({ socket, payload }) => {
+    const user = requireAuth({ socket });
+    const Schema = z.object({ designId: z.string().uuid() });
+    const parsed = Schema.safeParse(payload || {});
+    if (!parsed.success) {
+      throw new CommandError(ErrorCode.INVALID_PAYLOAD, 'invalid_design_id', parsed.error.issues);
+    }
+    const { designId } = parsed.data;
+    const cached = await designStore.get(designId);
+    if (!cached) throw new CommandError(ErrorCode.DESIGN_NOT_FOUND, 'design_not_found');
+    if (cached.accountId != null && Number(cached.accountId) !== Number(user.id)) {
+      throw new CommandError(ErrorCode.AUTH_REQUIRED, 'design_belongs_to_other_user');
+    }
+    await _claimDesignIfAnonymous({ designId, accountId: cached.accountId, userId: user.id });
+    return {
+      designId,
+      filename: cached.filename || 'StemDomeZ_ValveStem.stl',
+      head_stl_b64:  cached.headStl ? cached.headStl.toString('base64') : null,
+      final_stl_b64: !cached.finalFailed && cached.stl ? cached.stl.toString('base64') : null,
+      final_failed:  !!cached.finalFailed,
+      final_error:   cached.finalError || null,
+      // object_mode_used isn't currently persisted as a separate
+      // column, so we can't return it here. The original generation
+      // response carried it; it stays unset on resume. Acceptable —
+      // the banner is just a UX nicety.
+      object_mode_used: false,
+    };
   },
 
   // P3-011 — single-tap rating per design.

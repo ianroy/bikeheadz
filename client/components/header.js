@@ -178,6 +178,29 @@ export function HeaderComponent() {
       },
     }, icon('user', { size: 18, color: 'var(--ink)' }));
     desktopNav.appendChild(profile);
+
+    // Mobile drawer needs its own /account entry — desktopNav (and the
+    // profile chip inside it) is hidden on small viewports, so without
+    // this, mobile users have no path to /account at all. Match the
+    // navLink style so it visually belongs with the other drawer links.
+    const mobileAccount = el('a', {
+      href: '/account',
+      'data-link': '',
+      class: 'relative px-3 py-2 rounded-md transition-all cursor-pointer flex items-center gap-2 mt-1',
+      style: {
+        color: 'var(--ink)',
+        fontStyle: 'italic',
+        fontWeight: 800,
+        letterSpacing: '0.02em',
+        textTransform: 'uppercase',
+        fontSize: '0.85rem',
+      },
+      onClick: () => setMenu(false),
+    },
+      icon('user', { size: 16, color: 'var(--ink)' }),
+      'Account',
+    );
+    mobilePanel.appendChild(mobileAccount);
   }
 
   function navLink(to, label, onClick, opts = {}) {
