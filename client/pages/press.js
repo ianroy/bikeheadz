@@ -465,6 +465,34 @@ export function PressPage() {
     productGrid(),
   ]));
 
+  // ── Print bundle (Gumball Takeover residency assets) ────────────────
+  wrap.appendChild(card([
+    sectionHeading('PRINT BUNDLE', 'GUMBALL TAKEOVER · STAPLES-READY.', ACCENT3),
+    el('p', {
+      style: { color: INK, fontSize: '0.9rem', lineHeight: '1.5', margin: '0 0 14px', fontStyle: 'italic' },
+    },
+      'The print-shop-ready PDFs from the residency at ',
+      el('strong', null, 'Sadie’s Bikes'),
+      '. Send these to Staples or any local print shop — page sizes are flagged in each filename. The blank version is for hand-stamping on-site.',
+    ),
+    el('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' } },
+      printBundleCard({
+        title: 'Flyer (11×8)',
+        sub: 'Front-and-back · half-letter · color',
+        href: '/press/print-bundle/stemdomez-flyer-11x8.pdf',
+        download: 'stemdomez-flyer-11x8.pdf',
+        sizeBytes: 6_191_549,
+      }),
+      printBundleCard({
+        title: 'Blank flyer template',
+        sub: 'Print-and-stamp on-site · color',
+        href: '/press/print-bundle/stemdomez-blank.pdf',
+        download: 'stemdomez-blank.pdf',
+        sizeBytes: 860_250,
+      }),
+    ),
+  ]));
+
   // ── About ────────────────────────────────────────────────────────────
   wrap.appendChild(card([
     sectionHeading('ABOUT', 'MADE FOR A GUMBALL MACHINE.', BRAND),
@@ -506,6 +534,34 @@ export function PressPage() {
   ));
 
   return { el: root };
+}
+
+function printBundleCard({ title, sub, href, download, sizeBytes }) {
+  const sizeMb = (sizeBytes / 1024 / 1024).toFixed(1);
+  return el('div', {
+    style: {
+      background: PAPER,
+      border: '2px solid ' + INK,
+      borderRadius: '8px',
+      padding: '16px 18px',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '10px',
+      boxShadow: '4px 4px 0 ' + ACCENT3,
+    },
+  },
+    el('div', null,
+      el('div', { style: { fontFamily: 'Anton, sans-serif', fontStyle: 'italic', fontWeight: 900, fontSize: '1.1rem', color: INK, lineHeight: '1' } }, title),
+      el('div', { style: { fontFamily: 'ui-monospace, monospace', fontSize: '0.78rem', color: INK_MUTED, marginTop: '4px', textTransform: 'uppercase', letterSpacing: '0.06em' } }, sub),
+    ),
+    el('div', { style: { display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' } },
+      el('a', {
+        href, download,
+        style: assetButtonStyle(),
+      }, '↓ PDF · ' + sizeMb + ' MB'),
+      el('span', { style: { fontFamily: 'ui-monospace, monospace', fontSize: '0.7rem', color: INK_MUTED } }, 'Staples-ready'),
+    ),
+  );
 }
 
 function boilerplateBlock(label, text) {
