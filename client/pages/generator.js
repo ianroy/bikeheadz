@@ -27,6 +27,12 @@ export function GeneratorPage({ socket }) {
     finalStlData: null,
     finalFailed: false,
     finalErrorMessage: null,
+    // v0.1.43+ — UI lockout for the email CTA. The server enforces
+    // a 30s per-user cooldown on stl.emailMe; this client-side
+    // mirror prevents the button from looking re-clickable during
+    // that window. Set to a future timestamp on success / on a
+    // server rate_limited response.
+    emailLockUntil: 0,
     // v0.1.43 — object mode. True when the pipeline couldn't detect a
     // head and fell back to glueing the cap onto whatever TRELLIS
     // produced (a coffee mug, a sticker, a doodle). UI shows a
@@ -380,6 +386,8 @@ export function GeneratorPage({ socket }) {
     const isDownloading = state.downloadingKind === 'all';
     const isEmailing   = state.downloadingKind === 'email';
     const busy = isDownloading || isEmailing || state.processing;
+    const emailLockedFor = Math.max(0, Math.ceil((state.emailLockUntil - Date.now()) / 1000));
+    const emailLocked = emailLockedFor > 0;
 
     const buttonRow = el('div', {
       class: 'flex gap-3 flex-wrap',
@@ -411,26 +419,37 @@ export function GeneratorPage({ socket }) {
     );
 
     // Email me the STLs — secondary, same shape, fluoro accent.
+    // Locked when (a) any other action is in flight, OR (b) the 30s
+    // cooldown is still active. Label rotates: idle → "Email me the
+    // STLs", in-flight → "Sending…", just-sent → "Sent ✓ (Ns)",
+    // server cooldown → "Wait Ns".
+    const justSent = emailLocked && !isEmailing && state.emailLockUntil > 0;
+    const emailDisabled = busy || emailLocked;
+    let emailLabel;
+    if (isEmailing) emailLabel = 'Sending…';
+    else if (justSent) emailLabel = `Sent ✓ (${emailLockedFor}s)`;
+    else emailLabel = 'Email me the STLs';
+
     const emailBtn = el('button', {
       onClick: () => emailAllStls(),
-      disabled: busy,
+      disabled: emailDisabled,
       style: {
         flex: '1 1 240px',
         padding: '14px 22px',
-        background: busy ? '#D7CFB6' : '#FFFFFF',
-        color: busy ? '#3D2F4A' : '#0E0A12',
+        background: justSent ? '#2EFF8C' : (emailDisabled ? '#D7CFB6' : '#FFFFFF'),
+        color: emailDisabled ? '#3D2F4A' : '#0E0A12',
         border: '2px solid #0E0A12',
-        boxShadow: busy ? '2px 2px 0 #0E0A12' : '4px 4px 0 #2EFF8C',
+        boxShadow: emailDisabled ? '2px 2px 0 #0E0A12' : '4px 4px 0 #2EFF8C',
         fontFamily: 'ui-monospace, monospace',
         fontWeight: 800, fontSize: '0.92rem',
         letterSpacing: '0.06em', textTransform: 'uppercase',
         fontStyle: 'italic',
-        cursor: busy ? 'not-allowed' : 'pointer',
+        cursor: emailDisabled ? 'not-allowed' : 'pointer',
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
       },
     },
-      icon('mail', { size: 18, color: busy ? '#3D2F4A' : '#0E0A12' }),
-      isEmailing ? 'Sending…' : 'Email me the STLs',
+      icon('mail', { size: 18, color: emailDisabled ? '#3D2F4A' : '#0E0A12' }),
+      emailLabel,
     );
 
     buttonRow.appendChild(downloadBtn);
@@ -499,10 +518,14 @@ export function GeneratorPage({ socket }) {
   }
 
   // Email both STLs as attachments to the logged-in user's email.
-  // Same auth gate + claim semantics. Returns count of attachments
-  // sent so we can confirm in the UI.
+  // Same auth gate + claim semantics. The button shows "Sending…"
+  // immediately on click (renderCentralActions runs before the
+  // socket request fires), then "Sent ✓ (Ns)" with a countdown
+  // during the 30s cooldown. Server enforces the cooldown
+  // independently; client-side lockout is just visual coherence.
   async function emailAllStls() {
     if (!state.designId || state.downloadingKind) return;
+    if (state.emailLockUntil > Date.now()) return; // already locked out
     state.downloadingKind = 'email';
     renderCentralActions();
     try {
@@ -511,18 +534,50 @@ export function GeneratorPage({ socket }) {
       });
       const where = res.sent_to ? ` to ${res.sent_to}` : '';
       announce(`Sent${where}. Check your inbox.`);
-      alert(`✉️  Sent${where}. Check your inbox.`);
+      // Lockout window matches the server cooldown so the button
+      // doesn't re-enable just to bounce off a 429.
+      const cooldownS = res.cooldown_s || 30;
+      state.emailLockUntil = Date.now() + (cooldownS * 1000);
+      // Tick the countdown label every second while locked. Cleared
+      // automatically when the lockout expires.
+      _scheduleEmailLockTicks();
     } catch (err) {
       if (err.message === 'auth_required') {
         bounceToSignIn('email');
         return;
       }
-      announce(`Email failed: ${friendlyError(err)}`, true);
-      alert(`Could not email: ${friendlyError(err)}`);
+      if (err.message === 'email_cooldown' || err.code === 'rate_limited') {
+        const retryAfter = err.data?.retry_after_s || err.details?.retry_after_s || 30;
+        state.emailLockUntil = Date.now() + (retryAfter * 1000);
+        announce(`Slow down — wait ${retryAfter}s before resending.`, true);
+        _scheduleEmailLockTicks();
+      } else {
+        announce(`Email failed: ${friendlyError(err)}`, true);
+        alert(`Could not email: ${friendlyError(err)}`);
+      }
     } finally {
       state.downloadingKind = null;
       renderCentralActions();
     }
+  }
+
+  // Re-render the central actions every second while the email
+  // button is locked, so the "Sent ✓ (Ns)" countdown ticks down
+  // visibly. Stops itself once the lock expires. Singleton — only
+  // one ticker active at a time, controlled via _emailTickHandle.
+  let _emailTickHandle = null;
+  function _scheduleEmailLockTicks() {
+    if (_emailTickHandle) return;
+    const tick = () => {
+      if (state.emailLockUntil > Date.now()) {
+        renderCentralActions();
+        _emailTickHandle = setTimeout(tick, 1000);
+      } else {
+        _emailTickHandle = null;
+        renderCentralActions(); // final restore
+      }
+    };
+    tick();
   }
 
   // Save designId + pending intent so /login can come back here and

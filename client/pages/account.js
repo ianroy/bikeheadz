@@ -533,17 +533,26 @@ export function AccountPage({ socket }) {
               // when the design is actually downloadable (paid OR
               // free-MVP mode), and when at least ONE STL exists.
               ((d.paid || paymentsOff) && (d.has_head_stl !== false || !d.final_failed))
-                ? el(
-                    'button',
-                    {
+                ? (() => {
+                    // Build the button as a closure so we can pass
+                    // the exact element to emailDesign() and mutate
+                    // its state directly (disable + label change)
+                    // without round-tripping through a whole-list
+                    // re-render. This is what makes the button feel
+                    // responsive — the user sees "Sending…" the
+                    // instant they click, before the socket request
+                    // even fires.
+                    const btn = el('button', {
                       class: 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-colors',
                       style: { borderColor: '#0E0A12', background: '#FFFFFF', color: '#0E0A12', fontSize: '0.75rem', fontWeight: 700, boxShadow: '2px 2px 0 #2EFF8C' },
-                      onClick: () => emailDesign(d),
+                      onClick: () => emailDesign(d, btn),
                       title: 'Email both STLs to your account email',
                     },
-                    icon('mail', { size: 14 }),
-                    'Email'
-                  )
+                      icon('mail', { size: 14 }),
+                      el('span', {}, 'Email'),
+                    );
+                    return btn;
+                  })()
                 : null,
               el(
                 'button',
@@ -937,15 +946,59 @@ export function AccountPage({ socket }) {
   }
 
   // Email both STLs (head + final, whichever exist on the design)
-  // as Resend attachments to the user's account address. Server
-  // command stl.emailMe handles the actual send + skip-missing-kind
-  // logic. We just confirm the recipient and show success/failure.
-  async function emailDesign(design) {
+  // as Resend attachments to the user's account address.
+  //
+  // The btn argument is the actual button element so we can flip its
+  // state immediately on click — this is what fixes the
+  // "I-clicked-it-four-times-and-got-four-emails" problem:
+  //
+  //   click → disable + "Sending…" (instant, no network)
+  //         → server stl.emailMe (also enforces 30s cooldown)
+  //         → on success: "Sent ✓" + grey for 30s + auto-restore
+  //         → on rate_limited from server: show retry-after countdown
+  //         → on other error: alert + restore
+  //
+  // The 30s client-side lockout matches the server cooldown so the
+  // button doesn't re-enable just to bounce off a rate limit. The
+  // server cooldown is the actual safety net (a Selenium-armed
+  // attacker bypasses the DOM disable trivially).
+  async function emailDesign(design, btn) {
+    if (!btn || btn.disabled) return; // already in flight
+    const labelEl = btn.querySelector('span');
+    const originalLabel = labelEl?.textContent || 'Email';
+    const restore = () => {
+      btn.disabled = false;
+      btn.style.opacity = '1';
+      btn.style.cursor = 'pointer';
+      btn.style.background = '#FFFFFF';
+      btn.style.color = '#0E0A12';
+      btn.style.boxShadow = '2px 2px 0 #2EFF8C';
+      if (labelEl) labelEl.textContent = originalLabel;
+    };
+    const setLockedState = (text, opts = {}) => {
+      btn.disabled = true;
+      btn.style.opacity = '0.85';
+      btn.style.cursor = 'not-allowed';
+      btn.style.background = opts.success ? '#2EFF8C' : '#D7CFB6';
+      btn.style.color = '#0E0A12';
+      btn.style.boxShadow = '2px 2px 0 #0E0A12';
+      if (labelEl) labelEl.textContent = text;
+    };
+    setLockedState('Sending…');
     try {
       const res = await socket.request('stl.emailMe', { designId: design.id });
       const where = res.sent_to ? ` to ${res.sent_to}` : '';
       const count = res.attachments === 2 ? 'Both STLs' : 'Your STL';
-      window.alert(`✉️  ${count} sent${where}. Check your inbox.`);
+      // Persistent confirmation in the DOM (no modal). 30s lockout
+      // matches the server cooldown so the user doesn't bounce off
+      // a rate limit.
+      setLockedState('Sent ✓', { success: true });
+      btn.title = `${count} sent${where}. Cooldown: 30s.`;
+      // Optional brief countdown so the user knows when they can
+      // resend. Skipping the per-second update — we just restore
+      // after 30s. (A countdown is overkill for a 30s window; if
+      // they care they'll click and see the rate-limit message.)
+      setTimeout(restore, 30_000);
     } catch (err) {
       if (err.message === 'auth_required') {
         window.alert("Please sign in to email your STLs.");
@@ -954,17 +1007,30 @@ export function AccountPage({ socket }) {
       }
       if (err.message === 'no_email_on_account') {
         window.alert('Your account has no email on file. Add one in Settings to use this feature.');
+        restore();
         return;
       }
       if (err.message === 'no_stl_to_send') {
         window.alert('No STLs are available for this design. Re-generate to create new files.');
+        restore();
         return;
       }
       if (err.message === 'stls_too_large_for_email') {
         window.alert('The STLs are too large to email (over 35 MB). Use Download instead.');
+        restore();
+        return;
+      }
+      if (err.message === 'email_cooldown' || err.code === 'rate_limited') {
+        // Server rate-limited us — surface the retry-after if the
+        // server gave it (CommandError preserves details on .data).
+        const retryAfter = err.data?.retry_after_s || err.details?.retry_after_s || 30;
+        setLockedState(`Wait ${retryAfter}s`);
+        btn.title = `Email cooldown — ${retryAfter}s before you can send another.`;
+        setTimeout(restore, retryAfter * 1000);
         return;
       }
       window.alert(err.message || 'Email failed');
+      restore();
     }
   }
 

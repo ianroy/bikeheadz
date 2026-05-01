@@ -115,6 +115,23 @@ const PayloadSchema = z.object({
   settings: SettingsSchema.optional(),
 });
 
+// Per-user cooldown for stl.emailMe. The UI used to fire-and-await
+// without immediate visual feedback, which led riders to mash the
+// button and self-bomb their inbox with duplicate emails. The
+// client now disables the button on click + shows "Sending…", but
+// this server-side cooldown is the real safety net (the client
+// disable is bypassable; the cooldown isn't). 30 s is short enough
+// to feel responsive on legitimate retries (failed delivery, lost
+// connection) and long enough to absorb a panicked click-storm.
+//
+// Keyed by user.id. In-memory — resets on DO restart, which is
+// fine: an attacker can already trigger one email per restart by
+// crashing the process if they want to. Per-design might be more
+// user-friendly but per-user is safer against bursts across
+// multiple design rows on /account.
+const _emailCooldown = new Map(); // userId → timestampMs of last successful send
+const EMAIL_COOLDOWN_MS = 30_000;
+
 // Claim an anonymously-generated design onto a user's account on
 // first authed access (download, email, or share). The rider may
 // have generated as a guest, then signed up to download — by linking
@@ -508,6 +525,21 @@ export const stlCommands = {
       throw new CommandError(ErrorCode.INVALID_PAYLOAD, 'no_email_on_account');
     }
 
+    // 30s per-user cooldown. Keyed by user.id (BIGINT-as-string from
+    // node-postgres → coerce to string for consistent key). Throws a
+    // structured error with retry_after_s so the UI can show a
+    // useful countdown instead of a generic "rate limited" toast.
+    const userKey = String(user.id);
+    const lastSent = _emailCooldown.get(userKey) || 0;
+    const elapsed = Date.now() - lastSent;
+    if (elapsed < EMAIL_COOLDOWN_MS) {
+      const retryAfterS = Math.ceil((EMAIL_COOLDOWN_MS - elapsed) / 1000);
+      throw new CommandError(ErrorCode.RATE_LIMITED, 'email_cooldown', {
+        retry_after_s: retryAfterS,
+        cooldown_s: EMAIL_COOLDOWN_MS / 1000,
+      });
+    }
+
     const cached = await designStore.get(designId);
     if (!cached) throw new CommandError(ErrorCode.DESIGN_NOT_FOUND, 'design_not_found');
     if (cached.accountId != null && Number(cached.accountId) !== Number(user.id)) {
@@ -584,11 +616,21 @@ export const stlCommands = {
       throw new CommandError(ErrorCode.WORKER_ERROR, 'email_delivery_failed');
     }
 
+    // Stamp the cooldown ONLY on successful delivery — failures don't
+    // count against the rider's quota (they should be able to retry
+    // immediately after a transient Resend error).
+    _emailCooldown.set(userKey, Date.now());
+
     logger.info({
       msg: 'stl.emailed', designId, accountId: user.id,
       attachments: attachments.length, total_bytes: totalBytes,
     });
-    return { ok: true, attachments: attachments.length, sent_to: user.email };
+    return {
+      ok: true,
+      attachments: attachments.length,
+      sent_to: user.email,
+      cooldown_s: EMAIL_COOLDOWN_MS / 1000,
+    };
   },
 
   // Re-fetch dual-output STL bytes for an existing design id. Used
