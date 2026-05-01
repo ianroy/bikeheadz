@@ -18,6 +18,14 @@
     ],
     "env": [
       {
+        "key": "HF_TOKEN",
+        "input": {
+          "name": "Hugging Face token (SECRET)",
+          "type": "string",
+          "description": "Required. Read-token for the gated TRELLIS-image-large model. Without this, every cold start fails to download weights and the worker queues forever — the most common silent killer. Token must have read access AND the HF account must have accepted the TRELLIS license at huggingface.co/microsoft/TRELLIS-image-large. Account-wide; the same token works on every region."
+        }
+      },
+      {
         "key": "TRELLIS_MODEL",
         "input": {
           "name": "TRELLIS model id",
@@ -31,8 +39,20 @@
         "value": "/app/valve_cap.stl"
       },
       {
+        "key": "NEGATIVE_CORE_PATH",
+        "value": "/app/negative_core.stl"
+      },
+      {
         "key": "SPCONV_ALGO",
         "value": "native"
+      },
+      {
+        "key": "ATTN_BACKEND",
+        "value": "xformers"
+      },
+      {
+        "key": "SPARSE_ATTN_BACKEND",
+        "value": "xformers"
       },
       {
         "key": "HF_HOME",
@@ -49,6 +69,22 @@
       {
         "key": "TORCH_HOME",
         "value": "/runpod-volume/torch"
+      },
+      {
+        "key": "FAILURE_CORPUS_DIR",
+        "value": "/runpod-volume/failures"
+      },
+      {
+        "key": "TRELLIS_CACHE_DIR",
+        "value": "/runpod-volume/cache/trellis"
+      },
+      {
+        "key": "TRELLIS_CACHE_TTL_S",
+        "value": "86400"
+      },
+      {
+        "key": "MAX_TRIS_AFTER_REPAIR",
+        "value": "500000"
       }
     ]
   }
