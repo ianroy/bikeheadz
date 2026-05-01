@@ -470,6 +470,27 @@ def stage2_crop(
     z_cut = float(best["z_cut"])
     cropped = _boolean_crop_below(rotated, z_cut)
 
+    # `_boolean_crop_below` can return None when the manifold3d boolean
+    # produces an empty mesh (e.g. on heavily non-watertight inputs that
+    # slip past stage 1.5 — TRELLIS occasionally outputs heads with
+    # internal voids that the cropping plane intersects but doesn't
+    # actually carve). Surface as a structured PipelineError so the
+    # auto-retry loop in __init__.py can lower the shoulder_taper
+    # fraction and try again, instead of crashing with a NoneType
+    # AttributeError two lines down.
+    if cropped is None or len(getattr(cropped, "faces", [])) == 0:
+        raise PipelineError(
+            code=ErrorCode.NECK_NOT_FOUND,
+            stage="stage2",
+            detail=(
+                f"boolean crop produced empty mesh at z_cut={z_cut:.3f} "
+                f"(rotation={float(best['rotation_deg']):.1f}°). "
+                f"Input head likely has internal voids or non-manifold edges "
+                f"that defeated manifold3d's plane cut. Auto-retry will lower "
+                f"the shoulder taper fraction."
+            ),
+        )
+
     # Stages 3/4 expect the cropped head's bottom plane at z=0.
     z_min = float(cropped.bounds[0, 2])
     if abs(z_min) > 1e-6:
@@ -958,17 +979,23 @@ def stage6_print_repair(
         # Modern pymeshfix exposes a high-level convenience entry point:
         # `clean_from_arrays(v, f, ...)` returns the cleaned arrays
         # directly without needing to navigate `MeshFix.mesh.points` /
-        # `mesh.faces` (which is a flat pyvista-prefixed array). The old
-        # `mfix.v` / `mfix.f` attributes were removed in 0.15+, which
-        # was the source of every "shipping un-repaired mesh" warning.
-        # joincomp=True merges disconnected components (e.g. the
-        # stage-4 concat fallback for cap+head) into one solid.
-        # remove_smallest_components=False keeps the cap even if it
-        # happens to be the smallest piece.
+        # `mesh.faces` (which is a flat pyvista-prefixed array).
+        #
+        # joincomp=False — repair each connected component independently.
+        # When stage 4 falls back to mesh concatenation (head + cap as
+        # 2 separate components), `joincomp=True` would try to STITCH
+        # the cap onto the head by adding seam geometry, collapsing the
+        # cap's threaded shape into a blob and effectively deleting the
+        # valve stem from the output. With joincomp=False, both shells
+        # are sealed independently and the multi-shell output is still
+        # slicer-printable.
+        # remove_smallest_components=False — without this the default
+        # is True, which would discard the smaller of head/cap (always
+        # the cap) and ship a head with no way to attach to the bike.
         v_out, f_out = _pmf.clean_from_arrays(
             v_in, f_in,
             verbose=False,
-            joincomp=True,
+            joincomp=False,
             remove_smallest_components=False,
         )
         if len(v_out) == 0 or len(f_out) == 0:

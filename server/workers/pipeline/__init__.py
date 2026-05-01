@@ -311,7 +311,24 @@ def run_v1(
         )
         return c, s
 
-    cropped, socketed = _run_crop_and_carve(shoulder_taper_fraction)
+    # Stage 2 can also raise NECK_NOT_FOUND directly (when the boolean
+    # plane-cut produces an empty mesh on a heavily non-watertight head).
+    # Same auto-retry idea as the thin-wall path: relax the taper and
+    # try again ONCE before giving up.
+    try:
+        cropped, socketed = _run_crop_and_carve(shoulder_taper_fraction)
+    except PipelineError as exc:
+        if exc.code != ErrorCode.NECK_NOT_FOUND:
+            raise
+        relaxed_first = max(0.40, float(shoulder_taper_fraction) - 0.15)
+        if abs(relaxed_first - shoulder_taper_fraction) <= 1e-6:
+            raise
+        sys.stderr.write(
+            f"[run_v1] stage2 raised NECK_NOT_FOUND; auto-retrying "
+            f"stage2+stage3 with shoulder_taper_fraction "
+            f"{shoulder_taper_fraction:.2f} → {relaxed_first:.2f}\n"
+        )
+        cropped, socketed = _run_crop_and_carve(relaxed_first)
     _emit(*_PROGRESS_STAGE2)
 
     thin = float(getattr(socketed, "metadata", {}).get("sdz_thin_wall_min_mm", 0.0) or 0.0)
