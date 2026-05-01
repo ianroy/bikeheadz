@@ -54,6 +54,20 @@ function authHeaders() {
   };
 }
 
+// ── Force-warmup flag ───────────────────────────────────────────────
+// When `RUNPOD_FORCE_WARMUP=1` is set on DO, the FIRST generation
+// request after this server boot is routed to the LAST endpoint in
+// RUNPOD_ENDPOINT_URLS only (no race). That endpoint is assumed to be
+// the cold one needing weights downloaded into its network volume.
+// Once it completes successfully, the flag is consumed in memory and
+// every subsequent request races all configured endpoints normally.
+//
+// On app restart the flag re-arms (since memory resets) — if the cold
+// endpoint is already warm by then, the next request just runs there
+// quickly and racing resumes after one job. Leave the env var set
+// indefinitely; the cost is at most one non-raced job per restart.
+let _warmupConsumed = false;
+
 // ── Telemetry — exposed via getRunpodTelemetry() for /admin ─────────
 
 const _telemetry = new Map();
@@ -89,15 +103,35 @@ export async function runRunpod({ socket, commandId, imageBuf, settings }) {
   if (endpoints.length === 0) throw new Error('runpod_not_configured');
   const input = buildInput({ imageBuf, settings });
 
-  if (endpoints.length === 1) {
-    const base = endpoints[0];
+  // First-run warmup override. When RUNPOD_FORCE_WARMUP=1 is set and
+  // we haven't yet completed a generation in this process, force the
+  // job to the LAST configured endpoint (the new region) so its
+  // network volume populates with TRELLIS weights. Subsequent requests
+  // race normally.
+  const wantsWarmup = process.env.RUNPOD_FORCE_WARMUP === '1' && !_warmupConsumed && endpoints.length > 1;
+  const targetEndpoints = wantsWarmup ? [endpoints[endpoints.length - 1]] : endpoints;
+  if (wantsWarmup) {
+    logger.info({
+      msg: 'runpod.warmup_routing',
+      endpoint: targetEndpoints[0],
+      note: 'forcing first-job warmup; racing resumes after this completes',
+    });
+  }
+
+  if (targetEndpoints.length === 1) {
+    const base = targetEndpoints[0];
     bumpStat(base, 'submits');
     try {
       const job = await submitJob(base, input);
-      return await streamAndAssemble({
+      const stl = await streamAndAssemble({
         socket, commandId, base, jobId: job.id,
         deadline: Date.now() + POLL_MAX_WAIT_MS,
       });
+      if (wantsWarmup) {
+        _warmupConsumed = true;
+        logger.info({ msg: 'runpod.warmup_complete', endpoint: base });
+      }
+      return stl;
     } catch (err) {
       bumpStat(base, 'errors');
       bumpStat(base, 'lastErrorAt', new Date().toISOString());
@@ -105,7 +139,7 @@ export async function runRunpod({ socket, commandId, imageBuf, settings }) {
     }
   }
 
-  return raceAndStream({ socket, commandId, endpoints, input });
+  return raceAndStream({ socket, commandId, endpoints: targetEndpoints, input });
 }
 
 // ── Race logic (Option A): submit to N, stick with first to start ───
