@@ -1,0 +1,222 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 760" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, 'Helvetica Neue', sans-serif">
+  <!--
+    StemDomeZ — System architecture (v0.1.41)
+    Browser → DigitalOcean → RunPod (US/RO) → GHCR → back.
+
+    Edit this file to redraw whenever a tier moves. Brand palette pinned
+    per brandstandards.MD §14.
+  -->
+
+  <defs>
+    <pattern id="dots-bg" x="0" y="0" width="10" height="10" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1.2" fill="#0E0A12" opacity="0.13"/>
+    </pattern>
+    <marker id="ar" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M 0 0 L 10 6 L 0 12 z" fill="#0E0A12"/>
+    </marker>
+    <marker id="ar-brand" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M 0 0 L 10 6 L 0 12 z" fill="#7B2EFF"/>
+    </marker>
+    <marker id="ar-magenta" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M 0 0 L 10 6 L 0 12 z" fill="#FF2EAB"/>
+    </marker>
+    <marker id="ar-green" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M 0 0 L 10 6 L 0 12 z" fill="#2EFF8C"/>
+    </marker>
+  </defs>
+
+  <rect width="1280" height="760" fill="#F5F2E5"/>
+  <rect x="0" y="640" width="1280" height="120" fill="url(#dots-bg)"/>
+
+  <g transform="translate(40 50)">
+    <text x="0" y="0" font-style="italic" font-weight="900" font-size="36" fill="#0E0A12"
+          style="text-shadow: 4px 4px 0 #2EFF8C;">SYSTEM ARCHITECTURE.</text>
+    <text x="0" y="22" font-family="ui-monospace, monospace" font-size="12" font-weight="700"
+          letter-spacing="0.18em" fill="#7B2EFF">BROWSER · DIGITALOCEAN · RUNPOD · GHCR</text>
+  </g>
+
+  <!-- ─────────────────── COL 1 — BROWSER ─────────────────── -->
+  <g transform="translate(40 130)">
+    <rect width="280" height="490" fill="#F5F2E5" stroke="#0E0A12" stroke-width="3" rx="8"/>
+    <rect x="0" y="0" width="280" height="36" fill="#7B2EFF"/>
+    <text x="140" y="24" text-anchor="middle" font-style="italic" font-weight="900" font-size="16" fill="#FFFFFF">BROWSER (CLIENT)</text>
+    <text x="140" y="56" text-anchor="middle" font-family="ui-monospace, monospace" font-size="10" letter-spacing="0.08em" fill="#3D2F4A">VITE · VANILLA JS · TAILWIND v4</text>
+
+    <g transform="translate(14 78)">
+      <rect width="252" height="58" fill="#F5F2E5" stroke="#0E0A12" stroke-width="2" rx="4"/>
+      <text x="14" y="22" font-style="italic" font-weight="900" font-size="13" fill="#0E0A12">Vanilla JS UI</text>
+      <text x="14" y="40" font-family="ui-monospace, monospace" font-size="10" fill="#3D2F4A">router · el() builder · Tailwind v4</text>
+    </g>
+    <g transform="translate(14 148)">
+      <rect width="252" height="58" fill="#F5F2E5" stroke="#0E0A12" stroke-width="2" rx="4"/>
+      <text x="14" y="22" font-style="italic" font-weight="900" font-size="13" fill="#0E0A12">Three.js viewer</text>
+      <text x="14" y="40" font-family="ui-monospace, monospace" font-size="10" fill="#3D2F4A">STLLoader · OrbitControls · IBL</text>
+    </g>
+    <g transform="translate(14 218)">
+      <rect width="252" height="58" fill="#2EFF8C" stroke="#0E0A12" stroke-width="2" rx="4"/>
+      <text x="14" y="22" font-style="italic" font-weight="900" font-size="13" fill="#0E0A12">socket.io client</text>
+      <text x="14" y="40" font-family="ui-monospace, monospace" font-size="10" fill="#0E0A12">single 'command' event</text>
+    </g>
+    <g transform="translate(14 288)">
+      <rect width="252" height="58" fill="#F5F2E5" stroke="#0E0A12" stroke-width="2" rx="4"/>
+      <text x="14" y="22" font-style="italic" font-weight="900" font-size="13" fill="#0E0A12">Stripe Checkout</text>
+      <text x="14" y="40" font-family="ui-monospace, monospace" font-size="10" fill="#3D2F4A">hosted redirect · no webhook needed</text>
+    </g>
+    <g transform="translate(14 358)">
+      <rect width="252" height="58" fill="#E5E0CC" stroke="#0E0A12" stroke-width="2" stroke-dasharray="4 3" rx="4"/>
+      <text x="14" y="22" font-style="italic" font-weight="900" font-size="13" fill="#0E0A12">Magic-link auth</text>
+      <text x="14" y="40" font-family="ui-monospace, monospace" font-size="10" fill="#3D2F4A">Resend · scrypt password opt-in</text>
+    </g>
+    <g transform="translate(14 428)">
+      <rect width="252" height="48" fill="#FF2EAB" stroke="#0E0A12" stroke-width="2" rx="4"/>
+      <text x="14" y="20" font-style="italic" font-weight="900" font-size="12" fill="#0E0A12">sharp downsample (≤1024 px)</text>
+      <text x="14" y="36" font-family="ui-monospace, monospace" font-size="9" fill="#0E0A12">runs server-side before GPU dispatch</text>
+    </g>
+  </g>
+
+  <!-- ─────────────────── COL 2 — DIGITALOCEAN ─────────────────── -->
+  <g transform="translate(360 130)">
+    <rect width="280" height="490" fill="#F5F2E5" stroke="#0E0A12" stroke-width="3" rx="8"/>
+    <rect x="0" y="0" width="280" height="36" fill="#0E0A12"/>
+    <text x="140" y="24" text-anchor="middle" font-style="italic" font-weight="900" font-size="16" fill="#2EFF8C">DIGITALOCEAN APP PLATFORM</text>
+    <text x="140" y="56" text-anchor="middle" font-family="ui-monospace, monospace" font-size="10" letter-spacing="0.08em" fill="#3D2F4A">NODE 22 · EXPRESS · SOCKET.IO · HELMET CSP</text>
+
+    <g transform="translate(14 78)">
+      <rect width="252" height="58" fill="#F5F2E5" stroke="#0E0A12" stroke-width="2" rx="4"/>
+      <text x="14" y="22" font-style="italic" font-weight="900" font-size="13" fill="#0E0A12">server/index.js</text>
+      <text x="14" y="40" font-family="ui-monospace, monospace" font-size="10" fill="#3D2F4A">command dispatcher · /health · /metrics</text>
+    </g>
+    <g transform="translate(14 148)">
+      <rect width="252" height="58" fill="#F5F2E5" stroke="#0E0A12" stroke-width="2" rx="4"/>
+      <text x="14" y="22" font-style="italic" font-weight="900" font-size="13" fill="#0E0A12">commands/stl.js</text>
+      <text x="14" y="40" font-family="ui-monospace, monospace" font-size="10" fill="#3D2F4A">resize · race dispatch · persist · stream</text>
+    </g>
+    <g transform="translate(14 218)">
+      <rect width="252" height="58" fill="#FF2EAB" stroke="#0E0A12" stroke-width="2" rx="4"/>
+      <text x="14" y="22" font-style="italic" font-weight="900" font-size="13" fill="#0E0A12">workers/runpod-client.js</text>
+      <text x="14" y="40" font-family="ui-monospace, monospace" font-size="10" fill="#0E0A12">multi-region race · /stream poll · cancel loser</text>
+    </g>
+    <g transform="translate(14 288)">
+      <rect width="252" height="58" fill="#F5F2E5" stroke="#0E0A12" stroke-width="2" rx="4"/>
+      <text x="14" y="22" font-style="italic" font-weight="900" font-size="13" fill="#0E0A12">design-store.js</text>
+      <text x="14" y="40" font-family="ui-monospace, monospace" font-size="10" fill="#3D2F4A">stl_bytes BYTEA · 24h TTL · prune job</text>
+    </g>
+    <g transform="translate(14 358)">
+      <rect width="252" height="58" fill="#F5F2E5" stroke="#0E0A12" stroke-width="2" rx="4"/>
+      <text x="14" y="22" font-style="italic" font-weight="900" font-size="13" fill="#0E0A12">stripe-client · app-config</text>
+      <text x="14" y="40" font-family="ui-monospace, monospace" font-size="10" fill="#3D2F4A">payments_enabled · printing · aaa_toggle</text>
+    </g>
+    <g transform="translate(14 428)">
+      <rect width="252" height="48" fill="#E5E0CC" stroke="#0E0A12" stroke-width="2" stroke-dasharray="4 3" rx="4"/>
+      <text x="14" y="20" font-style="italic" font-weight="900" font-size="13" fill="#0E0A12">Managed Postgres 18</text>
+      <text x="14" y="36" font-family="ui-monospace, monospace" font-size="9" fill="#3D2F4A">migrate-on-boot · TLS · BYTEA STL</text>
+    </g>
+  </g>
+
+  <!-- ─────────────────── COL 3 — RUNPOD (multi-region) ─────────────────── -->
+  <g transform="translate(680 130)">
+    <rect width="280" height="490" fill="#F5F2E5" stroke="#0E0A12" stroke-width="3" rx="8"/>
+    <rect x="0" y="0" width="280" height="36" fill="#FF2EAB"/>
+    <text x="140" y="24" text-anchor="middle" font-style="italic" font-weight="900" font-size="16" fill="#FFFFFF">RUNPOD SERVERLESS GPU</text>
+    <text x="140" y="56" text-anchor="middle" font-family="ui-monospace, monospace" font-size="10" letter-spacing="0.08em" fill="#3D2F4A">ghcr.io/&lt;owner&gt;/&lt;repo&gt;:vX.Y.Z</text>
+
+    <g transform="translate(14 78)">
+      <rect width="252" height="50" fill="#0E0A12" stroke="#0E0A12" stroke-width="2" rx="4"/>
+      <text x="14" y="20" font-style="italic" font-weight="900" font-size="13" fill="#FFFFFF">US endpoint</text>
+      <text x="14" y="36" font-family="ui-monospace, monospace" font-size="10" fill="#2EFF8C">RUNPOD_ENDPOINT_URLS[0] · primary</text>
+    </g>
+    <g transform="translate(14 138)">
+      <rect width="252" height="50" fill="#0E0A12" stroke="#0E0A12" stroke-width="2" rx="4"/>
+      <text x="14" y="20" font-style="italic" font-weight="900" font-size="13" fill="#FFFFFF">RO endpoint (Romania)</text>
+      <text x="14" y="36" font-family="ui-monospace, monospace" font-size="10" fill="#2EFF8C">RUNPOD_ENDPOINT_URLS[1] · race + win-rate</text>
+    </g>
+    <g transform="translate(14 200)">
+      <rect width="252" height="58" fill="#F5F2E5" stroke="#0E0A12" stroke-width="2" rx="4"/>
+      <text x="14" y="22" font-style="italic" font-weight="900" font-size="13" fill="#0E0A12">handler.py v0.1.41</text>
+      <text x="14" y="40" font-family="ui-monospace, monospace" font-size="10" fill="#3D2F4A">return_aggregate_stream=False · 700KB chunks</text>
+    </g>
+    <g transform="translate(14 270)">
+      <rect width="252" height="58" fill="#F5F2E5" stroke="#0E0A12" stroke-width="2" rx="4"/>
+      <text x="14" y="22" font-style="italic" font-weight="900" font-size="13" fill="#0E0A12">TRELLIS-image-large</text>
+      <text x="14" y="40" font-family="ui-monospace, monospace" font-size="10" fill="#3D2F4A">~30s warm · 5–10 min cold · 750k tris out</text>
+    </g>
+    <g transform="translate(14 340)">
+      <rect width="252" height="58" fill="#2EFF8C" stroke="#0E0A12" stroke-width="2" rx="4"/>
+      <text x="14" y="22" font-style="italic" font-weight="900" font-size="13" fill="#0E0A12">8-stage CAD pipeline</text>
+      <text x="14" y="40" font-family="ui-monospace, monospace" font-size="10" fill="#0E0A12">stages 1–6 · watertight at 1.7 + 6</text>
+    </g>
+    <g transform="translate(14 410)">
+      <rect width="252" height="68" fill="#F5F2E5" stroke="#0E0A12" stroke-width="2" stroke-dasharray="4 3" rx="4"/>
+      <text x="14" y="22" font-style="italic" font-weight="900" font-size="13" fill="#0E0A12">/runpod-volume (Network Volume)</text>
+      <text x="14" y="38" font-family="ui-monospace, monospace" font-size="9" fill="#3D2F4A">hf/ — TRELLIS + dinov2 + u2net weights</text>
+      <text x="14" y="50" font-family="ui-monospace, monospace" font-size="9" fill="#3D2F4A">torch/ · cache/trellis/ · failures/&lt;date&gt;/</text>
+    </g>
+  </g>
+
+  <!-- ─────────────────── COL 4 — GHCR / GHA ─────────────────── -->
+  <g transform="translate(1000 130)">
+    <rect width="240" height="490" fill="#F5F2E5" stroke="#0E0A12" stroke-width="3" rx="8"/>
+    <rect x="0" y="0" width="240" height="36" fill="#7B2EFF"/>
+    <text x="120" y="24" text-anchor="middle" font-style="italic" font-weight="900" font-size="14" fill="#FFFFFF">BUILD &amp; RELEASE</text>
+    <text x="120" y="56" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" letter-spacing="0.08em" fill="#3D2F4A">GITHUB · ACTIONS · GHCR</text>
+
+    <g transform="translate(14 78)">
+      <rect width="212" height="58" fill="#F5F2E5" stroke="#0E0A12" stroke-width="2" rx="4"/>
+      <text x="14" y="22" font-style="italic" font-weight="900" font-size="12" fill="#0E0A12">git push + gh release</text>
+      <text x="14" y="40" font-family="ui-monospace, monospace" font-size="9" fill="#3D2F4A">vX.Y.Z tag triggers GHA</text>
+    </g>
+    <g transform="translate(14 148)">
+      <rect width="212" height="58" fill="#F5F2E5" stroke="#0E0A12" stroke-width="2" rx="4"/>
+      <text x="14" y="22" font-style="italic" font-weight="900" font-size="12" fill="#0E0A12">GitHub Actions</text>
+      <text x="14" y="40" font-family="ui-monospace, monospace" font-size="9" fill="#3D2F4A">build-runpod-image.yml · 17–25 min</text>
+    </g>
+    <g transform="translate(14 218)">
+      <rect width="212" height="58" fill="#F5F2E5" stroke="#0E0A12" stroke-width="2" rx="4"/>
+      <text x="14" y="22" font-style="italic" font-weight="900" font-size="12" fill="#0E0A12">GHCR registry</text>
+      <text x="14" y="40" font-family="ui-monospace, monospace" font-size="9" fill="#3D2F4A">multi-GB image · global pull</text>
+    </g>
+    <g transform="translate(14 288)">
+      <rect width="212" height="58" fill="#FF2EAB" stroke="#0E0A12" stroke-width="2" rx="4"/>
+      <text x="14" y="22" font-style="italic" font-weight="900" font-size="12" fill="#0E0A12">RunPod release (manual)</text>
+      <text x="14" y="40" font-family="ui-monospace, monospace" font-size="9" fill="#0E0A12">paste GHCR URL per-region</text>
+    </g>
+    <g transform="translate(14 358)">
+      <rect width="212" height="58" fill="#F5F2E5" stroke="#0E0A12" stroke-width="2" rx="4"/>
+      <text x="14" y="22" font-style="italic" font-weight="900" font-size="12" fill="#0E0A12">DigitalOcean redeploy</text>
+      <text x="14" y="40" font-family="ui-monospace, monospace" font-size="9" fill="#3D2F4A">on push to main · auto · 2–3 min</text>
+    </g>
+    <g transform="translate(14 428)">
+      <rect width="212" height="48" fill="#E5E0CC" stroke="#0E0A12" stroke-width="2" rx="4"/>
+      <text x="14" y="22" font-style="italic" font-weight="900" font-size="12" fill="#0E0A12">Sentry · Resend · Stripe</text>
+      <text x="14" y="38" font-family="ui-monospace, monospace" font-size="9" fill="#3D2F4A">errors · email · payments (off MVP)</text>
+    </g>
+  </g>
+
+  <!-- inter-column flows -->
+  <line x1="320" y1="220" x2="360" y2="220" stroke="#2EFF8C" stroke-width="3" marker-end="url(#ar-green)"/>
+  <text x="340" y="212" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" font-weight="700" fill="#2EFF8C">cmd</text>
+
+  <line x1="640" y1="247" x2="680" y2="247" stroke="#FF2EAB" stroke-width="3" marker-end="url(#ar-magenta)"/>
+  <text x="660" y="240" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" font-weight="700" fill="#FF2EAB">race</text>
+
+  <line x1="960" y1="247" x2="1000" y2="247" stroke="#0E0A12" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#ar)"/>
+  <text x="980" y="240" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" fill="#0E0A12">pull</text>
+
+  <!-- LEGEND -->
+  <g transform="translate(40 660)">
+    <rect width="1200" height="80" fill="#E5E0CC" stroke="#0E0A12" stroke-width="2" rx="6"/>
+    <text x="14" y="22" font-family="ui-monospace, monospace" font-size="11" font-weight="700" letter-spacing="0.12em" fill="#7B2EFF">DATA FLOWS</text>
+
+    <line x1="14" y1="40" x2="40" y2="40" stroke="#2EFF8C" stroke-width="3" marker-end="url(#ar-green)"/>
+    <text x="48" y="44" font-family="ui-monospace, monospace" font-size="11" fill="#0E0A12">socket.io command pattern · single 'command' event · no REST</text>
+
+    <line x1="514" y1="40" x2="540" y2="40" stroke="#FF2EAB" stroke-width="3" marker-end="url(#ar-magenta)"/>
+    <text x="548" y="44" font-family="ui-monospace, monospace" font-size="11" fill="#0E0A12">RunPod HTTP poll · chunked-yield protocol · trans-Atlantic</text>
+
+    <line x1="14" y1="62" x2="40" y2="62" stroke="#0E0A12" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#ar)"/>
+    <text x="48" y="66" font-family="ui-monospace, monospace" font-size="11" fill="#0E0A12">image lifecycle · GHCR pull · per-region manual deploy</text>
+
+    <text x="514" y="66" font-family="ui-monospace, monospace" font-size="10" fill="#3D2F4A" font-style="italic">v0.1.41 · stage 1.7 watertight · stage 6 split-and-process</text>
+  </g>
+</svg>

@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 760" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, 'Helvetica Neue', sans-serif">
+  <!--
+    StemDomeZ — Photo bytes lifecycle.
+    Tracks each transformation a single byte goes through, from the
+    user's iPhone roll to the printable STL on disk. Each box has the
+    actual byte counts so you can see where the savings live.
+  -->
+
+  <defs>
+    <pattern id="dots-bg" x="0" y="0" width="10" height="10" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1.2" fill="#0E0A12" opacity="0.13"/>
+    </pattern>
+    <marker id="ar" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M 0 0 L 10 6 L 0 12 z" fill="#0E0A12"/>
+    </marker>
+    <marker id="ar-magenta" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M 0 0 L 10 6 L 0 12 z" fill="#FF2EAB"/>
+    </marker>
+    <marker id="ar-green" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M 0 0 L 10 6 L 0 12 z" fill="#2EFF8C"/>
+    </marker>
+  </defs>
+
+  <rect width="1280" height="760" fill="#F5F2E5"/>
+  <rect x="0" y="640" width="1280" height="120" fill="url(#dots-bg)"/>
+
+  <g transform="translate(40 50)">
+    <text x="0" y="0" font-style="italic" font-weight="900" font-size="36" fill="#0E0A12"
+          style="text-shadow: 4px 4px 0 #2EFF8C;">DATA FLOW.</text>
+    <text x="0" y="22" font-family="ui-monospace, monospace" font-size="12" font-weight="700"
+          letter-spacing="0.18em" fill="#7B2EFF">PHOTO BYTES · LIFECYCLE · WHERE THE SAVINGS LIVE</text>
+  </g>
+
+  <!-- ─────────────────── ROW 1: upload to viewer ─────────────────── -->
+  <text x="40" y="135" font-family="ui-monospace, monospace" font-size="11" font-weight="700"
+        letter-spacing="0.12em" fill="#7B2EFF">FROM iPHONE ROLL TO PRINTABLE STL</text>
+  <line x1="40" y1="142" x2="1240" y2="142" stroke="#7B2EFF" stroke-width="1" stroke-dasharray="3 3"/>
+
+  <!-- iPhone -->
+  <g transform="translate(40 165)">
+    <rect width="160" height="120" fill="#FF2EAB" stroke="#0E0A12" stroke-width="3" rx="8"/>
+    <rect x="14" y="14" width="132" height="92" fill="#0E0A12"/>
+    <circle cx="80" cy="50" r="20" fill="#FFD400" stroke="#F5F2E5" stroke-width="2"/>
+    <text x="80" y="85" text-anchor="middle" font-family="ui-monospace, monospace" font-size="10" fill="#F5F2E5">12 MP HEIC selfie</text>
+    <text x="80" y="140" text-anchor="middle" font-family="ui-monospace, monospace" font-size="11" font-weight="700" fill="#0E0A12">~3–5 MB</text>
+    <text x="80" y="156" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" fill="#3D2F4A">EXIF-rotated · sideways</text>
+  </g>
+
+  <line x1="200" y1="225" x2="240" y2="225" stroke="#0E0A12" stroke-width="2" marker-end="url(#ar)"/>
+  <text x="220" y="217" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" fill="#0E0A12">upload</text>
+
+  <!-- DO server -->
+  <g transform="translate(240 165)">
+    <rect width="220" height="120" fill="#0E0A12" stroke="#0E0A12" stroke-width="3" rx="8"/>
+    <text x="110" y="22" text-anchor="middle" font-style="italic" font-weight="900" font-size="14" fill="#2EFF8C">DigitalOcean</text>
+    <text x="110" y="40" text-anchor="middle" font-family="ui-monospace, monospace" font-size="10" fill="#FFFFFF">commands/stl.js</text>
+
+    <rect x="14" y="56" width="192" height="20" fill="#F5F2E5" stroke="#FFD400" stroke-width="2"/>
+    <text x="110" y="70" text-anchor="middle" font-family="ui-monospace, monospace" font-size="10" font-weight="700" fill="#0E0A12">size cap: 5 MB</text>
+
+    <rect x="14" y="80" width="192" height="20" fill="#F5F2E5" stroke="#2EFF8C" stroke-width="2"/>
+    <text x="110" y="94" text-anchor="middle" font-family="ui-monospace, monospace" font-size="10" font-weight="700" fill="#0E0A12">sharp: ≤1024 px · q=88</text>
+
+    <text x="110" y="140" text-anchor="middle" font-family="ui-monospace, monospace" font-size="11" font-weight="700" fill="#0E0A12">~150–400 KB</text>
+    <text x="110" y="156" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" fill="#2EFF8C" font-weight="700">10× smaller for trans-Atlantic hop</text>
+  </g>
+
+  <line x1="460" y1="225" x2="500" y2="225" stroke="#FF2EAB" stroke-width="3" marker-end="url(#ar-magenta)"/>
+  <text x="480" y="217" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" fill="#FF2EAB" font-weight="700">base64</text>
+
+  <!-- RunPod -->
+  <g transform="translate(500 165)">
+    <rect width="220" height="120" fill="#FFD400" stroke="#0E0A12" stroke-width="3" rx="8"/>
+    <text x="110" y="22" text-anchor="middle" font-style="italic" font-weight="900" font-size="14" fill="#0E0A12">RunPod GPU</text>
+    <text x="110" y="40" text-anchor="middle" font-family="ui-monospace, monospace" font-size="10" fill="#0E0A12">handler.py + 8 stages</text>
+
+    <rect x="14" y="56" width="192" height="20" fill="#F5F2E5" stroke="#0E0A12" stroke-width="2"/>
+    <text x="110" y="70" text-anchor="middle" font-family="ui-monospace, monospace" font-size="10" fill="#0E0A12">decode · EXIF · RGB</text>
+
+    <rect x="14" y="80" width="192" height="20" fill="#F5F2E5" stroke="#0E0A12" stroke-width="2"/>
+    <text x="110" y="94" text-anchor="middle" font-family="ui-monospace, monospace" font-size="10" fill="#0E0A12">TRELLIS resizes → ~518 px</text>
+
+    <text x="110" y="140" text-anchor="middle" font-family="ui-monospace, monospace" font-size="11" font-weight="700" fill="#0E0A12">~750k tris (mesh)</text>
+    <text x="110" y="156" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" fill="#3D2F4A">non-watertight · ~30s warm</text>
+  </g>
+
+  <line x1="720" y1="225" x2="760" y2="225" stroke="#FF2EAB" stroke-width="3" marker-end="url(#ar-magenta)"/>
+  <text x="740" y="217" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" fill="#FF2EAB" font-weight="700">~700KB chunks</text>
+
+  <!-- 8-stage pipeline -->
+  <g transform="translate(760 165)">
+    <rect width="240" height="120" fill="#2EFF8C" stroke="#0E0A12" stroke-width="3" rx="8"/>
+    <text x="120" y="22" text-anchor="middle" font-style="italic" font-weight="900" font-size="14" fill="#0E0A12">8-stage CAD pipeline</text>
+    <text x="120" y="40" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" fill="#0E0A12">stage 1 → 6 + cap union</text>
+
+    <rect x="14" y="56" width="212" height="20" fill="#FFFFFF" stroke="#0E0A12" stroke-width="2"/>
+    <text x="120" y="70" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" fill="#0E0A12">PyMeshFix · CSG · decimate</text>
+
+    <text x="120" y="98" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" fill="#0E0A12">~750k → 250k → 70k tris</text>
+
+    <text x="120" y="140" text-anchor="middle" font-family="ui-monospace, monospace" font-size="11" font-weight="700" fill="#0E0A12">~700 KB binary STL</text>
+    <text x="120" y="156" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" fill="#3D2F4A">slicer-ready · watertight</text>
+  </g>
+
+  <line x1="1000" y1="225" x2="1040" y2="225" stroke="#0E0A12" stroke-width="2" marker-end="url(#ar)"/>
+
+  <!-- back to user -->
+  <g transform="translate(1040 165)">
+    <rect width="200" height="120" fill="#7B2EFF" stroke="#0E0A12" stroke-width="3" rx="8"/>
+    <text x="100" y="22" text-anchor="middle" font-style="italic" font-weight="900" font-size="14" fill="#FFFFFF">User browser</text>
+    <text x="100" y="40" text-anchor="middle" font-family="ui-monospace, monospace" font-size="10" fill="#F5F2E5">Three.js viewer</text>
+
+    <ellipse cx="100" cy="78" rx="40" ry="22" fill="#FFFFFF" stroke="#0E0A12" stroke-width="2"/>
+    <circle cx="92" cy="76" r="2" fill="#0E0A12"/>
+    <circle cx="108" cy="76" r="2" fill="#0E0A12"/>
+    <path d="M 92 84 Q 100 88 108 84" stroke="#0E0A12" stroke-width="1.5" fill="none"/>
+
+    <text x="100" y="140" text-anchor="middle" font-family="ui-monospace, monospace" font-size="11" font-weight="700" fill="#FFFFFF">spin · download · print</text>
+    <text x="100" y="156" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" fill="#2EFF8C">~30–60s end-to-end</text>
+  </g>
+
+  <!-- ─────────────────── ROW 2: persistence ─────────────────── -->
+  <text x="40" y="335" font-family="ui-monospace, monospace" font-size="11" font-weight="700"
+        letter-spacing="0.12em" fill="#7B2EFF">PERSISTENCE · WHAT STAYS · WHAT'S TEMPORARY</text>
+  <line x1="40" y1="342" x2="1240" y2="342" stroke="#7B2EFF" stroke-width="1" stroke-dasharray="3 3"/>
+
+  <!-- user_photos -->
+  <g transform="translate(40 365)">
+    <rect width="280" height="180" fill="#F5F2E5" stroke="#0E0A12" stroke-width="3" rx="6"/>
+    <rect x="0" y="0" width="280" height="36" fill="#7B2EFF"/>
+    <text x="140" y="24" text-anchor="middle" font-style="italic" font-weight="900" font-size="14" fill="#FFFFFF">user_photos · Postgres</text>
+
+    <text x="14" y="60" font-family="ui-monospace, monospace" font-size="10" fill="#0E0A12">image_b64 BYTEA</text>
+    <text x="14" y="76" font-family="ui-monospace, monospace" font-size="10" fill="#0E0A12">sha256 (dedup)</text>
+    <text x="14" y="92" font-family="ui-monospace, monospace" font-size="10" fill="#0E0A12">filename · size_bytes</text>
+    <text x="14" y="108" font-family="ui-monospace, monospace" font-size="10" fill="#0E0A12">last_used_at</text>
+
+    <rect x="14" y="128" width="252" height="40" fill="#FF2EAB" stroke="#0E0A12" stroke-width="2"/>
+    <text x="140" y="144" text-anchor="middle" font-style="italic" font-weight="900" font-size="11" fill="#0E0A12">ORIGINAL bytes (not downsampled)</text>
+    <text x="140" y="160" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" fill="#0E0A12">re-runs replay the upload as user sent it</text>
+  </g>
+
+  <!-- generated_designs / design-store -->
+  <g transform="translate(360 365)">
+    <rect width="280" height="180" fill="#F5F2E5" stroke="#0E0A12" stroke-width="3" rx="6"/>
+    <rect x="0" y="0" width="280" height="36" fill="#7B2EFF"/>
+    <text x="140" y="24" text-anchor="middle" font-style="italic" font-weight="900" font-size="14" fill="#FFFFFF">generated_designs · Postgres</text>
+
+    <text x="14" y="60" font-family="ui-monospace, monospace" font-size="10" fill="#0E0A12">id (UUID)</text>
+    <text x="14" y="76" font-family="ui-monospace, monospace" font-size="10" fill="#0E0A12">stl_bytes BYTEA</text>
+    <text x="14" y="92" font-family="ui-monospace, monospace" font-size="10" fill="#0E0A12">triangles · watertight · stage3_retried</text>
+    <text x="14" y="108" font-family="ui-monospace, monospace" font-size="10" fill="#0E0A12">settings JSONB · account_id · photo_id</text>
+
+    <rect x="14" y="128" width="252" height="40" fill="#FFD400" stroke="#0E0A12" stroke-width="2"/>
+    <text x="140" y="144" text-anchor="middle" font-style="italic" font-weight="900" font-size="11" fill="#0E0A12">24h TTL · prune job /15 min</text>
+    <text x="140" y="160" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" fill="#0E0A12">in-memory fallback if no DB</text>
+  </g>
+
+  <!-- TRELLIS cache (RunPod) -->
+  <g transform="translate(680 365)">
+    <rect width="280" height="180" fill="#F5F2E5" stroke="#0E0A12" stroke-width="3" rx="6"/>
+    <rect x="0" y="0" width="280" height="36" fill="#FF2EAB"/>
+    <text x="140" y="24" text-anchor="middle" font-style="italic" font-weight="900" font-size="14" fill="#FFFFFF">TRELLIS cache · /runpod-volume</text>
+
+    <text x="14" y="60" font-family="ui-monospace, monospace" font-size="10" fill="#0E0A12">cache/trellis/&lt;sha256&gt;.pkl</text>
+    <text x="14" y="76" font-family="ui-monospace, monospace" font-size="10" fill="#0E0A12">key = sha256(image + seed)</text>
+    <text x="14" y="92" font-family="ui-monospace, monospace" font-size="10" fill="#0E0A12">value = mesh tensors (pre-CAD)</text>
+
+    <rect x="14" y="112" width="252" height="40" fill="#2EFF8C" stroke="#0E0A12" stroke-width="2"/>
+    <text x="140" y="128" text-anchor="middle" font-style="italic" font-weight="900" font-size="11" fill="#0E0A12">slider tweaks: 1–2s (cache hit)</text>
+    <text x="140" y="144" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" fill="#0E0A12">vs ~30s GPU run on cache miss</text>
+
+    <text x="14" y="172" font-family="ui-monospace, monospace" font-size="9" fill="#3D2F4A">TRELLIS_CACHE_TTL_S=86400 (24h)</text>
+  </g>
+
+  <!-- failure corpus -->
+  <g transform="translate(1000 365)">
+    <rect width="240" height="180" fill="#F5F2E5" stroke="#0E0A12" stroke-width="3" rx="6"/>
+    <rect x="0" y="0" width="240" height="36" fill="#0E0A12"/>
+    <text x="120" y="24" text-anchor="middle" font-style="italic" font-weight="900" font-size="14" fill="#2EFF8C">failure corpus</text>
+
+    <text x="14" y="60" font-family="ui-monospace, monospace" font-size="10" fill="#0E0A12">/runpod-volume/failures/</text>
+    <text x="14" y="76" font-family="ui-monospace, monospace" font-size="10" fill="#0E0A12">  &lt;yyyymmdd&gt;/&lt;jobId&gt;/</text>
+
+    <text x="14" y="100" font-family="ui-monospace, monospace" font-size="9" fill="#3D2F4A">photo.jpg · stage_X.stl · err.txt</text>
+
+    <rect x="14" y="120" width="212" height="40" fill="#FF2EAB" stroke="#0E0A12" stroke-width="2"/>
+    <text x="120" y="136" text-anchor="middle" font-style="italic" font-weight="900" font-size="11" fill="#0E0A12">debug replay artefacts</text>
+    <text x="120" y="152" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" fill="#0E0A12">surface in /admin Failures tab</text>
+  </g>
+
+  <!-- ─────────────────── ROW 3: privacy ─────────────────── -->
+  <g transform="translate(40 565)">
+    <rect width="1200" height="80" fill="#E5E0CC" stroke="#0E0A12" stroke-width="2" rx="6"/>
+    <text x="14" y="22" font-family="ui-monospace, monospace" font-size="11" font-weight="700" letter-spacing="0.12em" fill="#7B2EFF">PRIVACY POSTURE</text>
+
+    <text x="14" y="44" font-family="ui-monospace, monospace" font-size="10" fill="#0E0A12">• Photos NEVER touch a third-party AI · only our private RunPod GPU runs TRELLIS</text>
+    <text x="14" y="58" font-family="ui-monospace, monospace" font-size="10" fill="#0E0A12">• audit_log captures ONLY ids and metadata (no photo bytes, no STL bytes)</text>
+    <text x="14" y="72" font-family="ui-monospace, monospace" font-size="10" fill="#0E0A12">• GDPR-grade self-serve: account.exportData (JSON dump) + account.delete (anonymises Stripe rows)</text>
+
+    <text x="700" y="44" font-family="ui-monospace, monospace" font-size="10" fill="#0E0A12">• design-store STL: 24h TTL · auto-prune</text>
+    <text x="700" y="58" font-family="ui-monospace, monospace" font-size="10" fill="#0E0A12">• failure corpus: ops debug only · not exposed</text>
+    <text x="700" y="72" font-family="ui-monospace, monospace" font-size="10" fill="#0E0A12">• share permalinks: signed token · anon-readable</text>
+  </g>
+
+  <g transform="translate(40 660)">
+    <text x="0" y="14" font-family="ui-monospace, monospace" font-size="11" font-weight="700" letter-spacing="0.12em" fill="#FF2EAB">v0.1.41</text>
+    <text x="80" y="14" font-family="ui-monospace, monospace" font-size="10" fill="#0E0A12">handler · stage 1.7 watertight head before booleans · stage 6 split-and-process safety net</text>
+  </g>
+</svg>

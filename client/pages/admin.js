@@ -133,6 +133,7 @@ export function AdminPage({ socket }) {
       ['referrers', 'Referrers'],
       ['pipeline',  'Pipeline'],
       ['regions',   'Regions'],
+      ['docs',      'Docs Hub'],
       ['costs',     'Costs'],
       ['email',     'Email'],
       ['failures',  'Failures'],
@@ -1199,6 +1200,308 @@ export function AdminPage({ socket }) {
     return wrap;
   }
 
+  // Docs Hub. One-stop catalogue of every artefact a maintainer or
+  // pitch-recipient might want — diagrams, onboarding guide, VC pitch
+  // deck, print-bundle PDFs. All static assets served from
+  // client/public/docs/ + client/public/admin/ + client/public/press/
+  // print-bundle/ — no server command needed; if the file exists in
+  // the bundle it shows up here.
+  function renderDocs() {
+    const wrap = el('div', { style: { display: 'flex', flexDirection: 'column', gap: '20px' } });
+
+    // ── 1. SVG diagram suite ─────────────────────────────────────────
+    const SVGS = [
+      { src: '/docs/system-architecture.svg', title: 'System architecture',  sub: 'Browser · DigitalOcean · RunPod · GHCR (4-tier diagram)' },
+      { src: '/docs/multi-region-race.svg',   title: 'Multi-region race',    sub: 'Submit · poll · cancel-loser · stream from winner' },
+      { src: '/docs/pipeline.svg',            title: '8-stage CAD pipeline', sub: 'TRELLIS → 8 stages → printable STL' },
+      { src: '/docs/data-flow.svg',           title: 'Data flow',            sub: 'Photo bytes lifecycle · where the savings live' },
+      { src: '/docs/user-journey.svg',        title: 'User journey',         sub: '6 steps · ~60 seconds end-to-end (non-technical)' },
+      { src: '/docs/gumball-takeover.svg',    title: 'Gumball Takeover',     sub: 'Residency narrative · machine/capsule/cap/site' },
+    ];
+    wrap.appendChild(docsSection(
+      'DIAGRAMS',
+      'VISUAL ARCHITECTURE.',
+      'Six brand-styled SVGs covering technical (architecture, race, pipeline, data flow) and non-technical (user journey, residency) aspects. Plain XML, edit any of them at docs/*.svg.',
+      el('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '14px' } },
+        ...SVGS.map(svgPreviewCard),
+      ),
+    ));
+
+    // ── 2. Pitch deck ────────────────────────────────────────────────
+    wrap.appendChild(docsSection(
+      'INVESTOR DECK',
+      'VC PITCH · 12 SLIDES.',
+      'Brand-styled HTML pitch deck. Keyboard-navigable (← / → / Space / Home / End). Embeds the SVG suite for technical credibility on slides 4-8.',
+      el('div', { style: { display: 'flex', gap: '14px', flexWrap: 'wrap' } },
+        bigLinkCard({
+          href: '/admin/pitch.html',
+          target: '_blank',
+          title: 'Open pitch deck',
+          sub: '12 slides · ~5 min skim · standalone HTML',
+          tag: 'OPEN ↗',
+          bg: '#7B2EFF',
+          color: '#FFFFFF',
+        }),
+        bigLinkCard({
+          href: '/admin/pitch.html',
+          download: 'stemdomez-pitch-v0.1.41.html',
+          title: 'Download HTML',
+          sub: 'Save to disk · email-able single file',
+          tag: '↓ HTML',
+          bg: '#0E0A12',
+          color: '#2EFF8C',
+        }),
+      ),
+    ));
+
+    // ── 3. Onboarding guide ──────────────────────────────────────────
+    wrap.appendChild(docsSection(
+      'TEAM',
+      'ENGINEER ONBOARDING.',
+      'Cold-start to first commit in one read. Setup, common tasks (add admin tab, bump handler, debug RunPod), conventions, where the bodies are buried. Markdown.',
+      el('div', { style: { display: 'flex', gap: '14px', flexWrap: 'wrap' } },
+        bigLinkCard({
+          href: '/docs/ONBOARDING.md',
+          target: '_blank',
+          title: 'Open onboarding guide',
+          sub: '~16KB markdown · 7 sections',
+          tag: 'OPEN ↗',
+          bg: '#FF2EAB',
+          color: '#FFFFFF',
+        }),
+        bigLinkCard({
+          href: '/docs/ONBOARDING.md',
+          download: 'stemdomez-onboarding.md',
+          title: 'Download MD',
+          sub: 'Save to disk · paste into editor',
+          tag: '↓ MD',
+          bg: '#0E0A12',
+          color: '#FF2EAB',
+        }),
+      ),
+    ));
+
+    // ── 4. Changelog ─────────────────────────────────────────────────
+    wrap.appendChild(docsSection(
+      'CHANGELOG',
+      'WHAT WE SHIPPED.',
+      'Week-by-week ship-history — same source as /changelog (public). Click for the brand-styled site view; download for the raw markdown.',
+      el('div', { style: { display: 'flex', gap: '14px', flexWrap: 'wrap' } },
+        bigLinkCard({
+          href: '/changelog',
+          'data-link': '',
+          title: 'Open /changelog',
+          sub: 'Brand-styled · public site · live link',
+          tag: 'OPEN ↗',
+          bg: '#2EFF8C',
+          color: '#0E0A12',
+        }),
+        bigLinkCard({
+          href: '/docs/CHANGELOG.md',
+          download: 'stemdomez-changelog.md',
+          title: 'Download MD',
+          sub: 'Raw markdown source',
+          tag: '↓ MD',
+          bg: '#0E0A12',
+          color: '#2EFF8C',
+        }),
+      ),
+    ));
+
+    // ── 5. Print bundle (Gumball Takeover residency PDFs) ────────────
+    wrap.appendChild(docsSection(
+      'PRINT BUNDLE',
+      'GUMBALL TAKEOVER · STAPLES-READY.',
+      'PDFs from the residency at Sadie’s Bikes. Send to Staples or any local print shop. Also surfaced on /press for the public.',
+      el('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' } },
+        printBundleAdminCard({
+          title: 'Flyer (11×8)',
+          sub: 'Front-and-back · half-letter · color',
+          href: '/press/print-bundle/stemdomez-flyer-11x8.pdf',
+          download: 'stemdomez-flyer-11x8.pdf',
+          sizeMb: '5.9',
+        }),
+        printBundleAdminCard({
+          title: 'Blank flyer template',
+          sub: 'Print-and-stamp on-site',
+          href: '/press/print-bundle/stemdomez-blank.pdf',
+          download: 'stemdomez-blank.pdf',
+          sizeMb: '0.8',
+        }),
+      ),
+    ));
+
+    // Footer caveat
+    wrap.appendChild(el('div', {
+      style: {
+        background: '#FFFFFF', border: '2px dashed #0E0A12',
+        borderRadius: '8px', padding: '14px 18px',
+        color: '#3D2F4A', fontSize: '0.85rem', fontStyle: 'italic',
+        marginTop: '8px',
+      },
+    },
+      'All assets are static files in client/public/. To add a new diagram, drop the SVG into docs/, copy to client/public/docs/, and add a row to the SVGS array in this file. Pitch deck source: client/public/admin/pitch.html. Onboarding source: docs/ONBOARDING.md.',
+    ));
+
+    return wrap;
+  }
+
+  function docsSection(eyebrowText, titleText, bodyText, ...children) {
+    const sec = el('section', {
+      style: {
+        background: '#E5E0CC',
+        border: '2px solid #0E0A12',
+        borderRadius: '12px',
+        padding: '20px 22px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '14px',
+      },
+    },
+      el('div', null,
+        el('span', {
+          style: {
+            display: 'inline-block', fontFamily: 'ui-monospace, monospace',
+            fontSize: '0.74rem', fontWeight: 700, letterSpacing: '0.18em',
+            textTransform: 'uppercase', color: '#7B2EFF', marginBottom: '4px',
+          },
+        }, eyebrowText),
+        el('h2', {
+          class: 'sdz-display',
+          style: {
+            fontSize: 'clamp(1.4rem, 2.6vw, 1.8rem)', color: '#0E0A12',
+            textShadow: '3px 3px 0 #2EFF8C', margin: '0 0 4px',
+            fontStyle: 'italic', textTransform: 'uppercase', letterSpacing: '-0.01em',
+          },
+        }, titleText),
+        el('p', {
+          style: { color: '#0E0A12', fontSize: '0.92rem', lineHeight: '1.5', margin: '0', fontStyle: 'italic' },
+        }, bodyText),
+      ),
+      ...children,
+    );
+    return sec;
+  }
+
+  function svgPreviewCard({ src, title, sub }) {
+    return el('figure', {
+      style: {
+        margin: 0, background: '#F5F2E5', border: '2px solid #0E0A12',
+        borderRadius: '8px', padding: '10px',
+        display: 'flex', flexDirection: 'column', gap: '8px',
+        boxShadow: '4px 4px 0 #FF2EAB',
+      },
+    },
+      el('div', {
+        style: {
+          background: '#FFFFFF', border: '1px solid #0E0A12',
+          padding: '6px', overflow: 'hidden',
+        },
+      },
+        el('img', {
+          src, alt: title, loading: 'lazy', decoding: 'async',
+          style: { width: '100%', height: 'auto', display: 'block' },
+        }),
+      ),
+      el('figcaption', null,
+        el('div', {
+          style: {
+            fontFamily: 'Anton, sans-serif', fontStyle: 'italic',
+            fontWeight: 900, fontSize: '1rem', color: '#0E0A12', lineHeight: '1',
+          },
+        }, title),
+        el('div', {
+          style: {
+            fontFamily: 'ui-monospace, monospace', fontSize: '0.72rem',
+            color: '#3D2F4A', marginTop: '4px',
+          },
+        }, sub),
+      ),
+      el('div', { style: { display: 'flex', gap: '8px' } },
+        el('a', {
+          href: src, target: '_blank',
+          style: assetBtn('#0E0A12', '#2EFF8C'),
+        }, 'OPEN ↗'),
+        el('a', {
+          href: src, download: src.split('/').pop(),
+          style: assetBtn('#0E0A12', '#FFFFFF'),
+        }, '↓ SVG'),
+      ),
+    );
+  }
+
+  function bigLinkCard({ href, target, download, title, sub, tag, bg, color, ...rest }) {
+    const props = { href, ...rest, style: {
+      display: 'flex', flexDirection: 'column', gap: '6px',
+      background: bg, color: color,
+      border: '2px solid #0E0A12', borderRadius: '8px',
+      padding: '16px 20px', minWidth: '240px',
+      textDecoration: 'none', boxShadow: '4px 4px 0 #0E0A12',
+    } };
+    if (target) props.target = target;
+    if (download) props.download = download;
+    return el('a', props,
+      el('div', {
+        style: {
+          fontFamily: 'Anton, sans-serif', fontStyle: 'italic',
+          fontWeight: 900, fontSize: '1.15rem', lineHeight: '1',
+        },
+      }, title),
+      el('div', {
+        style: { fontFamily: 'ui-monospace, monospace', fontSize: '0.78rem', opacity: 0.92 },
+      }, sub),
+      el('div', {
+        style: {
+          alignSelf: 'flex-start', marginTop: '4px',
+          fontFamily: 'ui-monospace, monospace', fontSize: '0.72rem',
+          fontWeight: 700, letterSpacing: '0.1em',
+          padding: '3px 8px', border: '1px solid currentColor',
+        },
+      }, tag),
+    );
+  }
+
+  function printBundleAdminCard({ title, sub, href, download, sizeMb }) {
+    return el('div', {
+      style: {
+        background: '#F5F2E5', border: '2px solid #0E0A12',
+        borderRadius: '8px', padding: '16px 18px',
+        display: 'flex', flexDirection: 'column', gap: '10px',
+        boxShadow: '4px 4px 0 #FF2EAB',
+      },
+    },
+      el('div', null,
+        el('div', {
+          style: {
+            fontFamily: 'Anton, sans-serif', fontStyle: 'italic',
+            fontWeight: 900, fontSize: '1.1rem', color: '#0E0A12', lineHeight: '1',
+          },
+        }, title),
+        el('div', {
+          style: {
+            fontFamily: 'ui-monospace, monospace', fontSize: '0.78rem',
+            color: '#3D2F4A', marginTop: '4px', textTransform: 'uppercase',
+            letterSpacing: '0.06em',
+          },
+        }, sub),
+      ),
+      el('a', {
+        href, download,
+        style: assetBtn('#0E0A12', '#2EFF8C'),
+      }, '↓ PDF · ' + sizeMb + ' MB'),
+    );
+  }
+
+  function assetBtn(bg, fg) {
+    return {
+      display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+      background: bg, color: fg, border: '2px solid #0E0A12',
+      padding: '6px 12px', fontFamily: 'Anton, sans-serif',
+      fontStyle: 'italic', fontSize: '0.85rem', letterSpacing: '0.04em',
+      textDecoration: 'none', boxShadow: '3px 3px 0 #FF2EAB',
+    };
+  }
+
   // Region win-rate dashboard. Surfaces the per-endpoint counters
   // accumulated by server/workers/runpod-client.js when racing
   // multiple RUNPOD_ENDPOINT_URLS regions. Pie = lifetime wins;
@@ -1529,6 +1832,7 @@ export function AdminPage({ socket }) {
     else if (t === 'referrers') content.appendChild(renderReferrers());
     else if (t === 'pipeline') content.appendChild(renderPipeline());
     else if (t === 'regions') content.appendChild(renderRegions());
+    else if (t === 'docs') content.appendChild(renderDocs());
     else if (t === 'costs') content.appendChild(renderCosts());
     else if (t === 'email') content.appendChild(renderEmail());
     else if (t === 'failures') content.appendChild(renderFailures());

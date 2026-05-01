@@ -1,0 +1,514 @@
+<!doctype html>
+<!--
+  StemDomeZ — VC pitch deck (v0.1.41)
+  Standalone HTML. No JS framework. Brand-styled. Keyboard-navigable.
+
+  Embedded in /admin Docs Hub tab via <iframe>.
+  Direct link: stemdomez.com/admin/pitch.html
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>StemDomeZ — Investor pitch · v0.1.41</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  /* ── Pinned brand palette · brandstandards.MD §14 ─────────────────── */
+  :root {
+    --paper:      #F5F2E5;
+    --paper-soft: #E5E0CC;
+    --ink:        #0E0A12;
+    --ink-muted:  #3D2F4A;
+    --brand:      #7B2EFF;
+    --accent2:    #2EFF8C;
+    --accent3:    #FF2EAB;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--ink); color: var(--paper); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, 'Helvetica Neue', sans-serif; }
+
+  body { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 0; overflow-y: auto; }
+
+  /* ── Slide ─────────────────────────────────────────────────────────── */
+  .slide {
+    width: min(1200px, 96vw);
+    min-height: 90vh;
+    background: var(--paper);
+    color: var(--ink);
+    margin: 24px 0;
+    padding: 56px 64px;
+    border: 4px solid var(--ink);
+    box-shadow: 16px 16px 0 var(--brand);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .slide__no {
+    position: absolute; top: -20px; right: -20px;
+    background: var(--accent3); color: var(--paper);
+    border: 3px solid var(--ink); padding: 6px 14px;
+    font-family: ui-monospace, monospace; font-weight: 800; font-size: 14px;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    transform: rotate(6deg);
+    box-shadow: 4px 4px 0 var(--ink);
+    z-index: 5;
+  }
+
+  .eyebrow {
+    font-family: ui-monospace, monospace;
+    font-size: 13px; font-weight: 700; letter-spacing: 0.2em;
+    text-transform: uppercase; color: var(--brand);
+    margin-bottom: 4px;
+  }
+  h1, h2, h3 {
+    font-family: 'Anton', 'Bebas Neue', sans-serif;
+    font-style: italic; font-weight: 900;
+    text-transform: uppercase; letter-spacing: -0.02em;
+    margin: 0; line-height: 0.95;
+  }
+  h1 { font-size: clamp(48px, 7vw, 96px); text-shadow: 6px 6px 0 var(--accent2), 11px 11px 0 var(--brand); }
+  h2 { font-size: clamp(36px, 5vw, 64px); text-shadow: 4px 4px 0 var(--accent3); }
+  h3 { font-size: clamp(20px, 2.5vw, 28px); }
+  p, li { font-size: 18px; line-height: 1.5; }
+  strong { color: var(--brand); }
+  code { background: var(--paper-soft); padding: 1px 6px; border: 1px solid var(--ink); font-family: ui-monospace, monospace; font-size: 0.9em; }
+
+  .grid { display: grid; gap: 16px; }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .grid-3 { grid-template-columns: repeat(3, 1fr); }
+  .grid-4 { grid-template-columns: repeat(4, 1fr); }
+
+  .stat {
+    background: var(--paper-soft); border: 2px solid var(--ink); padding: 18px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .stat__num { font-family: 'Anton', sans-serif; font-style: italic; font-weight: 900; font-size: clamp(32px, 4vw, 56px); color: var(--ink); line-height: 1; }
+  .stat__label { font-family: ui-monospace, monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--brand); }
+  .stat__sub { font-family: ui-monospace, monospace; font-size: 12px; color: var(--ink-muted); }
+
+  .card { background: var(--paper-soft); border: 2px solid var(--ink); padding: 18px; }
+
+  .ink-card { background: var(--ink); color: var(--paper); border: 2px solid var(--ink); padding: 18px; }
+  .ink-card .accent { color: var(--accent2); }
+
+  .tag {
+    display: inline-block; background: var(--accent2); color: var(--ink);
+    border: 2px solid var(--ink); padding: 4px 10px;
+    font-family: 'Anton', sans-serif; font-style: italic; font-weight: 900;
+    font-size: 14px; letter-spacing: 0.04em; text-transform: uppercase;
+    box-shadow: 3px 3px 0 var(--ink);
+    transform: rotate(-2deg);
+  }
+  .tag--magenta { background: var(--accent3); color: var(--paper); }
+  .tag--brand { background: var(--brand); color: var(--paper); }
+
+  ul, ol { padding-left: 24px; }
+  ul li, ol li { margin-bottom: 8px; }
+
+  .svg-frame {
+    background: var(--paper); border: 2px solid var(--ink);
+    padding: 8px; display: flex; justify-content: center;
+  }
+  .svg-frame img { max-width: 100%; height: auto; }
+
+  /* ── Nav controls ────────────────────────────────────────────────── */
+  .nav {
+    position: fixed; bottom: 16px; right: 16px; z-index: 10;
+    display: flex; gap: 8px;
+    background: var(--ink); border: 2px solid var(--accent2);
+    padding: 6px 10px;
+    font-family: ui-monospace, monospace; font-size: 12px; color: var(--accent2);
+  }
+  .nav button {
+    background: transparent; color: var(--accent2);
+    border: 1px solid var(--accent2); padding: 4px 10px;
+    font-family: ui-monospace, monospace; font-size: 11px;
+    font-weight: 700; cursor: pointer;
+  }
+  .nav button:hover { background: var(--accent2); color: var(--ink); }
+
+  .footer-line {
+    font-family: ui-monospace, monospace; font-size: 11px;
+    color: var(--ink-muted); margin-top: auto; padding-top: 16px;
+    border-top: 1px dashed var(--ink);
+    display: flex; justify-content: space-between;
+  }
+
+  /* hide scrollbar styling */
+  body::-webkit-scrollbar { width: 12px; }
+  body::-webkit-scrollbar-track { background: var(--ink); }
+  body::-webkit-scrollbar-thumb { background: var(--brand); border: 2px solid var(--ink); }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     SLIDE 1 — TITLE
+     ═══════════════════════════════════════════════════════════════════ -->
+<section class="slide" id="s1">
+  <span class="slide__no">01 / 12</span>
+  <span class="eyebrow">VC PITCH · 2026 · CONFIDENTIAL</span>
+  <h1>Stem<span style="color: var(--brand);">Dome</span><span style="color: var(--brand);">Z</span>.</h1>
+  <p style="font-size: 28px; font-style: italic; max-width: 720px; line-height: 1.3;">
+    Drop a portrait. A GPU sculpts your face in 3D. We graft it onto a
+    bike valve thread. Print it. Roll out.
+  </p>
+  <div style="display: flex; gap: 12px; margin-top: 12px;">
+    <span class="tag">live · stemdomez.com</span>
+    <span class="tag tag--magenta">v0.1.41 in production</span>
+    <span class="tag tag--brand">free during launch</span>
+  </div>
+  <div class="footer-line">
+    <span>Ian Roy · ianroy@stemdomez.com</span>
+    <span>Made in a workshop · Massachusetts</span>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     SLIDE 2 — THE PROBLEM
+     ═══════════════════════════════════════════════════════════════════ -->
+<section class="slide" id="s2">
+  <span class="slide__no">02 / 12</span>
+  <span class="eyebrow">THE PROBLEM</span>
+  <h2>AI sculpts the world.<br>The world is still un-printable.</h2>
+  <div class="grid grid-2" style="margin-top: 24px;">
+    <div class="card">
+      <h3 style="color: var(--brand);">Image-to-3D AI is real.</h3>
+      <p>Microsoft TRELLIS, NVIDIA Edify, Meshy, Tripo. The models work.
+      Anyone can generate a 3D mesh of anything in 30 seconds.</p>
+    </div>
+    <div class="card">
+      <h3 style="color: var(--accent3);">The output is 3D-printable in theory.</h3>
+      <p>Watertight in practice? Almost never. Open edges, non-manifold
+      vertices, internal voids — you can spin it in a viewer, you cannot
+      hand it to a slicer and get a part.</p>
+    </div>
+    <div class="card">
+      <h3>Bridging that gap is hard, expensive, and bespoke.</h3>
+      <p>CSG booleans crash, repair tools delete geometry, slicers
+      paper over what they can and break on what they can't.
+      Production-grade pipelines are 8 stages of pain.</p>
+    </div>
+    <div class="card" style="background: var(--accent2);">
+      <h3 style="color: var(--ink);">Result: AI generates beautiful files nobody can manufacture.</h3>
+      <p>The category is gated by mesh-engineering work that doesn't exist as a product.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     SLIDE 3 — THE SOLUTION
+     ═══════════════════════════════════════════════════════════════════ -->
+<section class="slide" id="s3">
+  <span class="slide__no">03 / 12</span>
+  <span class="eyebrow">THE SOLUTION</span>
+  <h2>An AI-to-physical-product<br>pipeline. Shipping today.</h2>
+  <p style="font-size: 22px;">
+    StemDomeZ is the proof: a working e-commerce site that takes a
+    photo and outputs a guaranteed-printable, slicer-ready,
+    watertight, 2-manifold STL. End-to-end in ~60 seconds. The
+    pipeline is the product. The valve cap is the demo.
+  </p>
+  <div class="grid grid-3">
+    <div class="ink-card">
+      <h3 class="accent">8-stage CAD pipeline</h3>
+      <p>Normalize · pymeshlab repair · <strong style="color:var(--accent2);">PyMeshFix watertight (v0.1.41)</strong> · CSG crop · subtract cavity · union threaded cap · decimate · split-and-process safety net.</p>
+    </div>
+    <div class="ink-card">
+      <h3 class="accent">Multi-region GPU race</h3>
+      <p>Job submitted to multiple RunPod regions in parallel. First region's worker to pick up wins; loser cancelled. Halves queue-wait variance; one GPU bill per generation.</p>
+    </div>
+    <div class="ink-card">
+      <h3 class="accent">~60s end-to-end</h3>
+      <p>Photo upload to printable STL on the user's screen. Slider tweaks (head pitch, crop tightness) skip the GPU stage via on-disk cache: ~1–2s.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     SLIDE 4 — PRODUCT DEMO
+     ═══════════════════════════════════════════════════════════════════ -->
+<section class="slide" id="s4">
+  <span class="slide__no">04 / 12</span>
+  <span class="eyebrow">DEMO</span>
+  <h2>Six steps. One minute.</h2>
+  <div class="svg-frame">
+    <img src="/docs/user-journey.svg" alt="User journey diagram">
+  </div>
+  <p style="font-size: 20px;">
+    Try it: <a href="https://stemdomez.com/stemdome-generator" target="_blank" style="color: var(--brand); font-weight: 700;">stemdomez.com/stemdome-generator</a>
+    · Free during launch · No login required to preview
+  </p>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     SLIDE 5 — STORY · GUMBALL TAKEOVER
+     ═══════════════════════════════════════════════════════════════════ -->
+<section class="slide" id="s5">
+  <span class="slide__no">05 / 12</span>
+  <span class="eyebrow">STORY · DISTRIBUTION</span>
+  <h2>The Gumball Machine Takeover.</h2>
+  <p style="font-size: 22px;">
+    Built for a curatorial residency at <strong>Sadie's Bikes</strong>
+    in Great (Turners) Falls, Massachusetts. The brief: 200 things in
+    a 2-inch capsule for 50¢ each. We made a working e-commerce site,
+    packed it into capsules at Waterway Arts, pointed people at the
+    URL inside.
+  </p>
+  <div class="svg-frame">
+    <img src="/docs/gumball-takeover.svg" alt="Gumball takeover narrative">
+  </div>
+  <p style="font-size: 20px; font-style: italic; color: var(--brand);">
+    The machine is the flyer. The capsule is the box. The cap is the
+    product. The site is real and it ships.
+  </p>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     SLIDE 6 — ARCHITECTURE
+     ═══════════════════════════════════════════════════════════════════ -->
+<section class="slide" id="s6">
+  <span class="slide__no">06 / 12</span>
+  <span class="eyebrow">ARCHITECTURE · TECHNICAL CREDIBILITY</span>
+  <h2>Four tiers. One socket. No REST.</h2>
+  <div class="svg-frame">
+    <img src="/docs/system-architecture.svg" alt="System architecture">
+  </div>
+  <ul style="font-size: 17px;">
+    <li><strong>Browser</strong> — vanilla JS, Three.js viewer, ~50-line History router. No framework. Bundle is small enough to download on a 3G connection.</li>
+    <li><strong>DigitalOcean App Platform</strong> — Node 22 + Express + socket.io. Single <code>'command'</code> event surface. Postgres 18 attached.</li>
+    <li><strong>RunPod Serverless GPU (multi-region)</strong> — handler + 8-stage pipeline + TRELLIS. Network volume caches model weights to survive cold starts.</li>
+    <li><strong>GHCR / GHA</strong> — image lifecycle. Tag a release, GHA builds, GHCR hosts, RunPod pulls per region.</li>
+  </ul>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     SLIDE 7 — PIPELINE
+     ═══════════════════════════════════════════════════════════════════ -->
+<section class="slide" id="s7">
+  <span class="slide__no">07 / 12</span>
+  <span class="eyebrow">PIPELINE · THE MOAT</span>
+  <h2>The 8 stages.</h2>
+  <div class="svg-frame">
+    <img src="/docs/pipeline.svg" alt="8-stage pipeline">
+  </div>
+  <p style="font-size: 18px;">
+    Most teams stop at TRELLIS output and ship a viewer-pretty mesh
+    that no slicer accepts. <strong>The eight stages between TRELLIS
+    and a printable STL is the product.</strong> v0.1.41 added stage
+    1.7 (PyMeshFix watertight head before CSG booleans) so stage 4's
+    union actually fuses head + cap into a single solid instead of
+    falling back to multi-shell concatenation.
+  </p>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     SLIDE 8 — MULTI-REGION GPU
+     ═══════════════════════════════════════════════════════════════════ -->
+<section class="slide" id="s8">
+  <span class="slide__no">08 / 12</span>
+  <span class="eyebrow">RELIABILITY</span>
+  <h2>Race two regions. Take the winner.</h2>
+  <div class="svg-frame">
+    <img src="/docs/multi-region-race.svg" alt="Multi-region race">
+  </div>
+  <p style="font-size: 18px;">
+    GPU availability is the bottleneck of the AI-to-physical category.
+    By racing two RunPod regions in parallel and cancelling the loser,
+    we halve queue-wait variance without doubling GPU cost.
+    Telemetry surfaces in the operator dashboard at
+    <code>/admin → Regions tab</code>: per-region win-rate doughnut,
+    submits/wins/losses table, last-win latency. <strong>Adding a
+    region is one env-var change.</strong>
+  </p>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     SLIDE 9 — TRACTION + UNIT ECONOMICS
+     ═══════════════════════════════════════════════════════════════════ -->
+<section class="slide" id="s9">
+  <span class="slide__no">09 / 12</span>
+  <span class="eyebrow">TRACTION · NUMBERS</span>
+  <h2>What's live. What it costs.</h2>
+  <div class="grid grid-4">
+    <div class="stat"><span class="stat__num">v0.1.41</span><span class="stat__label">Handler version</span><span class="stat__sub">released 2026-04-30</span></div>
+    <div class="stat"><span class="stat__num">2</span><span class="stat__label">GPU regions live</span><span class="stat__sub">US + Romania racing</span></div>
+    <div class="stat"><span class="stat__num">~60s</span><span class="stat__label">Photo → STL</span><span class="stat__sub">end-to-end · warm worker</span></div>
+    <div class="stat"><span class="stat__num">~$0.02</span><span class="stat__label">Cost per generation</span><span class="stat__sub">RunPod GPU-second × ~30s</span></div>
+    <div class="stat"><span class="stat__num">FDM · PLA</span><span class="stat__label">Print method</span><span class="stat__sub">any 0.4mm-nozzle printer</span></div>
+    <div class="stat"><span class="stat__num">$0.10</span><span class="stat__label">PLA per cap</span><span class="stat__sub">~5g of filament</span></div>
+    <div class="stat"><span class="stat__num">$2 / $20 / $60</span><span class="stat__label">Pricing tiers</span><span class="stat__sub">STL · printed · pack of four</span></div>
+    <div class="stat"><span class="stat__num">FREE</span><span class="stat__label">During launch</span><span class="stat__sub">code SADYSBIKES after</span></div>
+  </div>
+  <div class="ink-card" style="margin-top: 8px;">
+    <p style="font-size: 18px; margin: 0;">
+      <strong style="color: var(--accent2);">Unit math</strong>: at $2 STL with ~$0.02 GPU cost per generation, gross margin is ~99%. Stripe takes 2.9% + 30¢. The bottleneck is awareness, not unit economics.
+    </p>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     SLIDE 10 — MARKET / WHY NOW
+     ═══════════════════════════════════════════════════════════════════ -->
+<section class="slide" id="s10">
+  <span class="slide__no">10 / 12</span>
+  <span class="eyebrow">MARKET · WHY NOW</span>
+  <h2>Personalisation × consumer 3D printing × cycling.</h2>
+  <div class="grid grid-2">
+    <div class="card">
+      <h3 style="color: var(--brand);">Adjacent markets</h3>
+      <ul>
+        <li><strong>Bike accessories</strong> — multi-billion-dollar global market; valve caps are an attention surface</li>
+        <li><strong>Consumer 3D printing</strong> — Bambu Lab + Prusa shipped 1M+ units in 2024; FDM PLA is now a household device</li>
+        <li><strong>Cycling clubs + group rides</strong> — natural buyer cohort; B2B opportunity for branded packs</li>
+        <li><strong>IRL retail residencies</strong> — gumball-machine distribution as a discoverable, ownable channel</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3 style="color: var(--accent3);">Why now</h3>
+      <ul>
+        <li><strong>Image-to-3D AI</strong> reached production quality in 2024 (TRELLIS, Meshy, Tripo)</li>
+        <li><strong>Serverless GPU</strong> (RunPod, Modal, Replicate) made on-demand inference economic</li>
+        <li><strong>Consumer FDM</strong> printers crossed the "press print" usability threshold</li>
+        <li><strong>The mesh-repair gap</strong> hasn't been productised — most teams ship un-printable output</li>
+        <li><strong>The cap is a wedge</strong>: trivial to demo, nobody has a competitor, opens the platform play</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     SLIDE 11 — ROADMAP
+     ═══════════════════════════════════════════════════════════════════ -->
+<section class="slide" id="s11">
+  <span class="slide__no">11 / 12</span>
+  <span class="eyebrow">ROADMAP · 12 MONTHS</span>
+  <h2>From valve cap to platform.</h2>
+  <div class="grid grid-3">
+    <div class="ink-card">
+      <h3 class="accent">Q2 2026 · Product depth</h3>
+      <ul>
+        <li>Print + ship tier ($19.99 · pack of 4 · $59.99) live with Stripe</li>
+        <li>Showcase wall (opt-in user gallery)</li>
+        <li>Material slider — TPU + matte/gloss PLA variants</li>
+        <li>Mobile app shell wrapping the SPA</li>
+      </ul>
+    </div>
+    <div class="ink-card">
+      <h3 class="accent">Q3 2026 · B2B + IRL</h3>
+      <ul>
+        <li>Branded packs — bike shops, clubs, race teams</li>
+        <li>Gumball machine deployments at additional venues</li>
+        <li>Custom-domain cap pages — restaurants, weddings</li>
+        <li>Wholesale STL licence for printers + makerspaces</li>
+      </ul>
+    </div>
+    <div class="ink-card">
+      <h3 class="accent">Q4 2026 · Platform</h3>
+      <ul>
+        <li>Open the pipeline to other base meshes (helmet ornaments, light covers, key fobs)</li>
+        <li>Public API for the AI-to-printable-STL pipeline</li>
+        <li>Self-serve "give us a base mesh + a slot for a face" tool for makers</li>
+        <li>Multi-tenant ops dashboard</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     SLIDE 12 — TEAM + ASK
+     ═══════════════════════════════════════════════════════════════════ -->
+<section class="slide" id="s12">
+  <span class="slide__no">12 / 12</span>
+  <span class="eyebrow">TEAM · ASK</span>
+  <h2>Who's building. What's the ask.</h2>
+  <div class="grid grid-2">
+    <div class="card">
+      <h3 style="color: var(--brand);">Team</h3>
+      <p><strong>Ian Roy</strong> — full-stack engineer + brand designer.
+      Site, pipeline, deploy, brand, residency partnership. Previous work at
+      <a href="https://ianroy.org/" target="_blank" style="color: var(--brand);">ianroy.org</a>.</p>
+      <p><strong>Sadie's Bikes / Nik Perry</strong> — curatorial residency host.
+      The Gumball Machine Takeover concept and the venue partnerships
+      (Waterway Arts · The Wagon Wheel · The Upper Bend).</p>
+      <p style="font-style: italic; color: var(--ink-muted);">
+        Built lean by intent during the residency. Hiring profile post-funding:
+        ML/CV engineer (pipeline R&D), full-stack #2, ops/community.
+      </p>
+    </div>
+    <div class="ink-card">
+      <h3 class="accent">The ask</h3>
+      <p style="font-size: 22px; margin: 0 0 12px;">
+        <strong style="color: var(--accent2);">Pre-seed · $750k–$1.5M</strong>
+      </p>
+      <p style="font-size: 15px;">Use of funds (12-month runway):</p>
+      <ul style="font-size: 15px;">
+        <li>40% — engineering hires (pipeline R&D + full-stack #2)</li>
+        <li>25% — GPU + ops infra (more regions, paid TRELLIS variants, observability)</li>
+        <li>20% — IRL residency expansion + B2B partnerships</li>
+        <li>10% — brand + content + community</li>
+        <li>5% — runway buffer</li>
+      </ul>
+      <p style="font-size: 15px; margin-top: 12px;">
+        Milestone to next round: <strong style="color: var(--accent2);">10K monthly generations + 3 paying B2B partners + public API in beta.</strong>
+      </p>
+    </div>
+  </div>
+  <div class="footer-line">
+    <span>Try it: stemdomez.com/stemdome-generator</span>
+    <span>Press kit: stemdomez.com/press</span>
+    <span>Contact: ianroy@stemdomez.com</span>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     KEYBOARD NAV
+     ═══════════════════════════════════════════════════════════════════ -->
+<nav class="nav">
+  <button onclick="goPrev()">← prev</button>
+  <span id="slidecount" style="padding: 4px 8px;">— / 12</span>
+  <button onclick="goNext()">next →</button>
+</nav>
+
+<script>
+  // Slide navigation. Keyboard arrows + nav buttons. Smooth scroll
+  // between slide IDs. Tracks current slide via IntersectionObserver
+  // so the count stays accurate when the user scrolls manually.
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  let currentIdx = 0;
+
+  function update() {
+    document.getElementById('slidecount').textContent = `${currentIdx + 1} / ${slides.length}`;
+  }
+
+  function go(idx) {
+    currentIdx = Math.max(0, Math.min(slides.length - 1, idx));
+    slides[currentIdx].scrollIntoView({ behavior: 'smooth', block: 'start' });
+    update();
+  }
+
+  function goPrev() { go(currentIdx - 1); }
+  function goNext() { go(currentIdx + 1); }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); goPrev(); }
+    if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') { e.preventDefault(); goNext(); }
+    if (e.key === 'Home') { e.preventDefault(); go(0); }
+    if (e.key === 'End') { e.preventDefault(); go(slides.length - 1); }
+  });
+
+  const io = new IntersectionObserver((entries) => {
+    for (const e of entries) {
+      if (e.isIntersecting) {
+        currentIdx = slides.indexOf(e.target);
+        update();
+      }
+    }
+  }, { threshold: 0.5 });
+  slides.forEach((s) => io.observe(s));
+
+  update();
+</script>
+
+</body>
+</html>

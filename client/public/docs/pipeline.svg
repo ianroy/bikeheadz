@@ -1,0 +1,285 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 760" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, 'Helvetica Neue', sans-serif">
+  <!--
+    StemDomeZ — v0.1.41 mesh pipeline
+    Photo → TRELLIS → 7 stages → printable STL.
+
+    Edit this file to iterate on the pipeline diagram. The
+    landing-page "How it really works." block can be regenerated
+    from this when ready.
+
+    Brand palette (pinned literals — see brandstandards.MD §14):
+      ink     #0E0A12   paper      #F5F2E5   paper-soft #E5E0CC
+      brand   #7B2EFF   accent2    #2EFF8C   accent3    #FF2EAB
+  -->
+
+  <!-- BACKGROUND -->
+  <rect width="1280" height="760" fill="#F5F2E5"/>
+
+  <!-- Halftone backdrop, lower-right -->
+  <defs>
+    <pattern id="dots" x="0" y="0" width="10" height="10" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1.2" fill="#0E0A12" opacity="0.13"/>
+    </pattern>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M 0 0 L 10 6 L 0 12 z" fill="#0E0A12"/>
+    </marker>
+    <marker id="arrow-brand" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M 0 0 L 10 6 L 0 12 z" fill="#7B2EFF"/>
+    </marker>
+    <marker id="arrow-accent2" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M 0 0 L 10 6 L 0 12 z" fill="#2EFF8C"/>
+    </marker>
+  </defs>
+  <rect x="640" y="380" width="640" height="380" fill="url(#dots)"/>
+
+  <!-- TITLE -->
+  <g transform="translate(40 50)">
+    <text x="0" y="0" font-style="italic" font-weight="900" font-size="36" fill="#0E0A12" text-anchor="start"
+          style="text-shadow: 4px 4px 0 #2EFF8C;">PHOTO → STL — v0.1.41 PIPELINE.</text>
+    <text x="0" y="22" font-family="ui-monospace, monospace" font-size="12" font-weight="700"
+          letter-spacing="0.18em" text-transform="uppercase" fill="#7B2EFF">8 STAGES · ~30–60s WARM · 50–80K TRIS OUT</text>
+  </g>
+
+  <!-- ============================ INPUTS ============================ -->
+
+  <!-- Photo input -->
+  <g transform="translate(40 130)">
+    <rect width="120" height="120" fill="#F5F2E5" stroke="#0E0A12" stroke-width="3"/>
+    <rect x="6" y="6" width="108" height="84" fill="#FF2EAB"/>
+    <circle cx="60" cy="40" r="22" fill="#FFD400" stroke="#0E0A12" stroke-width="3"/>
+    <circle cx="52" cy="36" r="3" fill="#0E0A12"/>
+    <circle cx="68" cy="36" r="3" fill="#0E0A12"/>
+    <path d="M 50 50 Q 60 56 70 50" stroke="#0E0A12" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <text x="60" y="108" text-anchor="middle" font-family="ui-monospace, monospace" font-size="10" font-weight="700"
+          letter-spacing="0.1em" fill="#0E0A12">PORTRAIT</text>
+    <text x="60" y="150" text-anchor="middle" font-family="ui-monospace, monospace" font-size="10" fill="#3D2F4A">≤ 5 MB · JPG/PNG/HEIC</text>
+    <text x="60" y="166" text-anchor="middle" font-family="ui-monospace, monospace" font-size="10" fill="#3D2F4A">EXIF rotated upright</text>
+  </g>
+
+  <!-- Server-side downsample -->
+  <g transform="translate(200 150)">
+    <rect width="80" height="80" fill="#F5F2E5" stroke="#0E0A12" stroke-width="2" rx="4"/>
+    <text x="40" y="22" text-anchor="middle" font-style="italic" font-weight="900" font-size="11" fill="#7B2EFF">sharp</text>
+    <text x="40" y="38" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" fill="#0E0A12">≤1024 px</text>
+    <text x="40" y="50" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" fill="#0E0A12">q=88 mozjpeg</text>
+    <text x="40" y="62" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" fill="#0E0A12">+ EXIF rotate</text>
+    <text x="40" y="98" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" font-weight="700"
+          letter-spacing="0.1em" fill="#0E0A12">DO SERVER</text>
+  </g>
+  <line x1="160" y1="190" x2="200" y2="190" stroke="#0E0A12" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="280" y1="190" x2="320" y2="190" stroke="#0E0A12" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- TRELLIS -->
+  <g transform="translate(320 130)">
+    <rect width="160" height="120" fill="#FFD400" stroke="#0E0A12" stroke-width="3" rx="4"/>
+    <rect x="6" y="6" width="148" height="20" fill="#0E0A12"/>
+    <text x="80" y="20" text-anchor="middle" font-family="ui-monospace, monospace" font-size="10" font-weight="700"
+          letter-spacing="0.15em" fill="#2EFF8C">TRELLIS</text>
+    <text x="80" y="48" text-anchor="middle" font-style="italic" font-weight="900" font-size="14" fill="#0E0A12">image → 3D mesh</text>
+    <circle cx="40" cy="68" r="6" fill="#0E0A12"/>
+    <circle cx="40" cy="68" r="2" fill="#FFD400"/>
+    <circle cx="80" cy="78" r="9" fill="#FF2EAB" stroke="#0E0A12" stroke-width="2"/>
+    <circle cx="120" cy="68" r="6" fill="#0E0A12"/>
+    <circle cx="120" cy="68" r="2" fill="#FFD400"/>
+    <text x="80" y="108" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" fill="#0E0A12">RTX 4090 · ~30s warm · 5-10 min cold</text>
+    <text x="80" y="150" text-anchor="middle" font-family="ui-monospace, monospace" font-size="10" font-weight="700"
+          letter-spacing="0.1em" fill="#0E0A12">MICROSOFT TRELLIS · GPU</text>
+    <text x="80" y="166" text-anchor="middle" font-family="ui-monospace, monospace" font-size="10" fill="#3D2F4A">~750k tris out · non-watertight</text>
+  </g>
+
+  <!-- ============================ HEAD-PIPELINE TRACK ============================ -->
+
+  <!-- Track label -->
+  <text x="40" y="320" font-family="ui-monospace, monospace" font-size="11" font-weight="700"
+        letter-spacing="0.12em" fill="#7B2EFF">HEAD-ONLY (cap not yet introduced)</text>
+  <line x1="40" y1="328" x2="900" y2="328" stroke="#7B2EFF" stroke-width="2" stroke-dasharray="4 3"/>
+
+  <!-- Stage 1: Normalize -->
+  <g transform="translate(40 350)">
+    <rect width="140" height="100" fill="#F5F2E5" stroke="#0E0A12" stroke-width="3" rx="4"/>
+    <rect x="-4" y="-4" width="8" height="8" fill="#7B2EFF" stroke="#0E0A12" stroke-width="2"/>
+    <text x="14" y="20" font-style="italic" font-weight="900" font-size="14" fill="#0E0A12">STAGE 1</text>
+    <text x="14" y="36" font-family="ui-monospace, monospace" font-size="10" font-weight="700"
+          letter-spacing="0.1em" fill="#7B2EFF">NORMALIZE</text>
+    <text x="14" y="56" font-family="ui-monospace, monospace" font-size="9" fill="#0E0A12">orient z-up</text>
+    <text x="14" y="68" font-family="ui-monospace, monospace" font-size="9" fill="#0E0A12">rescale → 30 mm</text>
+    <text x="14" y="80" font-family="ui-monospace, monospace" font-size="9" fill="#0E0A12">apply head_tilt</text>
+    <text x="70" y="116" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" fill="#3D2F4A">~750k tris</text>
+  </g>
+
+  <!-- Stage 1.5: Pymeshlab repair -->
+  <g transform="translate(200 350)">
+    <rect width="140" height="100" fill="#F5F2E5" stroke="#0E0A12" stroke-width="3" rx="4"/>
+    <rect x="-4" y="-4" width="8" height="8" fill="#2EFF8C" stroke="#0E0A12" stroke-width="2"/>
+    <text x="14" y="20" font-style="italic" font-weight="900" font-size="14" fill="#0E0A12">STAGE 1.5</text>
+    <text x="14" y="36" font-family="ui-monospace, monospace" font-size="10" font-weight="700"
+          letter-spacing="0.1em" fill="#7B2EFF">PYMESHLAB</text>
+    <text x="14" y="56" font-family="ui-monospace, monospace" font-size="9" fill="#0E0A12">dedup + orient</text>
+    <text x="14" y="68" font-family="ui-monospace, monospace" font-size="9" fill="#0E0A12">close holes ≤200</text>
+    <text x="14" y="80" font-family="ui-monospace, monospace" font-size="9" fill="#0E0A12">fast_simp ≤500k</text>
+    <text x="70" y="116" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" fill="#3D2F4A">often still leaky</text>
+  </g>
+
+  <!-- Stage 1.7: Watertight head (NEW in v0.1.41) -->
+  <g transform="translate(360 350)">
+    <rect width="140" height="100" fill="#2EFF8C" stroke="#0E0A12" stroke-width="3" rx="4"/>
+    <rect x="-4" y="-4" width="8" height="8" fill="#FF2EAB" stroke="#0E0A12" stroke-width="2"/>
+    <rect x="118" y="-10" width="44" height="18" fill="#FF2EAB" stroke="#0E0A12" stroke-width="2" transform="rotate(8 140 0)"/>
+    <text x="140" y="3" text-anchor="middle" font-family="Anton, sans-serif" font-style="italic" font-weight="900"
+          font-size="9" fill="#FFFFFF" letter-spacing="0.06em" transform="rotate(8 140 0)">NEW</text>
+    <text x="14" y="20" font-style="italic" font-weight="900" font-size="14" fill="#0E0A12">STAGE 1.7</text>
+    <text x="14" y="36" font-family="ui-monospace, monospace" font-size="10" font-weight="700"
+          letter-spacing="0.1em" fill="#7B2EFF">WATERTIGHT HEAD</text>
+    <text x="14" y="56" font-family="ui-monospace, monospace" font-size="9" fill="#0E0A12">decimate → 250k</text>
+    <text x="14" y="68" font-family="ui-monospace, monospace" font-size="9" fill="#0E0A12">PyMeshFix repair</text>
+    <text x="14" y="80" font-family="ui-monospace, monospace" font-size="9" fill="#0E0A12" font-weight="700">→ guaranteed manifold</text>
+    <text x="70" y="116" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" fill="#3D2F4A">~250k tris · watertight</text>
+  </g>
+
+  <!-- Stage 2: Crop -->
+  <g transform="translate(520 350)">
+    <rect width="140" height="100" fill="#F5F2E5" stroke="#0E0A12" stroke-width="3" rx="4"/>
+    <rect x="-4" y="-4" width="8" height="8" fill="#7B2EFF" stroke="#0E0A12" stroke-width="2"/>
+    <text x="14" y="20" font-style="italic" font-weight="900" font-size="14" fill="#0E0A12">STAGE 2</text>
+    <text x="14" y="36" font-family="ui-monospace, monospace" font-size="10" font-weight="700"
+          letter-spacing="0.1em" fill="#7B2EFF">CROP NECK</text>
+    <text x="14" y="56" font-family="ui-monospace, monospace" font-size="9" fill="#0E0A12">find neck z_cut</text>
+    <text x="14" y="68" font-family="ui-monospace, monospace" font-size="9" fill="#0E0A12">manifold3d cut</text>
+    <text x="14" y="80" font-family="ui-monospace, monospace" font-size="9" fill="#0E0A12" font-style="italic">CSG boolean #1</text>
+    <text x="70" y="116" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" fill="#3D2F4A">cropped head</text>
+  </g>
+
+  <!-- Stage 3: Subtract negative_core -->
+  <g transform="translate(680 350)">
+    <rect width="140" height="100" fill="#F5F2E5" stroke="#0E0A12" stroke-width="3" rx="4"/>
+    <rect x="-4" y="-4" width="8" height="8" fill="#7B2EFF" stroke="#0E0A12" stroke-width="2"/>
+    <text x="14" y="20" font-style="italic" font-weight="900" font-size="14" fill="#0E0A12">STAGE 3</text>
+    <text x="14" y="36" font-family="ui-monospace, monospace" font-size="10" font-weight="700"
+          letter-spacing="0.1em" fill="#7B2EFF">CARVE CAVITY</text>
+    <text x="14" y="56" font-family="ui-monospace, monospace" font-size="9" fill="#0E0A12">subtract</text>
+    <text x="14" y="68" font-family="ui-monospace, monospace" font-size="9" fill="#0E0A12">negative_core.stl</text>
+    <text x="14" y="80" font-family="ui-monospace, monospace" font-size="9" fill="#0E0A12" font-style="italic">CSG boolean #2</text>
+    <text x="70" y="116" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" fill="#3D2F4A">socketed head</text>
+  </g>
+
+  <!-- Stage 4: Union valve_cap (cap enters) -->
+  <g transform="translate(840 350)">
+    <rect width="160" height="100" fill="#F5F2E5" stroke="#0E0A12" stroke-width="3" rx="4"/>
+    <rect x="-4" y="-4" width="8" height="8" fill="#FF2EAB" stroke="#0E0A12" stroke-width="2"/>
+    <text x="14" y="20" font-style="italic" font-weight="900" font-size="14" fill="#0E0A12">STAGE 4</text>
+    <text x="14" y="36" font-family="ui-monospace, monospace" font-size="10" font-weight="700"
+          letter-spacing="0.1em" fill="#7B2EFF">UNION CAP</text>
+    <text x="14" y="56" font-family="ui-monospace, monospace" font-size="9" fill="#0E0A12">+ valve_cap.stl</text>
+    <text x="14" y="68" font-family="ui-monospace, monospace" font-size="9" fill="#0E0A12">manifold3d union</text>
+    <text x="14" y="80" font-family="ui-monospace, monospace" font-size="9" fill="#0E0A12" font-style="italic">CSG boolean #3</text>
+    <text x="80" y="116" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" fill="#3D2F4A">single CSG-fused solid</text>
+  </g>
+
+  <!-- Cap asset enters -->
+  <g transform="translate(840 200)">
+    <rect width="120" height="60" fill="#7B2EFF" stroke="#0E0A12" stroke-width="2" rx="4"/>
+    <text x="60" y="20" text-anchor="middle" font-family="Anton, sans-serif" font-style="italic" font-weight="900"
+          font-size="14" fill="#FFFFFF">valve_cap.stl</text>
+    <text x="60" y="36" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" fill="#FFFFFF">Schrader threads</text>
+    <text x="60" y="48" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" fill="#2EFF8C" font-weight="700">~7.4k tris · NEVER repaired</text>
+  </g>
+  <line x1="900" y1="262" x2="900" y2="345" stroke="#FF2EAB" stroke-width="3" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+
+  <!-- Arrows in head track -->
+  <line x1="180" y1="400" x2="200" y2="400" stroke="#0E0A12" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="340" y1="400" x2="360" y2="400" stroke="#0E0A12" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="500" y1="400" x2="520" y2="400" stroke="#2EFF8C" stroke-width="3" marker-end="url(#arrow-accent2)"/>
+  <line x1="660" y1="400" x2="680" y2="400" stroke="#0E0A12" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="820" y1="400" x2="840" y2="400" stroke="#0E0A12" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="510" y="392" font-family="ui-monospace, monospace" font-size="8" fill="#2EFF8C" font-weight="700">watertight</text>
+
+  <!-- TRELLIS to Stage 1 arrow (large) -->
+  <line x1="400" y1="250" x2="110" y2="345" stroke="#0E0A12" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- ============================ FUSED-OUTPUT TRACK ============================ -->
+
+  <text x="40" y="500" font-family="ui-monospace, monospace" font-size="11" font-weight="700"
+        letter-spacing="0.12em" fill="#FF2EAB">FUSED MESH (head + cap)</text>
+  <line x1="40" y1="508" x2="900" y2="508" stroke="#FF2EAB" stroke-width="2" stroke-dasharray="4 3"/>
+
+  <!-- Stage 5: Print-prep -->
+  <g transform="translate(120 530)">
+    <rect width="160" height="100" fill="#F5F2E5" stroke="#0E0A12" stroke-width="3" rx="4"/>
+    <rect x="-4" y="-4" width="8" height="8" fill="#7B2EFF" stroke="#0E0A12" stroke-width="2"/>
+    <text x="14" y="20" font-style="italic" font-weight="900" font-size="14" fill="#0E0A12">STAGE 5</text>
+    <text x="14" y="36" font-family="ui-monospace, monospace" font-size="10" font-weight="700"
+          letter-spacing="0.1em" fill="#7B2EFF">PRINT-PREP</text>
+    <text x="14" y="56" font-family="ui-monospace, monospace" font-size="9" fill="#0E0A12">decimate → 50–80k</text>
+    <text x="14" y="68" font-family="ui-monospace, monospace" font-size="9" fill="#0E0A12">wall thickness check</text>
+    <text x="14" y="80" font-family="ui-monospace, monospace" font-size="9" fill="#0E0A12">assert_printable (soft)</text>
+    <text x="80" y="116" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" fill="#3D2F4A">~70k tris</text>
+  </g>
+
+  <!-- Stage 6: PyMeshFix safety net -->
+  <g transform="translate(320 530)">
+    <rect width="180" height="100" fill="#F5F2E5" stroke="#0E0A12" stroke-width="3" rx="4"/>
+    <rect x="-4" y="-4" width="8" height="8" fill="#2EFF8C" stroke="#0E0A12" stroke-width="2"/>
+    <text x="14" y="20" font-style="italic" font-weight="900" font-size="14" fill="#0E0A12">STAGE 6</text>
+    <text x="14" y="36" font-family="ui-monospace, monospace" font-size="10" font-weight="700"
+          letter-spacing="0.1em" fill="#7B2EFF">SAFETY NET</text>
+    <text x="14" y="56" font-family="ui-monospace, monospace" font-size="9" fill="#0E0A12">split components</text>
+    <text x="14" y="68" font-family="ui-monospace, monospace" font-size="9" fill="#0E0A12">PyMeshFix on largest only</text>
+    <text x="14" y="80" font-family="ui-monospace, monospace" font-size="9" fill="#0E0A12" font-style="italic">cap stays untouched</text>
+    <text x="90" y="116" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" fill="#3D2F4A">should mostly be no-op now</text>
+  </g>
+
+  <!-- Output STL -->
+  <g transform="translate(540 530)">
+    <rect width="160" height="100" fill="#0E0A12" stroke="#0E0A12" stroke-width="3" rx="4"/>
+    <text x="14" y="22" font-style="italic" font-weight="900" font-size="14" fill="#2EFF8C">STL OUTPUT</text>
+    <text x="14" y="40" font-family="ui-monospace, monospace" font-size="10" font-weight="700"
+          letter-spacing="0.1em" fill="#FFFFFF">BINARY · 50–80K TRIS</text>
+    <text x="14" y="58" font-family="ui-monospace, monospace" font-size="9" fill="#F5F2E5">~30 mm tall</text>
+    <text x="14" y="70" font-family="ui-monospace, monospace" font-size="9" fill="#F5F2E5">≥ 1.2 mm walls</text>
+    <text x="14" y="82" font-family="ui-monospace, monospace" font-size="9" fill="#F5F2E5" font-weight="700">slicer-ready</text>
+  </g>
+
+  <!-- 3D viewer + slicer pictogram -->
+  <g transform="translate(740 540)">
+    <rect width="120" height="80" fill="#F5F2E5" stroke="#0E0A12" stroke-width="3" rx="4"/>
+    <ellipse cx="60" cy="40" rx="22" ry="26" fill="#7B2EFF" stroke="#0E0A12" stroke-width="2"/>
+    <rect x="48" y="62" width="24" height="14" fill="#0E0A12"/>
+    <path d="M 47 70 L 73 70" stroke="#2EFF8C" stroke-width="2"/>
+    <text x="60" y="98" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" font-weight="700"
+          letter-spacing="0.08em" fill="#0E0A12">3D PREVIEW + SLICER</text>
+  </g>
+
+  <!-- Arrows in fused track -->
+  <line x1="280" y1="580" x2="320" y2="580" stroke="#0E0A12" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="500" y1="580" x2="540" y2="580" stroke="#0E0A12" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="700" y1="580" x2="740" y2="580" stroke="#0E0A12" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Stage 4 → Stage 5 (track-crossing arrow) -->
+  <line x1="920" y1="450" x2="920" y2="530" stroke="#0E0A12" stroke-width="2"/>
+  <line x1="920" y1="530" x2="280" y2="530" stroke="#0E0A12" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- ============================ LEGEND ============================ -->
+
+  <g transform="translate(40 660)">
+    <rect width="1200" height="80" fill="#E5E0CC" stroke="#0E0A12" stroke-width="2" rx="6"/>
+
+    <text x="14" y="22" font-family="ui-monospace, monospace" font-size="11" font-weight="700"
+          letter-spacing="0.12em" fill="#7B2EFF">LEGEND</text>
+
+    <rect x="14" y="34" width="14" height="14" fill="#7B2EFF" stroke="#0E0A12" stroke-width="2"/>
+    <text x="34" y="46" font-family="ui-monospace, monospace" font-size="11" fill="#0E0A12">Brand-coded stage marker</text>
+
+    <rect x="234" y="34" width="14" height="14" fill="#2EFF8C" stroke="#0E0A12" stroke-width="2"/>
+    <text x="254" y="46" font-family="ui-monospace, monospace" font-size="11" fill="#0E0A12">Topology-repair stage (PyMeshFix)</text>
+
+    <rect x="514" y="34" width="14" height="14" fill="#FF2EAB" stroke="#0E0A12" stroke-width="2"/>
+    <text x="534" y="46" font-family="ui-monospace, monospace" font-size="11" fill="#0E0A12">Cap-asset entry / fused-output marker</text>
+
+    <line x1="14" y1="64" x2="40" y2="64" stroke="#2EFF8C" stroke-width="3" marker-end="url(#arrow-accent2)"/>
+    <text x="48" y="68" font-family="ui-monospace, monospace" font-size="11" fill="#0E0A12">Watertight head guarantee handed downstream</text>
+
+    <line x1="514" y1="64" x2="540" y2="64" stroke="#FF2EAB" stroke-width="3" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+    <text x="548" y="68" font-family="ui-monospace, monospace" font-size="11" fill="#0E0A12">Cap asset enters at stage 4 — never touched by repair</text>
+  </g>
+</svg>
