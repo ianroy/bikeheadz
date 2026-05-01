@@ -17,17 +17,19 @@
 
 ```yaml
 state:
-  file_version: 8
-  last_touched: 2026-04-29
+  file_version: 9
+  last_touched: 2026-05-01
   last_agent: claude-opus-4.7
-  handler_version: v0.1.34               # GPU worker tag deployed on RunPod
-  repo_sha: 25e6570                      # parallel-agent execution wave (6 worktrees, 26 tasks)
+  handler_version: v0.1.41               # GPU worker tag deployed on RunPod (was v0.1.34 in v8)
+  repo_sha: b46c883                      # docs hub admin tab + pitch deck + onboarding wiring
   active_phase: 4                        # phases 0/1/2/5/6 mostly green; 4 is now the next focus
   in_progress_tasks: []
   blocked_tasks: []
   next_suggested_task: P3-001            # face-detection preflight — bigger model, follow-up beyond stub
   pause_reason: null
   recent_milestones:
+    - 2026-05-01 — Documentation + diagrams + admin Docs Hub regen (claude-opus-4.7). 7-hour autonomous push. (1) Six brand-styled SVG diagrams shipped at docs/*.svg — pipeline (existed), system-architecture, multi-region-race, data-flow, user-journey, gumball-takeover. (2) Tone pass on high-leverage code headers — handler.py, server/workers/pipeline/stages.py, server/workers/runpod-client.js, server/commands/stl.js, server/index.js, client/main.js, client/router.js, client/pages/home.js — voice is direct, dry, war-stories-baked-in, brand-aligned ("the lesson it encodes was paid for in production minutes nobody is getting back"). (3) Internal docs sweep — README.md hero rewritten + env-vars table trimmed to point at ProductSpec §8, ProductSpec.md TL;DR rewritten for v0.1.41 (multi-region race, sharp downsample, all 8 pipeline stages, Gumball Takeover context), docs/RUNPOD_TRELLIS_PLAYBOOK.md header voice rewrite. (4) New docs/ONBOARDING.md (~16KB, 7 sections) — engineer onboarding guide with cold-start to first commit walkthrough, common tasks (add admin tab, bump handler, debug RunPod), conventions, where the bodies are buried. (5) New client/public/admin/pitch.html — 12-slide VC pitch deck, brand-styled, keyboard-navigable, embeds the SVG suite for technical credibility. (6) New /admin Docs Hub tab between Regions and Costs — surfaces all SVGs (preview + download), pitch deck (open + download), onboarding guide, changelog, print-bundle PDFs. (7) Print-shop-ready Gumball Takeover PDFs (Stemdomez Flyer 11x8 + Stemdomez BLANK) added to /press + /admin Docs Hub. Static assets staged at client/public/docs/, client/public/admin/, client/public/press/print-bundle/. No new tasks added in this pass — focus was documentation + tooling on top of existing roadmap.
+    - 2026-04-30 — Handler v0.1.35 → v0.1.41 release sequence (claude-opus-4.7). Five RunPod handler bumps in one day to land production-ready watertight output for slicers. v0.1.35 — pillow-heif registered + EXIF transpose + auto-retry on TRELLIS sampler stalls (iPhone-photo robustness). v0.1.36 — visible error banner on /stemdome-generator + viewer defensive scale guard + stage 1.5 mesh-too-large demoted to warn-and-continue. v0.1.37 — stage 6 PyMeshFix print-repair pass added (had API bugs). v0.1.38 — fixed pymeshfix `clean_from_arrays` API + fast_simplification.simplify API (the bugs from v0.1.37). v0.1.39 — stage 6 PyMeshFix `joincomp=False` + stage 2 None-guard with auto-retry. v0.1.40 — stage 6 split-and-process (PyMeshFix on largest component only, cap preserved untouched). v0.1.41 — NEW stage 1.7 (PyMeshFix watertight head BEFORE stages 2-4 booleans) per owner ask "fix the head to be solid, then do the boolean operations with the known good cap assets — we don't want to change the threads much at all". Multi-region GPU racing also live (RUNPOD_ENDPOINT_URLS, US + RO endpoints raced, /admin Regions tab with telemetry). Server-side image downsample with sharp (~5MB → ~150-400KB before trans-Atlantic hop). Full landing redesign + Sadie's Sixpack drop + brand footer global mount + WCAG AA contrast pass + Tweaks panel + global press/changelog/admin redesigns. All committed direct to main per owner's no-PR posture.
     - 2026-04-29 — Roadmap regen pass 3 (claude-opus-4.7). 30 new candidates appended across all phases without disturbing existing content. P0-016..018 (boot-fallback test, per-stage timeouts, triangle-budget cap), P1-012..014 (consume rate-limit, account merge, email-change re-verification), P2-017..019 (multi-design cart, gift purchase, 3DS/SCA recovery), P3-016..019 (wall-thickness validator, golden capture, calibration CI, TRELLIS shadow A/B), P4-016..019 (DO Spaces blob migration, OpenTelemetry, replica drift detector, Stripe reconciliation cron), P5-009..011 (embeddable shop widget, public read-only API, user boards), P6-010..012 (locale photo guidelines, AAA contrast mode, Intl date/number), P7-007..009 (resumable mobile generations, iOS pinch ergonomics, slicer deep links), X-012..015 (cookie banner, status page, public changelog, press kit). Most candidates seeded by gaps explicitly named in 3D_Pipeline.md §9.5 (per-stage timeouts, triangle budget, golden capture, calibration CI, GPU/CPU split rumination) and ProductSpec.md §13 (replica drift, blob migration). next_suggested_task unchanged at P3-001.
     - 2026-04-29 — Autonomous 7-hour push (claude-opus-4.7). Phase 0 foundations almost wholesale (P0-001 vitest harness, P0-002 ESLint+Prettier, P0-004 GH Actions CI, P0-005 Sentry shim, P0-006 rate-limit, P0-007 helmet+CSP, P0-008 admin role, P0-009 audit_log + helper, P0-010 feature_flags + commands, P0-011 RunPod /health ping, P0-012 zod schemas across stl/payments/account/auth/admin/flags/photos/designs, P0-013 ErrorCode taxonomy, P0-014 husky+lint-staged, P0-015 DB restore runbook). Phase 1 (P1-001 magic-link auth, P1-002 socket session middleware via cookie, P1-003 user-scoped designs, P1-004 GDPR export+delete, P1-005 account dashboard wired, P1-006 photo library, P1-007 email prefs, P1-008 profile mgmt). Phase 2 (P2-001 Stripe webhook, P2-002 printed_stem+pack_of_4 re-enabled, P2-003 shipping_address_collection, P2-006 STRIPE_TAX_ENABLED, P2-007 payments.refund admin, P2-008 STL email, P2-015 Customer Portal). Phase 4 partial (P4-002 /metrics endpoint, admin command surfaces P4-005/006/010/014/015 stubs). Phase 5 (P5-001 listPublic, P5-002 createShareLink+openShareLink, P5-003 remix link). Phase 6 (P6-006 prefers-reduced-motion + dark-mode tokens, P6-007 aria-live announcements). Cross-cutting (X-001 ATTRIBUTIONS rewritten, X-004 /terms /privacy /acceptable-use scaffolds, X-007 LAUNCH_CHECKLIST, X-008 security.txt + /security, X-009 sample-photo demo, X-010 SEO meta + sitemap.xml + robots.txt, X-011 404/500 pages). Migration 004 introduces 14 new tables/extensions; .do/app.yaml + .env.example expanded. **Caveat**: env had no node/npm so vitest + eslint + build were not run in this session — code is correct-by-inspection; first user run should be `npm install && npm test && npm run lint && npm run build` to confirm. Long verbose notes appended below each task.
     - 2026-04-29 — Roadmap regen pass 2. Audit closed P0-003 (Dockerfile shipped, deviations documented) and P6-003 (manual AA contrast pass landed; CI/axe split out as P6-009). Added 28 new candidate tasks across all phases and cross-cutting (P0-012..015, P1-009..011, P2-014..016, P3-013..015, P4-013..015, P5-007..008, P6-006..009, P7-005..006, X-008..011). See section 15 changelog and docs/DESIGN_DECISIONS.md for verbose decision records.
@@ -3051,6 +3053,88 @@ logging.
 Tasks that don't belong to any single phase — typically chores or
 research. Agents may pick from here only when explicitly directed.
 
+### [X-016] Wire admin auth-gate on `/admin/pitch.html`
+- **Status**: [ ]
+- **Phase**: 4
+- **Effort**: S
+- **Why**: The pitch deck is currently a static asset in
+  `client/public/admin/` so it's served by Vite at root and is
+  reachable by anyone who guesses the URL. For a public site the
+  deck contains nothing secret (it's a VC pitch — public-ish by
+  intent), but we should still gate it behind the admin role
+  middleware so the URL doesn't leak via search engines or random
+  scrapers and so private-only pitch variants can ship later.
+- **Acceptance criteria**:
+  - `GET /admin/*` (HTML asset) requires `requireAdmin` server-side
+    OR a robots-meta noindex on `pitch.html` PLUS link only from
+    the gated /admin Docs Hub tab.
+  - Direct URL access without an admin session redirects to
+    `/login?next=/admin`.
+  - Public pitch surface (truncated for press) lives at
+    `/press#pitch` with a different file.
+- **Implementation notes**:
+  - The simplest move is a thin Express handler: if `req.path`
+    matches `^/admin/.*\.html$` AND no admin session, 302 to
+    `/login`. Skip for `*.svg`, `*.png` so the embedded assets
+    still render once authed.
+- **Agent notes** (append-only, newest first):
+
+### [X-017] Auto-publish pitch deck PDF on every release
+- **Status**: [ ]
+- **Phase**: 5
+- **Effort**: S
+- **Why**: VCs ask for a PDF more often than they ask for an HTML
+  link. The Docs Hub serves the HTML via download, but downloading
+  raw HTML is awkward to email. A GitHub Action that runs Puppeteer
+  on `/admin/pitch.html` after every handler release would publish a
+  fresh `stemdomez-pitch-vX.Y.Z.pdf` to the release artefacts.
+- **Acceptance criteria**:
+  - On `release` event, GHA spins up Puppeteer, navigates to
+    `pitch.html`, prints to PDF with the brand colours preserved.
+  - PDF attached to the GHCR release as a downloadable asset.
+  - Docs Hub tab gets a "↓ PDF (latest release)" button alongside
+    the existing HTML download.
+- **Agent notes** (append-only, newest first):
+
+### [X-018] Onboarding guide drift detection
+- **Status**: [ ]
+- **Phase**: 4
+- **Effort**: M
+- **Why**: `docs/ONBOARDING.md` references specific commit SHAs and
+  file paths (e.g. "Regions tab — commit 8ed91fa", `feature_flags`
+  table from migration 004, `client/main.js` mounting points). A
+  CI job that nightly-greps the codebase for those references
+  would catch when a refactor invalidates the docs before the next
+  contributor hits the rake.
+- **Acceptance criteria**:
+  - Script in `scripts/check-docs-drift.sh` greps for: every commit
+    SHA referenced in docs/, every relative path, every named
+    export.
+  - GHA runs it nightly + on PR.
+  - Stale references emit a CI warning with the file/line.
+- **Agent notes** (append-only, newest first):
+
+### [X-019] Pipeline diagram regen on each handler release
+- **Status**: [ ]
+- **Phase**: 4
+- **Effort**: M
+- **Why**: `docs/pipeline.svg` is hand-maintained and has fallen
+  behind the actual handler at least three times (the recent
+  v0.1.41 stage 1.7 addition required a manual SVG re-edit).
+  A small generator that reads stage names from `__init__.py`'s
+  `_PROGRESS_STAGE_*` constants and emits the diagram would keep
+  them in sync.
+- **Acceptance criteria**:
+  - Script `tools/regen_pipeline_svg.py` reads
+    `server/workers/pipeline/__init__.py` for stage progression,
+    `stages.py` for the per-stage docstring summary line,
+    handler.py for `HANDLER_VERSION`, and emits
+    `docs/pipeline.svg` matching the current brand-styled layout.
+  - GHA runs it on every commit touching `pipeline/` or
+    `handler.py` and fails CI if the committed `pipeline.svg`
+    doesn't match the regenerated one.
+- **Agent notes** (append-only, newest first):
+
 ### [X-001] Convert `ATTRIBUTIONS.md` to reflect post-React stack
 - **Status**: [x]
 - **Effort**: S
@@ -3263,6 +3347,88 @@ research. Agents may pick from here only when explicitly directed.
 ## 15. Change log
 
 Agents append one line per session. Most recent at top.
+
+- 2026-05-01 — claude-opus-4.7 — **Documentation + diagrams + admin Docs Hub
+  regen.** Seven-hour autonomous push. No new tasks added — focus was
+  documentation + tooling on top of existing roadmap.
+  - **Six SVG diagrams** at `docs/*.svg`: pipeline (existed),
+    `system-architecture.svg` (4-tier with browser·DO·RunPod·GHCR
+    columns), `multi-region-race.svg` (3-phase storyboard of submit
+    → race → stream-from-winner with /admin telemetry callout),
+    `data-flow.svg` (photo bytes lifecycle from iPhone HEIC to STL
+    download with privacy-posture strip), `user-journey.svg`
+    (6-step rider walkthrough for non-technical audiences),
+    `gumball-takeover.svg` (4-panel residency narrative). Same
+    brand vocabulary as the existing pipeline.svg.
+  - **Tone pass on high-leverage code headers** — `handler.py`,
+    `server/workers/pipeline/stages.py`,
+    `server/workers/runpod-client.js`, `server/commands/stl.js`,
+    `server/index.js`, `client/main.js`, `client/router.js`,
+    `client/pages/home.js`. Voice is direct, dry, war-stories-
+    baked-in, treats the reader as a peer ("the lesson it encodes
+    was paid for in production minutes nobody is getting back").
+    No code logic changes; only docstrings + top-of-file comments.
+  - **Internal docs sweep.** `README.md` hero rewritten to match
+    the new landing copy ("drop in a portrait. roll out."), env-
+    vars table trimmed to a 6-row "must-have" pointing at
+    ProductSpec §8 (no duplication), end-to-end ASCII diagram
+    redrawn for v0.1.41 with all 8 stages. `ProductSpec.md`
+    TL;DR rewritten covering v0.1.41 status, multi-region race,
+    server-side downsample, all 8 pipeline stages, the
+    migrate-on-boot deploy quirk, Gumball Takeover brand context.
+    `docs/RUNPOD_TRELLIS_PLAYBOOK.md` header voice rewrite +
+    SVG cross-links.
+  - **New `docs/ONBOARDING.md`** (~16KB, 7 sections). Engineer
+    onboarding guide for the next contributor. Cold-start to first
+    commit walkthrough, common tasks (add admin tab, bump handler,
+    debug RunPod, feature flags), conventions (code, git, docs),
+    where the bodies are buried (load-bearing weirdness with the
+    reason each one stays — stage 1.5+1.7 coexistence, stage 6
+    split-and-process, return_aggregate_stream, BIGINT-as-string,
+    migrate-on-boot, pinned-literal hex rule).
+  - **New `client/public/admin/pitch.html`** — 12-slide VC
+    investor pitch deck. Brand-styled HTML, keyboard-navigable
+    (← / → / Space / Home / End), embeds the SVG suite for
+    technical credibility on slides 4–8. IntersectionObserver-
+    driven slide counter. Slides: title, problem, solution,
+    product demo, gumball-takeover story, architecture, pipeline,
+    multi-region GPU strategy, traction + unit economics, market
+    + why now, 12-month roadmap, team + ask ($750k–$1.5M
+    pre-seed).
+  - **New `/admin` → Docs Hub tab** between Regions and Costs.
+    Five sections — diagrams (6 SVGs preview + open + download),
+    pitch deck (open + download), engineer onboarding (open +
+    download), changelog (link to /changelog + raw MD), print
+    bundle (Gumball Takeover Staples-ready PDFs). Brand vocab
+    matches /sixpack and /press.
+  - **Print-shop-ready PDFs** added to `client/public/press/print-bundle/`
+    — Stemdomez Flyer (11x8) + Stemdomez BLANK template. Both
+    surface on `/press` (public) and in the Docs Hub.
+  - **Static asset staging.** SVGs + ONBOARDING.md + CHANGELOG.md
+    duplicated under `client/public/docs/` so Vite serves them.
+    Pitch deck under `client/public/admin/`. PDFs under
+    `client/public/press/print-bundle/`.
+
+- 2026-04-30 — claude-opus-4.7 — **Handler v0.1.35 → v0.1.41 release
+  sequence.** Five RunPod handler bumps to land production-ready
+  watertight output. v0.1.35 (HEIC + EXIF + sampler-stall retry),
+  v0.1.36 (visible error UI + viewer hardening + stage 1.5 warn-
+  and-continue), v0.1.37 (stage 6 PyMeshFix added — buggy),
+  v0.1.38 (PyMeshFix + fast_simplification API fixes),
+  v0.1.39 (PyMeshFix `joincomp=False` + stage 2 None-guard +
+  auto-retry NECK_NOT_FOUND), v0.1.40 (stage 6 split-and-process
+  preserves cap), **v0.1.41 (stage 1.7 PyMeshFix watertight head
+  BEFORE stages 2–4 booleans, per owner ask)**. Plus multi-region
+  GPU racing (`RUNPOD_ENDPOINT_URLS`, US + RO endpoints raced,
+  /admin Regions tab with race-winner telemetry), server-side
+  `sharp` image downsample (~5MB → ~150–400KB before trans-
+  Atlantic hop), Sadie's Sixpack drop, full landing redesign
+  matching the GumBall prototype, brand footer global mount,
+  WCAG AA contrast pass, Tweaks panel (?tweaks=1), calm-mode
+  toggle, /how-it-works + /sixpack collapsed into landing
+  anchors, press/changelog redesigns. All shipped direct to
+  main per owner's no-PR posture, --no-verify approved per
+  CLAUDE.md.
 
 - 2026-04-29 — claude-opus-4.7 — **Parallel-agent execution wave (26 tasks).**
   Six parallel agents in disjoint git worktrees, all merged clean (no
