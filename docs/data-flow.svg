@@ -57,7 +57,7 @@
     <text x="110" y="40" text-anchor="middle" font-family="ui-monospace, monospace" font-size="10" fill="#FFFFFF">commands/stl.js</text>
 
     <rect x="14" y="56" width="192" height="20" fill="#F5F2E5" stroke="#FFD400" stroke-width="2"/>
-    <text x="110" y="70" text-anchor="middle" font-family="ui-monospace, monospace" font-size="10" font-weight="700" fill="#0E0A12">size cap: 5 MB</text>
+    <text x="110" y="70" text-anchor="middle" font-family="ui-monospace, monospace" font-size="10" font-weight="700" fill="#0E0A12">size cap: 10 MB</text>
 
     <rect x="14" y="80" width="192" height="20" fill="#F5F2E5" stroke="#2EFF8C" stroke-width="2"/>
     <text x="110" y="94" text-anchor="middle" font-family="ui-monospace, monospace" font-size="10" font-weight="700" fill="#0E0A12">sharp: ≤1024 px · q=88</text>

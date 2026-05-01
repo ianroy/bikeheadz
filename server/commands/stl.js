@@ -20,7 +20,14 @@ const WORKER = path.resolve(__dirname, '..', 'workers', 'trellis_generate.py');
 const VALVE_CAP = path.resolve(__dirname, '..', 'assets', 'valve_cap.stl');
 const PYTHON_BIN = process.env.PYTHON_BIN || 'python3';
 const TRELLIS_ENABLED = (process.env.TRELLIS_ENABLED || 'true').toLowerCase() !== 'false';
-const MAX_IMAGE_BYTES = Number(process.env.MAX_IMAGE_BYTES) || 5 * 1024 * 1024;
+// Upload size ceiling. Bumped to 10 MB after server-side downsample
+// (sharp → 1024 px / mozjpeg q88) caps the GPU-bound payload at
+// ~150-400 KB regardless of input size. The check here is purely a
+// defence against malicious uploads / OOM — RunPod sees the
+// downsampled bytes, not the raw upload. Override via env if you
+// need more headroom for larger originals (e.g. mirrorless RAW-ish
+// JPEGs from a real camera at 8000×6000 q95 ≈ 12 MB).
+const MAX_IMAGE_BYTES = Number(process.env.MAX_IMAGE_BYTES) || 10 * 1024 * 1024;
 
 // Server-side downsample envelope. TRELLIS internally resizes inputs
 // to ~518 px for its dinov2 vision backbone — every pixel above that

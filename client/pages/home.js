@@ -190,7 +190,7 @@ function howSection({ paymentsOff, printingOff }) {
       ),
       el('div', { class: 'steps' },
         stepCard('01', 'UPLOAD', 'Drop a photo.',
-          'Front-facing portrait from the shoulders up. Good light, clean background. PNG or JPEG, up to 5 MB. Drag in or click to upload. Your data stays on our private server and never goes to any AI in the cloud for processing.',
+          'Front-facing portrait from the shoulders up. Good light, clean background. PNG, JPEG, or HEIC, up to 10 MB. Drag in or click to upload. Your data stays on our private server and never goes to any AI in the cloud for processing.',
           'var(--sdzr-accent2)', STEP_ART_UPLOAD),
         stepCard('02', 'SCULPT', 'Generator does the work.',
           'Our privately hosted TRELLIS generates a 3D head from your photo. A 7-stage CAD pipeline grafts it onto a Schrader valve cap. ~30–60 s on a GPU-powered private server.',

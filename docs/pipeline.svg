@@ -53,7 +53,7 @@
     <path d="M 50 50 Q 60 56 70 50" stroke="#0E0A12" stroke-width="3" fill="none" stroke-linecap="round"/>
     <text x="60" y="108" text-anchor="middle" font-family="ui-monospace, monospace" font-size="10" font-weight="700"
           letter-spacing="0.1em" fill="#0E0A12">PORTRAIT</text>
-    <text x="60" y="150" text-anchor="middle" font-family="ui-monospace, monospace" font-size="10" fill="#3D2F4A">≤ 5 MB · JPG/PNG/HEIC</text>
+    <text x="60" y="150" text-anchor="middle" font-family="ui-monospace, monospace" font-size="10" fill="#3D2F4A">≤ 10 MB · JPG/PNG/HEIC</text>
     <text x="60" y="166" text-anchor="middle" font-family="ui-monospace, monospace" font-size="10" fill="#3D2F4A">EXIF rotated upright</text>
   </g>
 

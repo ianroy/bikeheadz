@@ -518,7 +518,7 @@ RunPod Console — `.runpod/hub.json` declares the canonical defaults.
 
 | Variable                  | Required | Default | Purpose |
 |---------------------------|----------|---------|---------|
-| `MAX_IMAGE_BYTES`         | no       | `5242880` (5 MB) | Hard upload cap. Exceed = `IMAGE_TOO_LARGE` error. |
+| `MAX_IMAGE_BYTES`         | no       | `10485760` (10 MB) | Hard upload cap on **decoded** image bytes. Exceed = `IMAGE_TOO_LARGE` error. The server-side `sharp` downsample (≤1024 px / mozjpeg q88) caps the GPU-bound payload at ~150-400 KB regardless of input size, so this is purely a defence against malicious uploads / OOM. Socket.io's `maxHttpBufferSize` (16 MB) accommodates the base64 envelope. |
 | `IMAGE_RESIZE_ENABLED`    | no       | `true`  | `false` to disable the `sharp` downsample pass entirely. |
 | `IMAGE_RESIZE_MAX_EDGE`   | no       | `1024`  | Long-edge cap in pixels. TRELLIS internally resizes to ~518 px, so values above ~1024 are wasted bandwidth. |
 | `IMAGE_RESIZE_QUALITY`    | no       | `88`    | mozjpeg quality. |

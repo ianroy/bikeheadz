@@ -1069,7 +1069,7 @@ export function GeneratorPage({ socket }) {
       runpod_unreachable: "Our GPU service didn't answer. Try again shortly.",
       runpod_no_result: "Generation didn't finish. Try a different photo.",
       worker_failed: 'The worker had a wobble. Try again.',
-      image_too_large: 'That image is too large. Try one under 5 MB.',
+      image_too_large: 'That image is too large. Try one under 10 MB.',
       image_required: 'Pick a photo first.',
       // Pipeline gates are now warn-and-continue (handler v0.1.35),
       // but if the topology check ever does fire we want a friendlier

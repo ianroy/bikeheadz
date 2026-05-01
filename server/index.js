@@ -47,7 +47,14 @@ const httpServer = createServer(app);
 
 const io = new SocketIOServer(httpServer, {
   cors: { origin: CORS_ORIGIN },
-  maxHttpBufferSize: 12 * 1024 * 1024,
+  // Image uploads arrive as base64 data URLs. The upload cap in
+  // server/commands/stl.js is on DECODED bytes (10 MB); base64
+  // inflates by ~33%, so a 10 MB raw upload arrives as ~13.4 MB on
+  // the wire. 16 MB gives headroom for slightly larger PNGs (which
+  // compress poorly) and for the small JSON envelope around the
+  // image bytes. Without this headroom socket.io silently drops
+  // the frame BEFORE our friendly image_too_large error fires.
+  maxHttpBufferSize: 16 * 1024 * 1024,
 });
 
 // ── P0-007 — security headers via helmet. CSP allows self + ws/wss for
