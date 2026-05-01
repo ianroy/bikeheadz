@@ -108,6 +108,34 @@ export function getRunpodTelemetry() {
   return out;
 }
 
+// Boot-time visibility. Logs the resolved endpoint order, count, and
+// the warmup latch state so an operator who's reading DO logs can tell
+// at a glance which region is "first" (tie-break winner) and whether
+// the next request will be a forced-warmup (single-region) or a real
+// race. Without this you have to grep /admin telemetry to figure out
+// why one region keeps winning. Call once on boot.
+export function logRunpodConfig() {
+  const endpoints = getEndpoints();
+  if (endpoints.length === 0) {
+    logger.info({ msg: 'runpod.config', mode: 'disabled', note: 'no RUNPOD_ENDPOINT_URL(S) set' });
+    return;
+  }
+  const warmupArmed = process.env.RUNPOD_FORCE_WARMUP === '1' && endpoints.length > 1;
+  logger.info({
+    msg: 'runpod.config',
+    mode: endpoints.length === 1 ? 'single' : 'race',
+    endpoints: endpoints.map((url, i) => ({
+      position: i,
+      id: url.split('/').pop(),
+      role: i === 0 ? 'tie_break_winner' : (i === endpoints.length - 1 ? 'warmup_target' : 'middle'),
+    })),
+    force_warmup: warmupArmed,
+    next_request: warmupArmed
+      ? `forced to ${endpoints[endpoints.length - 1].split('/').pop()} (one-shot, then races resume)`
+      : 'races all endpoints',
+  });
+}
+
 // ── Public entry point: signature unchanged from the single-endpoint era
 
 export async function runRunpod({ socket, commandId, imageBuf, settings }) {
@@ -193,13 +221,24 @@ async function raceAndStream({ socket, commandId, endpoints, input }) {
   // Poll all accepted endpoints. First one to flip IN_PROGRESS or
   // emit any frames is the winner — its worker has actually picked up
   // the job (vs. sitting in queue waiting for a worker).
+  //
+  // Strike policy: a single transient /stream poll failure (RunPod
+  // gateway hiccup, momentary 5xx, network blip) USED to permanently
+  // bench the endpoint for the rest of the race, which made one bad
+  // poll look like a region-wide outage and handed the win to the
+  // other region by default. We now tolerate POLL_STRIKE_LIMIT-1
+  // consecutive failures before benching. Any successful poll resets
+  // the counter. Terminal RunPod statuses (FAILED / CANCELLED /
+  // TIMED_OUT) still bench immediately — those aren't transient.
+  const POLL_STRIKE_LIMIT = 2;
   let winner = null;
   let initialFrames = [];
-  const failedIndices = new Set();
+  const benchedIndices = new Set();
+  const strikeCounts = new Map();
 
   while (!winner && Date.now() < deadline) {
     const polls = await Promise.allSettled(accepted.map(async (a, idx) => {
-      if (failedIndices.has(idx)) return null;
+      if (benchedIndices.has(idx)) return null;
       const chunk = await fetchJson(`${a.base}/stream/${a.jobId}`, { headers: auth });
       return { ...a, idx, chunk, frames: Array.isArray(chunk.stream) ? chunk.stream : [] };
     }));
@@ -207,20 +246,32 @@ async function raceAndStream({ socket, commandId, endpoints, input }) {
     for (let i = 0; i < polls.length; i++) {
       const p = polls[i];
       if (p.status === 'rejected') {
-        failedIndices.add(i);
+        const strikes = (strikeCounts.get(i) || 0) + 1;
+        strikeCounts.set(i, strikes);
         bumpStat(accepted[i].base, 'errors');
         logger.warn({
           msg: 'runpod.race_poll_failed',
           endpoint: accepted[i].base,
           err: p.reason?.message,
+          strike: `${strikes}/${POLL_STRIKE_LIMIT}`,
         });
+        if (strikes >= POLL_STRIKE_LIMIT) {
+          benchedIndices.add(i);
+          logger.warn({
+            msg: 'runpod.race_endpoint_benched',
+            endpoint: accepted[i].base,
+            reason: 'poll_strike_limit',
+          });
+        }
         continue;
       }
+      // Successful poll resets the strike counter for this endpoint.
+      if (strikeCounts.has(i)) strikeCounts.delete(i);
       const v = p.value;
       if (!v) continue;
       const status = v.chunk.status;
       if (status === 'FAILED' || status === 'CANCELLED' || status === 'TIMED_OUT') {
-        failedIndices.add(i);
+        benchedIndices.add(i);
         logger.warn({
           msg: 'runpod.race_endpoint_failed',
           endpoint: v.base,
@@ -236,7 +287,7 @@ async function raceAndStream({ socket, commandId, endpoints, input }) {
       }
     }
 
-    if (failedIndices.size === accepted.length) {
+    if (benchedIndices.size === accepted.length) {
       throw new Error('runpod_all_endpoints_failed_during_race');
     }
     if (!winner) await sleep(POLL_INTERVAL_MS);

@@ -27,7 +27,7 @@ import { startExpiryJob, designStore } from './design-store.js';
 import { initSentry, captureException } from './sentry.js';
 import { attachUserFromCookie, consumeForHttpRedirect } from './commands/auth.js';
 import { seedAdmins } from './auth.js';
-import { runpodEnabled, pingRunpod } from './workers/runpod-client.js';
+import { runpodEnabled, pingRunpod, logRunpodConfig } from './workers/runpod-client.js';
 import { sendEmail } from './email.js';
 import { setFlag, listFlags } from './flags.js';
 import { invalidateAppConfigCache } from './app-config.js';
@@ -583,6 +583,7 @@ async function start() {
     logStripeConfig();
     if (webhookEnabled()) logger.info({ msg: 'stripe.webhook_enabled' });
     if (stripeEnabled()) logger.info({ msg: 'stripe.live', tax: process.env.STRIPE_TAX_ENABLED === 'true' });
+    logRunpodConfig();
     stopExpiry = startExpiryJob();
     httpServer.listen(PORT, () => {
       logger.info({ msg: 'server.listen', port: PORT, env: process.env.NODE_ENV || 'development' });
