@@ -159,6 +159,8 @@ def run_with_timeout(
 
 __all__ = [
     "run_v1",
+    "run_v1_head_only",
+    "run_v1_finalize",
     "ErrorCode",
     "PipelineError",
     "USER_MESSAGES",
@@ -179,6 +181,189 @@ _PROGRESS_STAGE4 = ("stage4_union_valve_cap", 80)
 _PROGRESS_STAGE5 = ("stage5_postprocess", 90)
 _PROGRESS_STAGE6 = ("stage6_print_repair", 96)
 _PROGRESS_DONE = ("run_v1.done", 100)
+
+
+def _apply_overrides(C, target_head_height_mm, cap_protrusion_fraction):
+    """Per-request overrides without mutating the cached Constants."""
+    overrides = {}
+    if target_head_height_mm is not None:
+        overrides["TARGET_HEAD_HEIGHT_MM"] = float(target_head_height_mm)
+    if cap_protrusion_fraction is not None:
+        cpf = float(cap_protrusion_fraction)
+        overrides["CAP_PROTRUSION_FRACTION"] = cpf
+        # JUNCTION_Z_OFFSET_MM is derived from CAP_PROTRUSION_FRACTION ×
+        # VALVE_CAP_HEIGHT_MM. Keep them in sync per-request.
+        overrides["JUNCTION_Z_OFFSET_MM"] = -cpf * C.VALVE_CAP_HEIGHT_MM
+    if overrides:
+        from dataclasses import replace as _replace
+        C = _replace(C, **overrides)
+    return C
+
+
+def run_v1_head_only(
+    head: trimesh.Trimesh,
+    *,
+    head_scale: float = 1.0,
+    head_tilt_deg: float = 0.0,
+    target_head_height_mm: Optional[float] = None,
+    progress: Optional[Callable[[str, int], None]] = None,
+) -> trimesh.Trimesh:
+    """Run stages 1, 1.5, 1.7 — produces a watertight head ready for booleans.
+
+    This is the "salvage" output. If the boolean stages downstream fail
+    (which happens regularly on iPhone selfies with awkward neck
+    geometry), the rider still walks away with their face as a printable
+    STL. The valve-stem hole / threaded cap / chamfer all come later in
+    ``run_v1_finalize``; nothing in this function touches the cap asset
+    or runs CSG against it.
+
+    No overrides for ``cap_protrusion_fraction`` here — that knob only
+    affects stage 4's union geometry, which is downstream of this call.
+    """
+    C = _get_constants()
+    C = _apply_overrides(C, target_head_height_mm, None)
+
+    def _emit(stage_label: str, pct: int) -> None:
+        if progress is not None:
+            progress(stage_label, pct)
+
+    stage_budget = _stage_timeout_s()
+    job_budget = _job_timeout_s()
+    job_started = time.perf_counter()
+
+    def _remaining() -> float:
+        return max(1.0, job_budget - (time.perf_counter() - job_started))
+
+    head = run_with_timeout(
+        "stage1_normalize", stage1_normalize,
+        head, head_scale, head_tilt_deg, C,
+        timeout_s=stage_budget, job_remaining_s=_remaining(),
+    )
+    _emit(*_PROGRESS_STAGE1)
+
+    head = run_with_timeout(
+        "stage1_5_repair", stage1_5_repair,
+        head, C,
+        timeout_s=stage_budget, job_remaining_s=_remaining(),
+    )
+    _emit(*_PROGRESS_STAGE1_5)
+
+    head = run_with_timeout(
+        "stage1_7_watertight_head", stage1_7_watertight_head,
+        head, C,
+        timeout_s=stage_budget, job_remaining_s=_remaining(),
+    )
+    _emit(*_PROGRESS_STAGE1_7)
+
+    return head
+
+
+def run_v1_finalize(
+    head_clean: trimesh.Trimesh,
+    valve_cap: trimesh.Trimesh,
+    negative_core: trimesh.Trimesh,
+    *,
+    shoulder_taper_fraction: float = 0.60,
+    target_head_height_mm: Optional[float] = None,
+    cap_protrusion_fraction: Optional[float] = None,
+    progress: Optional[Callable[[str, int], None]] = None,
+) -> trimesh.Trimesh:
+    """Run stages 2 → 6 against a head that already passed stage 1.7.
+
+    The risky half of the pipeline. ``head_clean`` MUST come from
+    ``run_v1_head_only`` — booleans against an unrepaired head fall back
+    to mesh concat and the rider gets a multi-shell mess. If any stage
+    here raises ``PipelineError``, the caller is expected to surface the
+    head-only STL it already has and report ``final_failed=true`` to the
+    UI.
+    """
+    C = _get_constants()
+    C = _apply_overrides(C, target_head_height_mm, cap_protrusion_fraction)
+
+    def _emit(stage_label: str, pct: int) -> None:
+        if progress is not None:
+            progress(stage_label, pct)
+
+    stage_budget = _stage_timeout_s()
+    job_budget = _job_timeout_s()
+    job_started = time.perf_counter()
+
+    def _remaining() -> float:
+        return max(1.0, job_budget - (time.perf_counter() - job_started))
+
+    head = head_clean
+
+    # Crop + cavity carve. Same auto-retry logic as the original run_v1.
+    def _run_crop_and_carve(taper: float):
+        c, _ = run_with_timeout(
+            "stage2_crop", stage2_crop,
+            head, C, shoulder_taper_fraction=taper,
+            timeout_s=stage_budget, job_remaining_s=_remaining(),
+        )
+        s = run_with_timeout(
+            "stage3_subtract_negative_core", stage3_subtract_negative_core,
+            c, negative_core, C,
+            timeout_s=stage_budget, job_remaining_s=_remaining(),
+        )
+        return c, s
+
+    try:
+        cropped, socketed = _run_crop_and_carve(shoulder_taper_fraction)
+    except PipelineError as exc:
+        if exc.code != ErrorCode.NECK_NOT_FOUND:
+            raise
+        relaxed_first = max(0.40, float(shoulder_taper_fraction) - 0.15)
+        if abs(relaxed_first - shoulder_taper_fraction) <= 1e-6:
+            raise
+        sys.stderr.write(
+            f"[run_v1_finalize] stage2 raised NECK_NOT_FOUND; auto-retrying "
+            f"stage2+stage3 with shoulder_taper_fraction "
+            f"{shoulder_taper_fraction:.2f} → {relaxed_first:.2f}\n"
+        )
+        cropped, socketed = _run_crop_and_carve(relaxed_first)
+    _emit(*_PROGRESS_STAGE2)
+
+    thin = float(getattr(socketed, "metadata", {}).get("sdz_thin_wall_min_mm", 0.0) or 0.0)
+    if 0.0 < thin < 5.0:
+        relaxed = max(0.40, float(shoulder_taper_fraction) - 0.15)
+        if abs(relaxed - shoulder_taper_fraction) > 1e-6:
+            sys.stderr.write(
+                f"[run_v1_finalize] thin-wall ({thin:.3f} mm) detected; auto-retrying "
+                f"stage2+stage3 with shoulder_taper_fraction "
+                f"{shoulder_taper_fraction:.2f} → {relaxed:.2f}\n"
+            )
+            try:
+                cropped, socketed = _run_crop_and_carve(relaxed)
+            except Exception as exc:  # noqa: BLE001
+                sys.stderr.write(
+                    f"[run_v1_finalize] auto-retry crashed: {type(exc).__name__}: {exc}; "
+                    f"shipping the first-attempt mesh anyway.\n"
+                )
+    _emit(*_PROGRESS_STAGE3)
+
+    final = run_with_timeout(
+        "stage4_union_valve_cap", stage4_union_valve_cap,
+        socketed, valve_cap, C,
+        timeout_s=stage_budget, job_remaining_s=_remaining(),
+    )
+    _emit(*_PROGRESS_STAGE4)
+
+    final = run_with_timeout(
+        "stage5_postprocess", stage5_postprocess,
+        final, C,
+        timeout_s=stage_budget, job_remaining_s=_remaining(),
+    )
+    _emit(*_PROGRESS_STAGE5)
+
+    final = run_with_timeout(
+        "stage6_print_repair", stage6_print_repair,
+        final, C,
+        timeout_s=stage_budget, job_remaining_s=_remaining(),
+    )
+    _emit(*_PROGRESS_STAGE6)
+
+    _emit(*_PROGRESS_DONE)
+    return final
 
 
 def run_v1(
@@ -242,158 +427,22 @@ def run_v1(
     PipelineError
         Any stage failure — see ``errors.ErrorCode`` for the taxonomy.
     """
-    C = _get_constants()
-
-    # Apply per-request overrides without mutating the cached Constants.
-    # `dataclasses.replace` produces a new frozen instance — the loaded
-    # base stays clean for the next request. Any value the caller passes
-    # as None is left at its loaded-constant default.
-    overrides = {}
-    if target_head_height_mm is not None:
-        overrides["TARGET_HEAD_HEIGHT_MM"] = float(target_head_height_mm)
-    if cap_protrusion_fraction is not None:
-        cpf = float(cap_protrusion_fraction)
-        overrides["CAP_PROTRUSION_FRACTION"] = cpf
-        # JUNCTION_Z_OFFSET_MM is derived from CAP_PROTRUSION_FRACTION ×
-        # VALVE_CAP_HEIGHT_MM. Keep them in sync per-request.
-        overrides["JUNCTION_Z_OFFSET_MM"] = -cpf * C.VALVE_CAP_HEIGHT_MM
-    if overrides:
-        from dataclasses import replace as _replace
-        C = _replace(C, **overrides)
-
-    def _emit(stage_label: str, pct: int) -> None:
-        if progress is not None:
-            progress(stage_label, pct)
-
-    # P0-017 — bound each stage and the total run by wall-clock budgets.
-    # Per-stage budget is `STAGE_TIMEOUT_S` (default 60); total is
-    # `JOB_TIMEOUT_S` (default 300) measured from the start of run_v1
-    # (post-cold-start; TRELLIS itself runs separately upstream).
-    stage_budget = _stage_timeout_s()
-    job_budget = _job_timeout_s()
-    job_started = time.perf_counter()
-
-    def _remaining() -> float:
-        return max(1.0, job_budget - (time.perf_counter() - job_started))
-
-    head = run_with_timeout(
-        "stage1_normalize", stage1_normalize,
-        head, head_scale, head_tilt_deg, C,
-        timeout_s=stage_budget, job_remaining_s=_remaining(),
+    # Back-compat wrapper: now just chains the two split phases.
+    # New callers (handler.py v0.1.42+) should call run_v1_head_only +
+    # run_v1_finalize directly so they can ship the head STL even if
+    # finalize raises. This wrapper preserves the all-or-nothing
+    # semantics of the original API for any external caller still on it.
+    head_clean = run_v1_head_only(
+        head,
+        head_scale=head_scale,
+        head_tilt_deg=head_tilt_deg,
+        target_head_height_mm=target_head_height_mm,
+        progress=progress,
     )
-    _emit(*_PROGRESS_STAGE1)
-
-    head = run_with_timeout(
-        "stage1_5_repair", stage1_5_repair,
-        head, C,
-        timeout_s=stage_budget, job_remaining_s=_remaining(),
+    return run_v1_finalize(
+        head_clean, valve_cap, negative_core,
+        shoulder_taper_fraction=shoulder_taper_fraction,
+        target_head_height_mm=target_head_height_mm,
+        cap_protrusion_fraction=cap_protrusion_fraction,
+        progress=progress,
     )
-    _emit(*_PROGRESS_STAGE1_5)
-
-    # Stage 1.7 — make the head genuinely watertight before stages 2-4.
-    # Per owner: fix the head first, then run booleans against the
-    # known-good cap asset. Without this, the manifold3d CSG union in
-    # stage 4 routinely falls back to mesh concatenation, leaving us
-    # with a multi-shell output that stage 6 has to patchwork around
-    # without touching the cap's threading.
-    head = run_with_timeout(
-        "stage1_7_watertight_head", stage1_7_watertight_head,
-        head, C,
-        timeout_s=stage_budget, job_remaining_s=_remaining(),
-    )
-    _emit(*_PROGRESS_STAGE1_7)
-
-    # Crop + cavity carve. Stage 3 no longer raises on thin walls
-    # (see stages.py warn-and-continue change); instead it tags the
-    # mesh with `metadata["sdz_thin_wall_min_mm"]` when the cavity
-    # carve left a wall under the 5 mm printable floor. iPhone-
-    # selfie inputs hit this path more than studio shots — the head
-    # silhouette is narrower so the cavity shaves into thinner
-    # material. We auto-retry stage 2 + stage 3 ONCE with a relaxed
-    # shoulder_taper_fraction (less aggressive crop = more wall),
-    # which clears the floor on most marginal cases without making
-    # the user adjust sliders by hand.
-    def _run_crop_and_carve(taper: float):
-        c, _ = run_with_timeout(
-            "stage2_crop", stage2_crop,
-            head, C, shoulder_taper_fraction=taper,
-            timeout_s=stage_budget, job_remaining_s=_remaining(),
-        )
-        s = run_with_timeout(
-            "stage3_subtract_negative_core", stage3_subtract_negative_core,
-            c, negative_core, C,
-            timeout_s=stage_budget, job_remaining_s=_remaining(),
-        )
-        return c, s
-
-    # Stage 2 can also raise NECK_NOT_FOUND directly (when the boolean
-    # plane-cut produces an empty mesh on a heavily non-watertight head).
-    # Same auto-retry idea as the thin-wall path: relax the taper and
-    # try again ONCE before giving up.
-    try:
-        cropped, socketed = _run_crop_and_carve(shoulder_taper_fraction)
-    except PipelineError as exc:
-        if exc.code != ErrorCode.NECK_NOT_FOUND:
-            raise
-        relaxed_first = max(0.40, float(shoulder_taper_fraction) - 0.15)
-        if abs(relaxed_first - shoulder_taper_fraction) <= 1e-6:
-            raise
-        sys.stderr.write(
-            f"[run_v1] stage2 raised NECK_NOT_FOUND; auto-retrying "
-            f"stage2+stage3 with shoulder_taper_fraction "
-            f"{shoulder_taper_fraction:.2f} → {relaxed_first:.2f}\n"
-        )
-        cropped, socketed = _run_crop_and_carve(relaxed_first)
-    _emit(*_PROGRESS_STAGE2)
-
-    thin = float(getattr(socketed, "metadata", {}).get("sdz_thin_wall_min_mm", 0.0) or 0.0)
-    if 0.0 < thin < 5.0:
-        # Loosen the crop by 0.15 (clamped to the schema floor of 0.40)
-        # and re-run. One retry is the budget — if the second attempt
-        # is still thin, ship it; the slicer handles a sub-5 mm wall
-        # at FDM/PLA's 1.2 mm minimum without complaint.
-        relaxed = max(0.40, float(shoulder_taper_fraction) - 0.15)
-        if abs(relaxed - shoulder_taper_fraction) > 1e-6:
-            sys.stderr.write(
-                f"[run_v1] thin-wall ({thin:.3f} mm) detected; auto-retrying "
-                f"stage2+stage3 with shoulder_taper_fraction "
-                f"{shoulder_taper_fraction:.2f} → {relaxed:.2f}\n"
-            )
-            try:
-                cropped, socketed = _run_crop_and_carve(relaxed)
-            except Exception as exc:  # noqa: BLE001
-                # Retry crashed (e.g. CDT triangulator hates the new
-                # crop) — keep the original socketed mesh and ship.
-                sys.stderr.write(
-                    f"[run_v1] auto-retry crashed: {type(exc).__name__}: {exc}; "
-                    f"shipping the first-attempt mesh anyway.\n"
-                )
-    _emit(*_PROGRESS_STAGE3)
-
-    final = run_with_timeout(
-        "stage4_union_valve_cap", stage4_union_valve_cap,
-        socketed, valve_cap, C,
-        timeout_s=stage_budget, job_remaining_s=_remaining(),
-    )
-    _emit(*_PROGRESS_STAGE4)
-
-    final = run_with_timeout(
-        "stage5_postprocess", stage5_postprocess,
-        final, C,
-        timeout_s=stage_budget, job_remaining_s=_remaining(),
-    )
-    _emit(*_PROGRESS_STAGE5)
-
-    # Stage 6 — print-repair pass (PyMeshFix). Guarantees a watertight
-    # 2-manifold mesh suitable for slicer input. Without this, holes
-    # introduced by stage-4 concat fallbacks + stage-5 decimation slip
-    # through to the user as preview holes / failed prints.
-    final = run_with_timeout(
-        "stage6_print_repair", stage6_print_repair,
-        final, C,
-        timeout_s=stage_budget, job_remaining_s=_remaining(),
-    )
-    _emit(*_PROGRESS_STAGE6)
-
-    _emit(*_PROGRESS_DONE)
-    return final

@@ -107,6 +107,54 @@ const PayloadSchema = z.object({
   settings: SettingsSchema.optional(),
 });
 
+// Resolve a download request to the right STL bytes for the requested
+// kind. Three cases:
+//   • kind='head'  → cached.headStl, or 404 if NULL (legacy designs
+//     have no head-only STL — they were generated before v0.1.42).
+//   • kind='final' on a successful design → cached.stl
+//     (the legacy `stl_bytes` column holds the final mesh).
+//   • kind='final' on a final-failed design → 404 with a message
+//     pointing the user to the head-only download as the salvage.
+//
+// Filenames distinguish the two so a user with both files in their
+// Downloads folder can tell which is which.
+function _resolveDownload(cached, kind) {
+  const baseFilename = cached.filename || 'StemDomeZ.stl';
+  if (kind === 'head') {
+    if (!cached.headStl || cached.headStl.length === 0) {
+      throw new CommandError(
+        ErrorCode.DESIGN_NOT_FOUND,
+        'head_stl_not_available',
+        { hint: 'This design predates v0.1.42 — head-only STL was not captured.' },
+      );
+    }
+    return {
+      filename: baseFilename.replace(/\.stl$/i, '_HeadOnly.stl'),
+      stl_b64: cached.headStl.toString('base64'),
+      kind: 'head',
+    };
+  }
+  // kind === 'final'
+  if (cached.finalFailed) {
+    throw new CommandError(
+      ErrorCode.DESIGN_NOT_FOUND,
+      'final_stl_not_available',
+      {
+        hint: 'The boolean step failed for this design. Download the head-only STL instead (kind: "head").',
+        finalError: cached.finalError || null,
+      },
+    );
+  }
+  if (!cached.stl || cached.stl.length === 0) {
+    throw new CommandError(ErrorCode.DESIGN_NOT_FOUND, 'final_stl_not_available');
+  }
+  return {
+    filename: baseFilename,
+    stl_b64: cached.stl.toString('base64'),
+    kind: 'final',
+  };
+}
+
 // Command: stl.generate
 //
 // Request payload:
@@ -187,12 +235,26 @@ export const stlCommands = {
       // persists the upload as the user sent it.
       await fs.writeFile(imagePath, gpuImageBuf);
 
-      let stlBytes;
+      // v0.1.42 dual-output. RunPod returns
+      //   { head: Buffer|null, final: Buffer|null,
+      //     finalFailed: boolean, finalError: string|null,
+      //     finalErrorMessage: string|null }
+      // Local worker still returns a single buffer (the merged final).
+      let headBytes = null;
+      let finalBytes = null;
+      let finalFailed = false;
+      let finalError = null;
+      let finalErrorMessage = null;
       let backend;
       if (runpodEnabled()) {
         backend = 'runpod';
         logger.info({ msg: 'stl.backend', backend });
-        stlBytes = await runRunpod({ socket, commandId: id, imageBuf: gpuImageBuf, settings });
+        const runpodResult = await runRunpod({ socket, commandId: id, imageBuf: gpuImageBuf, settings });
+        headBytes  = runpodResult.head  || null;
+        finalBytes = runpodResult.final || null;
+        finalFailed       = !!runpodResult.finalFailed;
+        finalError        = runpodResult.finalError        || null;
+        finalErrorMessage = runpodResult.finalErrorMessage || null;
       } else {
         backend = 'local_spawn';
         logger.info({ msg: 'stl.backend', backend, trellis_enabled: TRELLIS_ENABLED });
@@ -209,7 +271,19 @@ export const stlCommands = {
             seed: Number(settings.seed) || 1,
           },
         });
-        stlBytes = await fs.readFile(outputPath);
+        finalBytes = await fs.readFile(outputPath);
+      }
+
+      // The "primary" STL for back-compat callers (stl_bytes column,
+      // stl_b64 in the response, the legacy stl.download path) is the
+      // FINAL when present, otherwise the head. This way:
+      //   • Successful job: primary = final (unchanged behavior)
+      //   • Boolean failure: primary = head, finalFailed flag set
+      //   • Pure crash: nothing reaches here (runRunpod throws)
+      const primaryBytes = finalBytes || headBytes;
+      if (!primaryBytes) {
+        // Defensive — runpod-client should have already thrown.
+        throw new CommandError(ErrorCode.WORKER_ERROR, 'no_stl_returned');
       }
 
       const filename = 'StemDomeZ_ValveStem.stl';
@@ -233,15 +307,18 @@ export const stlCommands = {
         }
       }
 
-      // Migration 006 — persist pipeline telemetry for the admin
-      // TRELLIS-health dashboard. Triangles is computed locally from
-      // the binary STL header; watertight + stage3Retried come back
-      // from the worker once handler.py is bumped to emit them
-      // (today they're null, which the dashboard renders as "—").
-      const triangleCount = countTriangles(stlBytes);
+      // Persist both STLs. `stl` keeps holding the legacy "primary"
+      // (final or head fallback) so existing /download code paths
+      // continue to work unmodified. `headStl` is the new explicit
+      // head-only column. `finalFailed` lets the UI greycap the Full
+      // STL download and render the apology.
+      const triangleCount = countTriangles(primaryBytes);
       await designStore.save({
         id: designId,
-        stl: stlBytes,
+        stl: primaryBytes,
+        headStl: headBytes,
+        finalFailed,
+        finalError,
         filename,
         settings,
         photoName: imageName,
@@ -253,16 +330,30 @@ export const stlCommands = {
         pipelineWarnings: [],
       });
 
-      logger.info({ msg: 'stl.generated', designId, bytes: stlBytes.length, backend, accountId });
+      logger.info({
+        msg: 'stl.generated',
+        designId,
+        head_bytes: headBytes?.length || 0,
+        final_bytes: finalBytes?.length || 0,
+        final_failed: finalFailed,
+        final_error: finalError,
+        backend,
+        accountId,
+      });
       return {
         designId,
         filename,
-        triangles: countTriangles(stlBytes),
-        bytes: stlBytes.length,
-        // Base64 of the raw STL so the client can render the real mesh in
-        // the 3D viewer immediately, without waiting for purchase. The
-        // post-payment download path still goes through stl.download.
-        stl_b64: stlBytes.toString('base64'),
+        triangles: countTriangles(primaryBytes),
+        bytes: primaryBytes.length,
+        // Legacy single-STL field — back-compat with anything still on
+        // the old shape. New clients prefer head_stl_b64 + final_stl_b64.
+        stl_b64: primaryBytes.toString('base64'),
+        // v0.1.42 dual-output for the new generator UI:
+        head_stl_b64:  headBytes  ? headBytes.toString('base64')  : null,
+        final_stl_b64: finalBytes ? finalBytes.toString('base64') : null,
+        final_failed: finalFailed,
+        final_error: finalError,
+        final_error_message: finalErrorMessage,
       };
     } finally {
       fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
@@ -282,17 +373,20 @@ export const stlCommands = {
     const Schema = z.object({
       designId: z.string().uuid(),
       sessionId: z.string().optional(),
+      // v0.1.42 dual-output: 'final' (default, head+cap) or 'head'
+      // (head-only). Legacy clients omit this and get final.
+      kind: z.enum(['head', 'final']).optional(),
     });
     const parsed = Schema.safeParse(payload || {});
     if (!parsed.success) {
       throw new CommandError(ErrorCode.INVALID_PAYLOAD, 'invalid_download_payload', parsed.error.issues);
     }
-    const { designId, sessionId = null } = parsed.data;
+    const { designId, sessionId = null, kind = 'final' } = parsed.data;
 
     if (!hasDb()) {
       const cached = await designStore.get(designId);
       if (!cached) throw new CommandError(ErrorCode.DESIGN_NOT_FOUND, 'design_not_found');
-      return { filename: cached.filename, stl_b64: cached.stl.toString('base64') };
+      return _resolveDownload(cached, kind);
     }
 
     const user = maybeUser({ socket });
@@ -312,24 +406,31 @@ export const stlCommands = {
 
     const cached = await designStore.get(designId);
     if (!cached) throw new CommandError(ErrorCode.DESIGN_EXPIRED, 'design_expired');
-    return { filename: cached.filename, stl_b64: cached.stl.toString('base64') };
+    return _resolveDownload(cached, kind);
   },
 
   // MVP launch — free STL download for logged-in users when the
   // payments_enabled flag is OFF. Refuses unless (a) the admin has
   // disabled payments, (b) the caller is logged in, and (c) the design
   // belongs to that account.
+  //
+  // v0.1.42: optional `kind` param ('head' | 'final', default 'final').
+  // The single $2-unlocks-both pricing model means BOTH STLs are free
+  // when payments are off — no per-kind gating here.
   'stl.downloadFree': async ({ socket, payload }) => {
     if (await paymentsEnabled()) {
       throw new CommandError(ErrorCode.PAYMENT_REQUIRED, 'payments_enabled');
     }
     const user = requireAuth({ socket });
-    const Schema = z.object({ designId: z.string().uuid() });
+    const Schema = z.object({
+      designId: z.string().uuid(),
+      kind: z.enum(['head', 'final']).optional(),
+    });
     const parsed = Schema.safeParse(payload || {});
     if (!parsed.success) {
       throw new CommandError(ErrorCode.INVALID_PAYLOAD, 'invalid_download_payload', parsed.error.issues);
     }
-    const { designId } = parsed.data;
+    const { designId, kind = 'final' } = parsed.data;
     const cached = await designStore.get(designId);
     if (!cached) throw new CommandError(ErrorCode.DESIGN_NOT_FOUND, 'design_not_found');
     // node-postgres returns BIGINT as a string; user.id is cast to
@@ -338,27 +439,34 @@ export const stlCommands = {
     if (cached.accountId != null && Number(cached.accountId) !== Number(user.id)) {
       throw new CommandError(ErrorCode.AUTH_REQUIRED, 'design_belongs_to_other_user');
     }
-    return { filename: cached.filename, stl_b64: cached.stl.toString('base64') };
+    return _resolveDownload(cached, kind);
   },
 
   // P3-011 — single-tap rating per design.
+  // v0.1.42: optional `stage` ('head' | 'final', default 'final')
+  // lets riders rate the head-only and head+cap STLs independently.
+  // Stored against (design_id, account_id, stage) so a rider can
+  // overwrite either rating without touching the other.
   'designs.rate': async ({ socket, payload }) => {
     const Schema = z.object({
       designId: z.string().uuid(),
       rating: z.enum(['up', 'meh', 'down']),
       reason: z.string().max(500).optional(),
+      stage: z.enum(['head', 'final']).optional(),
     });
     const parsed = Schema.safeParse(payload);
     if (!parsed.success) throw new CommandError(ErrorCode.INVALID_PAYLOAD, 'invalid', parsed.error.issues);
     const user = maybeUser({ socket });
     if (!hasDb()) return { ok: true };
+    const stage = parsed.data.stage || 'final';
     await db.query(
-      `INSERT INTO design_feedback (design_id, account_id, rating, reason)
-       VALUES ($1, $2, $3, $4)
-       ON CONFLICT (design_id, account_id) DO UPDATE SET rating = EXCLUDED.rating, reason = EXCLUDED.reason`,
-      [parsed.data.designId, user?.id || null, parsed.data.rating, parsed.data.reason || null]
+      `INSERT INTO design_feedback (design_id, account_id, rating, reason, stage)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (design_id, account_id, stage)
+       DO UPDATE SET rating = EXCLUDED.rating, reason = EXCLUDED.reason`,
+      [parsed.data.designId, user?.id || null, parsed.data.rating, parsed.data.reason || null, stage]
     );
-    return { ok: true };
+    return { ok: true, stage };
   },
 };
 

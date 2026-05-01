@@ -469,22 +469,62 @@ export function AccountPage({ socket }) {
               )
             ),
             el(
-              'div.flex.gap-2',
-              // Show download button for paid designs OR when payments
-              // are disabled (free MVP mode — every design owned by the
-              // logged-in user is downloadable via stl.downloadFree).
-              (d.paid || paymentsOff)
+              'div.flex.gap-2.flex-wrap',
+              // v0.1.42 dual-output: separate download buttons for the
+              // head-only STL and the head+cap final. Both show when
+              // the design has either (a) been paid for, or (b) the
+              // free-MVP flag is on. Each button greys out when its
+              // corresponding STL is unavailable:
+              //   • "Head" greys out for legacy designs (has_head_stl
+              //     === false) — those came from pre-v0.1.42 jobs.
+              //   • "Full" greys out when final_failed === true —
+              //     boolean step couldn't seat the cap.
+              ((d.paid || paymentsOff) && d.has_head_stl !== false)
                 ? el(
                     'button',
                     {
                       class: 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-colors',
-                      style: { borderColor: '#D7CFB6', color: '#3D2F4A', fontSize: '0.75rem' },
-                      onClick: () => downloadStl(d),
+                      style: { borderColor: '#5A1FCE', color: '#5A1FCE', fontSize: '0.75rem', fontWeight: 700 },
+                      onClick: () => downloadStl(d, 'head'),
+                      title: 'Stage 1.7 watertight head — ready to print on its own',
                     },
                     icon('download', { size: 14 }),
-                    'STL'
+                    'Head'
                   )
-                : null,
+                : (d.paid || paymentsOff)
+                  ? el(
+                      'span',
+                      {
+                        class: 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg border',
+                        style: { borderColor: '#D7CFB6', color: '#9A8E7A', fontSize: '0.7rem', fontStyle: 'italic' },
+                        title: 'Head-only STL not available for this scan (pre-v0.1.42).',
+                      },
+                      'Head —'
+                    )
+                  : null,
+              ((d.paid || paymentsOff) && !d.final_failed)
+                ? el(
+                    'button',
+                    {
+                      class: 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-colors',
+                      style: { borderColor: '#0E0A12', background: '#0E0A12', color: '#FFFFFF', fontSize: '0.75rem', fontWeight: 700 },
+                      onClick: () => downloadStl(d, 'final'),
+                      title: 'Final mesh: head + valve cap',
+                    },
+                    icon('download', { size: 14 }),
+                    'Full'
+                  )
+                : (d.paid || paymentsOff)
+                  ? el(
+                      'span',
+                      {
+                        class: 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg border',
+                        style: { borderColor: '#FF2EAB', color: '#FF2EAB', fontSize: '0.7rem', fontStyle: 'italic' },
+                        title: `Boolean step failed${d.final_error ? ` (${d.final_error})` : ''} — head STL is still printable.`,
+                      },
+                      'Full ✗'
+                    )
+                  : null,
               el(
                 'button',
                 {
@@ -876,13 +916,16 @@ export function AccountPage({ socket }) {
     window.location.href = '/';
   }
 
-  async function downloadStl(design) {
+  async function downloadStl(design, kind = 'final') {
     // In free-MVP mode the design has no purchase row, so the
     // payment-gated stl.download command would 402. Use the
     // login-gated stl.downloadFree command instead.
+    // v0.1.42: kind = 'head' | 'final'. The server filename includes
+    // the discriminator so users with both files in their Downloads
+    // folder can tell which is which.
     const command = paymentsOff ? 'stl.downloadFree' : 'stl.download';
     try {
-      const res = await socket.request(command, { designId: design.id });
+      const res = await socket.request(command, { designId: design.id, kind });
       const bytes = atob(res.stl_b64);
       const buf = new Uint8Array(bytes.length);
       for (let i = 0; i < bytes.length; i++) buf[i] = bytes.charCodeAt(i);
@@ -890,13 +933,23 @@ export function AccountPage({ socket }) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = res.filename || 'StemDomeZ_ValveStem.stl';
+      a.download = res.filename || (kind === 'head' ? 'StemDomeZ_HeadOnly.stl' : 'StemDomeZ_ValveStem.stl');
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
       if (err.message === 'auth_required') {
         window.alert("Please sign in to download — it's free for the MVP launch.");
         window.location.assign(`/login?next=${encodeURIComponent('/account')}`);
+        return;
+      }
+      // Friendlier error for the two specific not-available cases the
+      // server can return.
+      if (err.message === 'head_stl_not_available') {
+        window.alert('Head-only STL is not available for this scan (it predates v0.1.42). Try generating again to get the new dual output.');
+        return;
+      }
+      if (err.message === 'final_stl_not_available') {
+        window.alert('The full STL failed during boolean booleans for this scan. Use the "Head" download instead — it\'s still printable on its own.');
         return;
       }
       window.alert(err.message || 'Download failed');

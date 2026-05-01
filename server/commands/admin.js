@@ -561,4 +561,61 @@ export const adminCommands = {
       ping,
     };
   },
+
+  // v0.1.42 — per-stage user feedback aggregator. Powers the /admin
+  // Feedback tab. Returns per-stage rating distributions plus the
+  // most-recent N feedback rows joined to design metadata so the
+  // operator can spot quality issues without manually combing the DB.
+  //
+  // Two queries:
+  //   1. Aggregate counts grouped by (stage, rating).
+  //   2. Recent feedback rows with design + account context, capped
+  //      at 100 to keep payload sane.
+  //
+  // The "down" rate per stage is the headline number — that's the one
+  // operators look at to decide whether the boolean phase is failing
+  // more than usual.
+  'admin.metrics.feedback': async ({ socket, payload }) => {
+    requireAdmin({ socket });
+    const Schema = z.object({
+      range: z.enum(['7d', '30d', '90d', 'all']).default('30d'),
+      limit: z.number().int().min(1).max(200).default(50),
+    });
+    const { range, limit } = Schema.parse(payload || {});
+    if (!hasDb()) {
+      return { aggregates: [], recent: [], range, limit };
+    }
+    const rangeClause = range === 'all'
+      ? ''
+      : `AND df.created_at >= NOW() - INTERVAL '${range === '7d' ? '7 days' : range === '90d' ? '90 days' : '30 days'}'`;
+    const aggSql = `
+      SELECT df.stage, df.rating, COUNT(*)::int AS n
+        FROM design_feedback df
+       WHERE 1=1 ${rangeClause}
+       GROUP BY df.stage, df.rating
+       ORDER BY df.stage, df.rating
+    `;
+    const recentSql = `
+      SELECT df.id, df.design_id, df.stage, df.rating, df.reason,
+             df.created_at,
+             gd.photo_name, gd.filename, gd.final_failed, gd.final_error,
+             a.email AS account_email, a.username AS account_username
+        FROM design_feedback df
+        LEFT JOIN generated_designs gd ON gd.id = df.design_id
+        LEFT JOIN accounts a ON a.id = df.account_id
+       WHERE 1=1 ${rangeClause}
+       ORDER BY df.created_at DESC
+       LIMIT $1
+    `;
+    const [aggRes, recentRes] = await Promise.all([
+      db.query(aggSql),
+      db.query(recentSql, [limit]),
+    ]);
+    return {
+      aggregates: aggRes.rows,
+      recent: recentRes.rows,
+      range,
+      limit,
+    };
+  },
 };

@@ -24,6 +24,16 @@ export const designStore = {
   async save({
     id, stl, filename, settings = {}, photoName = null, accountId = null,
     photoId = null,
+    // v0.1.42 dual-output. `headStl` is the stage-1.7 mesh — always
+    // populated when the job succeeded enough to reach the head emit.
+    // `finalFailed` flips true when the boolean phase (stages 2–6)
+    // raised; in that case `stl` is a zero-byte placeholder to keep
+    // the legacy NOT NULL contract intact (the migration drops it but
+    // belt-and-braces). `finalError` is the PipelineError code for the
+    // admin failure dashboard.
+    headStl = null,
+    finalFailed = false,
+    finalError = null,
     // Migration 006 — pipeline telemetry for the admin TRELLIS health
     // dashboard. All optional; missing values land as null so existing
     // callers don't break.
@@ -32,18 +42,26 @@ export const designStore = {
   }) {
     pruneMemory();
     if (!hasDb()) {
-      MEMORY.set(id, { stl, filename, settings, photoName, accountId, photoId, at: Date.now() });
+      MEMORY.set(id, {
+        stl, headStl, filename, settings, photoName, accountId, photoId,
+        finalFailed, finalError, at: Date.now(),
+      });
       return { id };
     }
     await db.query(
       `INSERT INTO generated_designs
-         (id, account_id, photo_id, stl_bytes, filename, settings, photo_name,
+         (id, account_id, photo_id, stl_bytes, head_stl_bytes,
+          final_failed, final_error,
+          filename, settings, photo_name,
           triangles, watertight, stage3_retried, pipeline_warnings)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, COALESCE($11, '[]'::jsonb))
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, COALESCE($14, '[]'::jsonb))
        ON CONFLICT (id) DO UPDATE SET
          account_id        = COALESCE(EXCLUDED.account_id, generated_designs.account_id),
          photo_id          = COALESCE(EXCLUDED.photo_id, generated_designs.photo_id),
          stl_bytes         = EXCLUDED.stl_bytes,
+         head_stl_bytes    = COALESCE(EXCLUDED.head_stl_bytes, generated_designs.head_stl_bytes),
+         final_failed      = EXCLUDED.final_failed,
+         final_error       = EXCLUDED.final_error,
          filename          = EXCLUDED.filename,
          settings          = EXCLUDED.settings,
          photo_name        = EXCLUDED.photo_name,
@@ -52,7 +70,9 @@ export const designStore = {
          stage3_retried    = COALESCE(EXCLUDED.stage3_retried, generated_designs.stage3_retried),
          pipeline_warnings = EXCLUDED.pipeline_warnings`,
       [
-        id, accountId, photoId, stl, filename, settings, photoName,
+        id, accountId, photoId, stl, headStl,
+        finalFailed, finalError,
+        filename, settings, photoName,
         triangles, watertight, stage3Retried,
         pipelineWarnings ? JSON.stringify(pipelineWarnings) : null,
       ]
@@ -67,7 +87,9 @@ export const designStore = {
     }
     const { rows } = await db.query(
       `SELECT id, account_id AS "accountId", photo_id AS "photoId",
-              stl_bytes AS stl, filename, settings, photo_name AS "photoName"
+              stl_bytes AS stl, head_stl_bytes AS "headStl",
+              final_failed AS "finalFailed", final_error AS "finalError",
+              filename, settings, photo_name AS "photoName"
          FROM generated_designs
         WHERE id = $1 AND expires_at > NOW()
         LIMIT 1`,

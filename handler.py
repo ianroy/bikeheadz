@@ -4,24 +4,36 @@ RunPod Serverless handler for StemDomeZ.
 Contract: one serverless invocation = one STL generation. The Node side
 POSTs `/v2/<endpoint>/run` with `{ "input": { image_b64, head_scale,
 neck_length_mm, head_tilt_deg, seed } }` and then polls `/stream/<id>`
-while this handler yields progress frames and finally a `result` frame
-with the base64-encoded STL inside.
+while this handler yields progress frames and finally TWO `result`
+frames — one for the head-only mesh and one for the head+cap mesh.
 
-Frame shapes (kept identical to the old local stdin/stdout worker so the
-Node side can't tell them apart — that decoupling is load-bearing):
+v0.1.42 dual-output protocol — frame shapes:
 
     {"type": "progress",     "step": "…", "pct": 30}
-    {"type": "result_chunk", "index": 0, "total": 5, "data": "…"}
-    {"type": "result",       "triangles": 12345, "chunks": 5}
-    {"type": "error",        "error": "…"}
+    {"type": "result_chunk", "kind": "head"|"final", "index": 0, "total": 5, "data": "…"}
+    {"type": "result",       "kind": "head",  "triangles": 12345, "chunks": 5, "stl_bytes_len": 1234567}
+    {"type": "result",       "kind": "final", "triangles": 67890, "chunks": 7, "stl_bytes_len": 2345678,
+                              "final_failed": false}
+    {"type": "result",       "kind": "final", "final_failed": true, "final_error": "NECK_NOT_FOUND",
+                              "final_error_message": "…"}      # if the boolean phase failed
+    {"type": "error",        "error": "…"}                     # only fires if the head phase fails too
+
+Why two STLs: the head-only mesh comes out of stage 1.7 (watertight
+repair, pre-boolean). It's the rider's face, ready for printing on its
+own. The "final" mesh is head + threaded cap, produced by the boolean
+phase (stages 2–6) which fails ~30%+ of the time on awkward
+selfie geometry. Shipping the head separately means a failed boolean
+no longer means a wasted GPU run — the rider still gets their face.
 
 About the chunked-yield protocol: RunPod's per-frame ceiling is ~1 MB,
 the STL is routinely 2–5 MB after the pipeline is done with it, math
 does not negotiate. We slice the base64 into ~700 KB chunks and let the
-Node side reassemble in order. We did try the inlined `stl_b64` (broke),
-the via-/status path (worse, the SDK silently dropped it), and three
-other things you do not want to know about. The chunked path is the
-one that actually works in production.
+Node side reassemble in order. The Node side keys chunk buffers on
+``kind`` so head frames and final frames can interleave without crossing
+streams. We did try the inlined `stl_b64` (broke), the via-/status path
+(worse, the SDK silently dropped it), and three other things you do
+not want to know about. The chunked path is the one that actually
+works in production.
 
 TRELLIS pipeline + the valve-cap mesh are loaded once at module import
 and re-used across warm invocations. HuggingFace caches to
@@ -107,7 +119,7 @@ os.environ.setdefault("SPARSE_ATTN_BACKEND", "xformers")
 # Version banner — prints unconditionally at module load so the worker
 # logs always confess which image tag is actually running. Trust this
 # more than you trust the RunPod dashboard.
-HANDLER_VERSION = "v0.1.41"
+HANDLER_VERSION = "v0.1.42"
 sys.stderr.write(f"[stemdomez] handler.py {HANDLER_VERSION} booting (pid={os.getpid()})\n")
 sys.stderr.flush()
 
@@ -649,56 +661,202 @@ def handler(job):
             timings["trellis_cache_hit"] = False
         timings["raw_head_tris"] = int(len(head.faces))
 
+        # ── v0.1.42 dual-output ──────────────────────────────────────
+        # Helper: chunk a Buffer of base64 over ~700 KB frames, tagged
+        # with the supplied `kind`. Pulled out so head + final share
+        # exactly the same wire treatment.
+        CHUNK_SIZE = 700_000  # bytes of base64 per frame (well under RunPod's 1 MB cap)
+
+        def _emit_stl_frames(mesh, *, kind: str, extra: dict | None = None):
+            """Export `mesh` to binary STL, chunk it, yield frames.
+
+            Returns (stl_bytes_len, triangle_count) so the caller can
+            stash them in the telemetry log. The chunked-yield protocol
+            history is documented in the module docstring above.
+            """
+            stl_b = mesh.export(file_type="stl")
+            stl_b64_str = base64.b64encode(stl_b).decode("ascii")
+            total = (len(stl_b64_str) + CHUNK_SIZE - 1) // CHUNK_SIZE
+            for idx in range(total):
+                chunk = stl_b64_str[idx * CHUNK_SIZE : (idx + 1) * CHUNK_SIZE]
+                yield {
+                    "type": "result_chunk",
+                    "kind": kind,
+                    "index": idx,
+                    "total": total,
+                    "data": chunk,
+                }
+            result_frame = {
+                "type": "result",
+                "kind": kind,
+                "triangles": int(len(mesh.faces)),
+                "pipeline_version": pipeline_version,
+                "chunks": total,
+                "stl_bytes_len": len(stl_b),
+            }
+            if extra:
+                result_frame.update(extra)
+            yield result_frame
+            return len(stl_b), int(len(mesh.faces))
+
         # Branch on pipeline_version.
         if pipeline_version == "v1":
             yield {"type": "progress", "step": "Running v1 mesh pipeline…", "pct": 78}
             try:
-                from pipeline import run_v1, PipelineError
+                from pipeline import (
+                    run_v1_head_only, run_v1_finalize,
+                    PipelineError, USER_MESSAGES,
+                )
             except ImportError as e:
                 sys.stderr.write(f"[stemdomez] v1 pipeline not importable: {e}\n")
                 _write_failure(job_id, image_b64, code="v1_pipeline_unavailable",
                               stage="import", message=str(e))
                 yield {"type": "error", "error": f"v1_pipeline_unavailable: {e}"}
                 return
+
+            # Phase A — head-only (stages 1, 1.5, 1.7). MUST succeed.
+            # If this raises, we have nothing to ship and the job
+            # genuinely failed.
             try:
                 t = _time.perf_counter()
-                merged = run_v1(
+                head_clean = run_v1_head_only(
                     head,
-                    _VALVE_CAP,
-                    _load_negative_core(),
                     head_scale=head_scale,
                     head_tilt_deg=head_tilt_deg,
-                    shoulder_taper_fraction=shoulder_taper_fraction,
                     target_head_height_mm=target_head_height_mm,
-                    cap_protrusion_fraction=cap_protrusion_fraction,
-                    progress=None,  # TODO(Phase 4): thread progress frames out via a queue
+                    progress=None,
                 )
-                timings["v1_pipeline_ms"] = int((_time.perf_counter() - t) * 1000)
+                timings["head_phase_ms"] = int((_time.perf_counter() - t) * 1000)
             except PipelineError as e:
-                # Surface the error with the user-facing copy and the
-                # stable code so the Node side can branch on it. Also
-                # write the input to the failure corpus for offline
-                # triage (§9.5).
                 sys.stderr.write(traceback.format_exc())
                 _write_failure(
                     job_id, image_b64,
                     code=e.code.value, stage=e.stage,
                     message=e.detail or str(e),
-                    extra={"timings": timings},
+                    extra={"timings": timings, "phase": "head"},
                 )
                 yield e.to_frame()
                 return
+
+            yield {"type": "progress", "step": "Exporting head STL…", "pct": 84}
+            head_bytes_len = 0
+            head_tris = 0
+            for frame in _emit_stl_frames(head_clean, kind="head"):
+                if frame.get("type") == "result":
+                    head_bytes_len = frame.get("stl_bytes_len", 0)
+                    head_tris = frame.get("triangles", 0)
+                yield frame
+            timings["head_stl_bytes"] = head_bytes_len
+            timings["head_tris"] = head_tris
+
+            # Phase B — finalize (stages 2 → 6). Allowed to fail. If it
+            # does, the rider still has the head STL above. Surface a
+            # final-result frame with `final_failed: true` so the Node
+            # side can persist the partial outcome and the UI can show
+            # the apology instead of a crash banner.
+            yield {"type": "progress", "step": "Booleans + cap…", "pct": 88}
+            try:
+                t = _time.perf_counter()
+                merged = run_v1_finalize(
+                    head_clean, _VALVE_CAP, _load_negative_core(),
+                    shoulder_taper_fraction=shoulder_taper_fraction,
+                    target_head_height_mm=target_head_height_mm,
+                    cap_protrusion_fraction=cap_protrusion_fraction,
+                    progress=None,
+                )
+                timings["finalize_phase_ms"] = int((_time.perf_counter() - t) * 1000)
+            except PipelineError as e:
+                # Don't `return` — the head was already shipped. Just
+                # ship a final-result frame with the failure marker and
+                # let the run end naturally.
+                sys.stderr.write(traceback.format_exc())
+                _write_failure(
+                    job_id, image_b64,
+                    code=e.code.value, stage=e.stage,
+                    message=e.detail or str(e),
+                    extra={"timings": timings, "phase": "finalize"},
+                )
+                user_msg = USER_MESSAGES.get(e.code, str(e)) if hasattr(USER_MESSAGES, "get") else str(e)
+                _emit_telemetry({
+                    "kind": "stl.generate",
+                    "outcome": "final_failed",
+                    "version": pipeline_version,
+                    "handler_version": HANDLER_VERSION,
+                    "job_id": job_id,
+                    "image_sha": image_sha,
+                    "final_error": e.code.value,
+                    "final_stage": e.stage,
+                    "timings": timings,
+                })
+                yield {
+                    "type": "result",
+                    "kind": "final",
+                    "pipeline_version": pipeline_version,
+                    "chunks": 0,
+                    "stl_bytes_len": 0,
+                    "final_failed": True,
+                    "final_error": e.code.value,
+                    "final_stage": e.stage,
+                    "final_error_message": user_msg,
+                }
+                return
+            except Exception as e:  # noqa: BLE001
+                # Non-PipelineError crash inside finalize. Same
+                # treatment — head is already shipped, mark final
+                # failed and let the run end.
+                sys.stderr.write(traceback.format_exc())
+                _write_failure(
+                    job_id, image_b64,
+                    code="finalize_internal_error", stage="finalize",
+                    message=str(e),
+                    extra={"timings": timings, "phase": "finalize"},
+                )
+                _emit_telemetry({
+                    "kind": "stl.generate",
+                    "outcome": "final_internal_error",
+                    "version": pipeline_version,
+                    "handler_version": HANDLER_VERSION,
+                    "job_id": job_id,
+                    "image_sha": image_sha,
+                    "final_error": "internal_error",
+                    "timings": timings,
+                })
+                yield {
+                    "type": "result",
+                    "kind": "final",
+                    "pipeline_version": pipeline_version,
+                    "chunks": 0,
+                    "stl_bytes_len": 0,
+                    "final_failed": True,
+                    "final_error": "internal_error",
+                    "final_stage": "finalize",
+                    "final_error_message": "Couldn't seat the valve cap. Your head is still yours — download it above.",
+                }
+                return
         else:
+            # Legacy single-output path. No head/final split — just
+            # ship the merged mesh as `kind:"final"` and let the
+            # client render it as the only panel. (Clients on v0.1.42+
+            # treat missing kind:"head" frames as "head not available
+            # for this scan" — same fallback as legacy designs in DB.)
             yield {"type": "progress", "step": "Scaling to valve dimensions…", "pct": 78}
             t = _time.perf_counter()
             merged = _merge(head, _VALVE_CAP, head_scale, neck_length_mm, head_tilt_deg)
             timings["legacy_merge_ms"] = int((_time.perf_counter() - t) * 1000)
 
-        yield {"type": "progress", "step": "Exporting STL…", "pct": 92}
+        # ── Final-success path (v1 or legacy) ────────────────────────
+        yield {"type": "progress", "step": "Exporting final STL…", "pct": 92}
         t = _time.perf_counter()
-        stl_bytes = merged.export(file_type="stl")
+        final_bytes_len = 0
+        final_tris = 0
+        for frame in _emit_stl_frames(merged, kind="final", extra={"final_failed": False}):
+            if frame.get("type") == "result":
+                final_bytes_len = frame.get("stl_bytes_len", 0)
+                final_tris = frame.get("triangles", 0)
+            yield frame
         timings["export_ms"] = int((_time.perf_counter() - t) * 1000)
-        timings["final_tris"] = int(len(merged.faces))
+        timings["final_stl_bytes"] = final_bytes_len
+        timings["final_tris"] = final_tris
         timings["total_ms"] = int((_time.perf_counter() - t_start) * 1000)
 
         # Single structured log line for the run. §9.5 telemetry schema.
@@ -718,42 +876,6 @@ def handler(job):
             },
             "timings": timings,
         })
-
-        # Chunked result delivery: each yielded frame must stay under
-        # RunPod's /job-stream per-frame size cap (~1 MB). A typical
-        # binary STL of 50–80 K triangles is ~3–5 MB raw / ~4–7 MB as
-        # base64 — well over the cap when sent inline.
-        #
-        # v0.1.31 inlined stl_b64 in a single yield → HTTP 400 from
-        # /job-stream, result silently dropped.
-        # v0.1.32 split the yield from a generator return → confirmed
-        # the worker stops 400'ing, but RunPod's serverless SDK
-        # iterates the generator with a plain for-loop and discards
-        # the StopIteration return value. /status output ends up
-        # without stl_b64.
-        # v0.1.33 (this): split the b64 into N chunks well under the
-        # cap, yield each as a `result_chunk` frame, then yield a
-        # final `result` frame with metadata + chunk count. The
-        # client assembles by index. No reliance on /status or
-        # generator return semantics.
-        stl_b64 = base64.b64encode(stl_bytes).decode("ascii")
-        CHUNK_SIZE = 700_000  # bytes of base64 per frame (well under 1 MB)
-        total_chunks = (len(stl_b64) + CHUNK_SIZE - 1) // CHUNK_SIZE
-        for idx in range(total_chunks):
-            chunk = stl_b64[idx * CHUNK_SIZE : (idx + 1) * CHUNK_SIZE]
-            yield {
-                "type": "result_chunk",
-                "index": idx,
-                "total": total_chunks,
-                "data": chunk,
-            }
-        yield {
-            "type": "result",
-            "triangles": int(len(merged.faces)),
-            "pipeline_version": pipeline_version,
-            "chunks": total_chunks,
-            "stl_bytes_len": len(stl_bytes),
-        }
     except Exception as err:  # noqa: BLE001
         sys.stderr.write(
             f"[stemdomez] CRASH {type(err).__name__}: {err}\n"

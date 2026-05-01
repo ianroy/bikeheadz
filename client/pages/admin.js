@@ -30,6 +30,8 @@ export function AdminPage({ socket }) {
     emailHealth: null,
     failures: null,
     activity: null,
+    runpod: null,    // Regions tab — populated on tab open / refresh
+    feedback: null,  // Feedback tab — populated on tab open / refresh
     loaded: false,
     isAdmin: null,
   };
@@ -133,6 +135,7 @@ export function AdminPage({ socket }) {
       ['referrers', 'Referrers'],
       ['pipeline',  'Pipeline'],
       ['regions',   'Regions'],
+      ['feedback',  'Feedback'],
       ['docs',      'Docs Hub'],
       ['costs',     'Costs'],
       ['email',     'Email'],
@@ -1201,6 +1204,124 @@ export function AdminPage({ socket }) {
   }
 
   // Docs Hub. One-stop catalogue of every artefact a maintainer or
+  // ── /admin Feedback tab (v0.1.42) ────────────────────────────────
+  // Per-stage rider feedback so the operator can spot quality regressions
+  // by stage. Two halves:
+  //   1. Stat cards + grouped bar chart (head vs final, up/meh/down)
+  //   2. Recent-feedback table (designId, stage, rating, reason,
+  //      photo, account, final_failed flag) capped at the server-side
+  //      limit so the payload stays small.
+  // The "down rate" cards are the headline numbers — that's the lever
+  // we look at when the boolean phase regresses on selfie inputs.
+  function renderFeedback() {
+    const wrap = el('div', { style: { display: 'flex', flexDirection: 'column', gap: '14px' } });
+
+    const refreshBtn = el('button', {
+      style: {
+        alignSelf: 'flex-start',
+        padding: '8px 14px',
+        background: '#5A1FCE',
+        color: '#FFFFFF',
+        border: '2px solid #0E0A12',
+        boxShadow: '3px 3px 0 #0E0A12',
+        fontFamily: 'ui-monospace, monospace',
+        fontWeight: 700,
+        fontSize: '0.85rem',
+        letterSpacing: '0.04em',
+        textTransform: 'uppercase',
+        cursor: 'pointer',
+      },
+      onClick: async () => {
+        refreshBtn.disabled = true;
+        refreshBtn.textContent = 'Refreshing…';
+        try {
+          state.feedback = await socket.request('admin.metrics.feedback', { range: '30d', limit: 100 });
+        } catch (err) { console.warn(err); }
+        renderContent();
+      },
+    }, '↻ Refresh');
+    wrap.appendChild(refreshBtn);
+
+    if (!state.feedback) {
+      wrap.appendChild(el('p', {}, 'Loading…'));
+      // Lazy-load on first view.
+      socket.request('admin.metrics.feedback', { range: '30d', limit: 100 })
+        .then((r) => { state.feedback = r; renderContent(); })
+        .catch(() => {});
+      return wrap;
+    }
+
+    const aggs = state.feedback.aggregates || [];
+    const recent = state.feedback.recent || [];
+
+    // Aggregate into a per-stage map: { head: {up,meh,down,total}, final: {...} }
+    const byStage = { head: { up: 0, meh: 0, down: 0, total: 0 }, final: { up: 0, meh: 0, down: 0, total: 0 } };
+    for (const a of aggs) {
+      if (!byStage[a.stage]) continue;
+      byStage[a.stage][a.rating] = a.n;
+      byStage[a.stage].total += a.n;
+    }
+
+    function pct(n, total) {
+      if (!total) return '—';
+      return `${((n / total) * 100).toFixed(0)}%`;
+    }
+
+    // Stat cards
+    const statRow = el('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '14px' } });
+    for (const stage of ['head', 'final']) {
+      const s = byStage[stage];
+      statRow.appendChild(statBox(
+        `${stage === 'head' ? 'Head STL' : 'Full STL'} · ratings`,
+        s.total.toLocaleString(),
+        `${pct(s.up, s.total)} 👍 · ${pct(s.meh, s.total)} 🤷 · ${pct(s.down, s.total)} 👎`,
+      ));
+    }
+    statRow.appendChild(statBox(
+      'Head down-rate',
+      pct(byStage.head.down, byStage.head.total),
+      `${byStage.head.down} of ${byStage.head.total}`,
+    ));
+    statRow.appendChild(statBox(
+      'Full down-rate',
+      pct(byStage.final.down, byStage.final.total),
+      `${byStage.final.down} of ${byStage.final.total}`,
+    ));
+    wrap.appendChild(statRow);
+
+    wrap.appendChild(el('p', {
+      style: { color: '#3D2F4A', fontStyle: 'italic', fontSize: '0.82rem' },
+    },
+      `Range: last 30 days · ${recent.length} recent rows shown. ` +
+      `Refresh to repull. Down-rate >25% on the Full STL usually means the boolean phase is regressing — check /admin → Failures for the last few PipelineError codes.`,
+    ));
+
+    // Recent table
+    wrap.appendChild(el('h3', {
+      style: { fontSize: '0.9rem', fontWeight: 800, fontStyle: 'italic', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#0E0A12', marginTop: '8px' },
+    }, 'Recent feedback'));
+
+    const rows = recent.map((r) => {
+      const when = r.created_at ? new Date(r.created_at).toLocaleString() : '—';
+      const stageLabel = r.stage === 'head' ? 'Head' : 'Full';
+      const ratingLabel = ({ up: '👍 up', meh: '🤷 meh', down: '👎 down' })[r.rating] || r.rating;
+      const designLabel = (r.photo_name || r.filename || '—').slice(0, 32);
+      const account = r.account_username || r.account_email || '(anon)';
+      const failBadge = r.final_failed
+        ? (r.final_error ? `⚠ ${r.final_error}` : '⚠ final_failed')
+        : '';
+      return [when, account, designLabel, stageLabel, ratingLabel, r.reason || '', failBadge];
+    });
+
+    wrap.appendChild(simpleTable(
+      ['When', 'Account', 'Design', 'Stage', 'Rating', 'Reason', 'Pipeline'],
+      rows,
+      { empty: 'No feedback in this range yet.' },
+    ));
+
+    return wrap;
+  }
+
   // pitch-recipient might want — diagrams, onboarding guide, VC pitch
   // deck, print-bundle PDFs. All static assets served from
   // client/public/docs/ + client/public/admin/ + client/public/press/
@@ -1832,6 +1953,7 @@ export function AdminPage({ socket }) {
     else if (t === 'referrers') content.appendChild(renderReferrers());
     else if (t === 'pipeline') content.appendChild(renderPipeline());
     else if (t === 'regions') content.appendChild(renderRegions());
+    else if (t === 'feedback') content.appendChild(renderFeedback());
     else if (t === 'docs') content.appendChild(renderDocs());
     else if (t === 'costs') content.appendChild(renderCosts());
     else if (t === 'email') content.appendChild(renderEmail());

@@ -17,7 +17,16 @@ export function GeneratorPage({ socket }) {
     processingStep: '',
     stlReady: false,
     lastError: null,
+    // v0.1.42 dual-output. The two panels render these independently.
+    // `stlData` aliases finalStlData when present, else headStlData,
+    // for any back-compat code paths still reading the old single-STL
+    // shape (chiefly the legacy CTA download button when payments
+    // come back online).
     stlData: null,
+    headStlData: null,
+    finalStlData: null,
+    finalFailed: false,
+    finalErrorMessage: null,
     headScale: 0.85,
     headTilt: 0,              // v1: pitch about X (chin up/down), -30..+30
     cropTightness: 0.60,      // v1: shoulder_taper_fraction, 0.40..0.85
@@ -29,6 +38,8 @@ export function GeneratorPage({ socket }) {
     designId: null,
     designTriangles: 0,
     checkoutPending: false,
+    // Independent download spinners per panel.
+    downloadingKind: null, // 'head' | 'final' | null
   };
 
   const root = el('div.max-w-6xl.mx-auto.px-4.py-6');
@@ -223,36 +234,96 @@ export function GeneratorPage({ socket }) {
     uploaderSlot.appendChild(box);
   }
 
-  // Viewer
-  const viewerSlot = el('div', {
-    class: 'rounded-2xl overflow-hidden border',
-    style: { background: '#FFFFFF', borderColor: '#D7CFB6' },
+  // \u2500\u2500 3D Model Preview \u2014 dual-panel layout (v0.1.42) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  // The pipeline ships TWO STLs: head-only (stage 1.7) and head+cap
+  // (stages 2-6). Booleans fail ~30%+ of the time on selfie geometry,
+  // so we always show the head as a salvage download even when the
+  // final fails. Layout:
+  //   \u2022 mobile (<768px): stacked vertically, head on top
+  //   \u2022 desktop (\u2265768px): side-by-side, head on the left
+  //
+  // Each panel is a self-contained micro-component (header + canvas +
+  // download button + apology overlay if applicable). Two viewer
+  // instances are kept in sync via pushViewer().
+  const viewerGrid = el('div', {
+    class: 'grid gap-4',
+    style: { gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' },
   });
-  center.appendChild(viewerSlot);
+  center.appendChild(viewerGrid);
 
-  const viewerHeader = el('div.flex.items-center.justify-between.px-4.py-3.border-b', {
-    style: { borderColor: '#D7CFB6' },
-  });
-  viewerSlot.appendChild(viewerHeader);
+  function buildPanel(kind) {
+    // kind: 'head' | 'final'
+    const slot = el('div', {
+      class: 'rounded-2xl overflow-hidden border flex flex-col',
+      style: { background: '#FFFFFF', borderColor: '#D7CFB6' },
+    });
+    const header = el('div.flex.items-center.justify-between.px-4.py-3.border-b', {
+      style: { borderColor: '#D7CFB6' },
+    });
+    slot.appendChild(header);
 
-  const viewerCanvas = el('div', { style: { height: '380px', position: 'relative' } });
-  viewerSlot.appendChild(viewerCanvas);
+    const canvas = el('div', { style: { height: '320px', position: 'relative', flex: '1 1 auto' } });
+    slot.appendChild(canvas);
 
-  viewerSlot.appendChild(
-    el('div.flex.items-center.gap-6.px-4.py-3.border-t', {
+    // Apology overlay (only shown for kind='final' when finalFailed).
+    const overlay = el('div', {
+      style: {
+        position: 'absolute', inset: 0, display: 'none',
+        flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        textAlign: 'center', padding: '20px',
+        background: 'rgba(245,242,229,0.92)',
+        color: '#0E0A12', fontFamily: 'ui-monospace, monospace',
+      },
+    });
+    canvas.appendChild(overlay);
+
+    // Footer: legend + download button.
+    const footer = el('div.flex.items-center.justify-between.gap-3.px-4.py-3.border-t.flex-wrap', {
       style: { borderColor: '#D7CFB6', fontSize: '0.75rem' },
-    },
-      legendSwatch('#7B2EFF', '3D Scanned Head'),
-      legendSwatch('#7C5E1F', 'Schrader Valve Stem'),
-      legendSwatch('#9CA3AF', 'Chrome Body'),
-    ),
-  );
+    });
+    slot.appendChild(footer);
 
-  function renderViewerHeader() {
-    clear(viewerHeader);
+    const downloadBtn = el('button', {
+      style: {
+        padding: '8px 14px',
+        background: '#5A1FCE', color: '#FFFFFF',
+        border: '2px solid #0E0A12', boxShadow: '3px 3px 0 #0E0A12',
+        fontFamily: 'ui-monospace, monospace', fontWeight: 700,
+        fontSize: '0.78rem', letterSpacing: '0.04em',
+        textTransform: 'uppercase', cursor: 'pointer',
+      },
+      onClick: () => downloadKind(kind),
+    });
+    footer.appendChild(downloadBtn);
+
+    const viewer = createValveStemViewer({
+      container: canvas,
+      initial: {
+        headScale: state.headScale,
+        headTilt: state.headTilt,
+        materialType: state.materialType,
+        headColor: state.headColor,
+        photoUrl: state.photoUrl,
+        processing: state.processing,
+      },
+    });
+
+    return { slot, header, canvas, overlay, footer, downloadBtn, viewer, kind };
+  }
+
+  const headPanel  = buildPanel('head');
+  const finalPanel = buildPanel('final');
+  viewerGrid.appendChild(headPanel.slot);
+  viewerGrid.appendChild(finalPanel.slot);
+
+  function renderPanelHeader(panel) {
+    clear(panel.header);
+    const isHead = panel.kind === 'head';
+    const titleText = isHead ? '1 \u00b7 Your head' : '2 \u00b7 Head + valve cap';
+    const titleColor = isHead ? '#5A1FCE' : '#0E0A12';
     const leftRow = el('div.flex.items-center.gap-2',
-      icon('layers', { size: 14, color: '#7B2EFF' }),
-      el('span', { style: { color: '#0E0A12', fontWeight: 600, fontSize: '0.88rem' } }, '3D Model Preview'),
+      icon(isHead ? 'user' : 'layers', { size: 14, color: titleColor }),
+      el('span', { style: { color: titleColor, fontWeight: 700, fontSize: '0.88rem', letterSpacing: '0.02em' } }, titleText),
     );
     if (state.processing) {
       leftRow.appendChild(el('span', {
@@ -264,16 +335,25 @@ export function GeneratorPage({ socket }) {
         }),
         'Processing',
       ));
-    }
-    if (state.stlReady) {
+    } else if (panel.kind === 'final' && state.finalFailed) {
       leftRow.appendChild(el('span', {
         class: 'flex items-center gap-1.5 px-2 py-0.5 rounded-full',
-        style: { background: 'rgba(123,46,255,0.12)', fontSize: '0.7rem', color: '#7B2EFF' },
-      }, '\u2713 STL Ready'));
+        style: { background: 'rgba(255,46,171,0.16)', fontSize: '0.7rem', color: '#FF2EAB', fontWeight: 700 },
+      }, '\u26a0 Cap failed'));
+    } else if (panel.kind === 'head' && state.headStlData) {
+      leftRow.appendChild(el('span', {
+        class: 'flex items-center gap-1.5 px-2 py-0.5 rounded-full',
+        style: { background: 'rgba(57,255,108,0.18)', fontSize: '0.7rem', color: '#0E0A12', fontWeight: 700 },
+      }, '\u2713 Ready'));
+    } else if (panel.kind === 'final' && state.finalStlData) {
+      leftRow.appendChild(el('span', {
+        class: 'flex items-center gap-1.5 px-2 py-0.5 rounded-full',
+        style: { background: 'rgba(57,255,108,0.18)', fontSize: '0.7rem', color: '#0E0A12', fontWeight: 700 },
+      }, '\u2713 Ready'));
     }
-    viewerHeader.appendChild(leftRow);
+    panel.header.appendChild(leftRow);
 
-    viewerHeader.appendChild(
+    panel.header.appendChild(
       el('div.flex.items-center.gap-2', {
         style: { color: '#3D2F4A', fontSize: '0.72rem' },
       },
@@ -283,28 +363,129 @@ export function GeneratorPage({ socket }) {
     );
   }
 
-  const viewer = createValveStemViewer({
-    container: viewerCanvas,
-    initial: {
-      headScale: state.headScale,
-      headTilt: state.headTilt,
-      materialType: state.materialType,
-      headColor: state.headColor,
-      photoUrl: state.photoUrl,
-      processing: state.processing,
+  function renderPanelOverlay(panel) {
+    panel.overlay.style.display = 'none';
+    clear(panel.overlay);
+    if (panel.kind !== 'final') return;
+    if (state.processing || !state.stlReady) return;
+    if (!state.finalFailed) return;
+    panel.overlay.style.display = 'flex';
+    panel.overlay.append(
+      el('div', { style: { fontSize: '2.2rem', marginBottom: '8px' } }, '\u26a0\ufe0f'),
+      el('p', {
+        style: { fontWeight: 800, fontSize: '0.95rem', color: '#0E0A12', marginBottom: '6px' },
+      }, "Couldn't seat the valve cap"),
+      el('p', {
+        style: { fontSize: '0.8rem', color: '#3D2F4A', maxWidth: '24em', lineHeight: 1.5, marginBottom: '6px' },
+      }, state.finalErrorMessage || 'The boolean step failed on this geometry. Your head STL is still printable \u2014 download it from the panel on the left.'),
+      el('p', {
+        style: { fontSize: '0.7rem', color: '#3D2F4A', fontStyle: 'italic' },
+      }, 'Try a different photo, or relax the Crop Tightness slider.'),
+    );
+  }
+
+  function renderPanelFooter(panel) {
+    clear(panel.footer);
+    // Per-panel download button. Uses the kind-aware downloadKind().
+    const isHead = panel.kind === 'head';
+    const hasData = isHead ? !!state.headStlData : !!state.finalStlData;
+    const isThisDownloading = state.downloadingKind === panel.kind;
+    const enabled = hasData && state.designId && !isThisDownloading && !state.processing;
+
+    // Re-create button so we can re-style on re-render.
+    const btn = el('button', {
+      onClick: () => downloadKind(panel.kind),
+      disabled: !enabled,
+      style: {
+        padding: '8px 14px',
+        background: enabled ? '#5A1FCE' : '#D7CFB6',
+        color: enabled ? '#FFFFFF' : '#3D2F4A',
+        border: '2px solid #0E0A12',
+        boxShadow: enabled ? '3px 3px 0 #0E0A12' : '2px 2px 0 #0E0A12',
+        fontFamily: 'ui-monospace, monospace', fontWeight: 700,
+        fontSize: '0.78rem', letterSpacing: '0.04em',
+        textTransform: 'uppercase',
+        cursor: enabled ? 'pointer' : 'not-allowed',
+        opacity: enabled ? 1 : 0.7,
+        display: 'inline-flex', alignItems: 'center', gap: '6px',
+      },
     },
-  });
+      icon('download', { size: 14, color: enabled ? '#FFFFFF' : '#3D2F4A' }),
+      isThisDownloading ? 'Downloading\u2026' : (isHead ? 'Head STL' : 'Full STL'),
+    );
+
+    panel.footer.appendChild(
+      el('span', { style: { color: '#3D2F4A', fontSize: '0.7rem' } },
+        isHead ? 'Stage 1.7 watertight head \u2014 always available.'
+               : 'Final mesh: head + cap (stages 2-6).')
+    );
+    panel.footer.appendChild(btn);
+  }
+
+  function renderViewerHeader() {
+    renderPanelHeader(headPanel);
+    renderPanelHeader(finalPanel);
+    renderPanelOverlay(headPanel);
+    renderPanelOverlay(finalPanel);
+    renderPanelFooter(headPanel);
+    renderPanelFooter(finalPanel);
+  }
 
   function pushViewer() {
-    viewer.update({
+    headPanel.viewer.update({
       headScale: state.headScale,
       headTilt: state.headTilt,
       materialType: state.materialType,
       headColor: state.headColor,
       photoUrl: state.photoUrl,
       processing: state.processing,
-      stlData: state.stlData,
+      stlData: state.headStlData,
     });
+    finalPanel.viewer.update({
+      headScale: state.headScale,
+      headTilt: state.headTilt,
+      materialType: state.materialType,
+      headColor: state.headColor,
+      photoUrl: state.photoUrl,
+      // The final viewer should NOT show the placeholder while
+      // processing (head viewer does that). When finalFailed, hide the
+      // mesh and let the overlay carry the message.
+      processing: state.processing,
+      stlData: state.finalFailed ? null : state.finalStlData,
+    });
+  }
+
+  // Per-panel download handler. Calls stl.downloadFree (or stl.download
+  // with kind) and triggers a browser download. Tracks state.downloadingKind
+  // so the right button shows a spinner while the request is in flight.
+  async function downloadKind(kind) {
+    if (state.downloadingKind || !state.designId) return;
+    const hasData = kind === 'head' ? !!state.headStlData : !!state.finalStlData;
+    if (!hasData) return;
+    state.downloadingKind = kind;
+    renderViewerHeader();
+    try {
+      const command = paymentsOff ? 'stl.downloadFree' : 'stl.download';
+      const res = await socket.request(command, {
+        designId: state.designId,
+        kind,
+      });
+      triggerStlDownload(res);
+      announce(`${kind === 'head' ? 'Head' : 'Full'} STL downloaded.`);
+    } catch (err) {
+      if (err.message === 'auth_required') {
+        sessionStorage.setItem('stemdomez.designId', state.designId);
+        announce('Please sign in to download your free STL. Redirecting\u2026', true);
+        const next = encodeURIComponent('/stemdome-generator');
+        window.location.assign(`/login?next=${next}`);
+        return;
+      }
+      announce(`Download failed: ${friendlyError(err)}`, true);
+      alert(`Could not download: ${friendlyError(err)}`);
+    } finally {
+      state.downloadingKind = null;
+      renderViewerHeader();
+    }
   }
 
   // Settings toggle + panel
@@ -416,54 +597,75 @@ export function GeneratorPage({ socket }) {
     clear(feedbackSlot);
     if (!state.stlReady || !state.designId) return;
     const designId = state.designId;
-    if (feedbackSubmitted.has(designId)) {
-      feedbackSlot.appendChild(
-        el('div', {
-          class: 'rounded-xl px-4 py-2 border',
-          style: { background: '#E5E0CC', borderColor: '#D7CFB6', color: '#3D2F4A', fontSize: '0.82rem' },
-        }, 'Thanks for the feedback'),
-      );
-      return;
-    }
-    const row = el('div', {
-      class: 'flex items-center gap-3 rounded-xl px-4 py-2 border',
-      style: { background: '#FFFFFF', borderColor: '#D7CFB6' },
-    });
-    row.appendChild(
-      el('span', {
-        style: { color: '#3D2F4A', fontSize: '0.78rem', fontWeight: 600 },
-      }, 'How did we do?'),
-    );
-    // Spec lists 👍 ❤️ 🤷 against the up/down/meh schema. The middle
-    // emoji is heart-shaped and isn't a "down"-vote in casual usage,
-    // but the schema only permits up|down|meh and the spec is explicit
-    // about ordering — we map by position so the column-three button
-    // is always 'meh' (the genuine indifference signal).
-    const buttons = [
-      { rating: 'up',   label: '\u{1F44D}' },
-      { rating: 'down', label: '❤️' },
-      { rating: 'meh',  label: '\u{1F937}' },
-    ];
-    for (const b of buttons) {
+
+    // v0.1.42 — one feedback row per stage. Both stages are rated
+    // independently so a rider can thumbs-up the head and thumbs-down
+    // the cap, or vice versa. Each stage's row is keyed
+    // `${designId}:${stage}` in feedbackSubmitted so submitting one
+    // doesn't dismiss the other.
+    const stages = [];
+    if (state.headStlData) stages.push({ stage: 'head',  label: 'Your head (stage 1.7)' });
+    if (state.finalStlData) stages.push({ stage: 'final', label: 'Head + valve cap (stages 2-6)' });
+
+    if (stages.length === 0) return;
+
+    const wrap = el('div', { class: 'flex flex-col gap-2' });
+    for (const s of stages) {
+      const submittedKey = `${designId}:${s.stage}`;
+      if (feedbackSubmitted.has(submittedKey)) {
+        wrap.appendChild(
+          el('div', {
+            class: 'rounded-xl px-4 py-2 border flex items-center justify-between gap-2',
+            style: { background: '#E5E0CC', borderColor: '#D7CFB6', color: '#3D2F4A', fontSize: '0.82rem' },
+          },
+            el('span', {}, `Thanks for the feedback on ${s.label}`),
+            el('span', { style: { fontSize: '0.7rem', fontStyle: 'italic' } }, '✓'),
+          ),
+        );
+        continue;
+      }
+      const row = el('div', {
+        class: 'flex items-center gap-3 rounded-xl px-4 py-2 border flex-wrap',
+        style: { background: '#FFFFFF', borderColor: '#D7CFB6' },
+      });
       row.appendChild(
-        el('button', {
-          class: 'px-2 py-1 rounded-lg border transition-colors',
-          style: { borderColor: '#D7CFB6', background: '#F5F2E5', fontSize: '1.05rem', cursor: 'pointer' },
-          'aria-label': `feedback ${b.rating}`,
-          onClick: () => submitFeedback(designId, b.rating),
-        }, b.label),
+        el('span', {
+          style: { color: '#3D2F4A', fontSize: '0.78rem', fontWeight: 700, flex: '1 1 auto' },
+        }, `How did we do on the ${s.label}?`),
       );
+      // up | meh | down. Plain thumbs to keep the per-stage signal
+      // unambiguous for the admin Feedback dashboard. (The old
+      // 👍 ❤️ 🤷 mapping confused the schema and caused down-votes
+      // to look like loves.)
+      const buttons = [
+        { rating: 'up',   label: '\u{1F44D}', tip: 'Looks great' },
+        { rating: 'meh',  label: '\u{1F937}', tip: "It's fine" },
+        { rating: 'down', label: '\u{1F44E}', tip: "Didn't work" },
+      ];
+      for (const b of buttons) {
+        row.appendChild(
+          el('button', {
+            class: 'px-2 py-1 rounded-lg border transition-colors',
+            style: { borderColor: '#D7CFB6', background: '#F5F2E5', fontSize: '1.05rem', cursor: 'pointer' },
+            'aria-label': `${s.stage} feedback ${b.rating}`,
+            title: b.tip,
+            onClick: () => submitFeedback(designId, s.stage, b.rating),
+          }, b.label),
+        );
+      }
+      wrap.appendChild(row);
     }
-    feedbackSlot.appendChild(row);
+    feedbackSlot.appendChild(wrap);
   }
 
-  function submitFeedback(designId, rating) {
-    feedbackSubmitted.add(designId);
+  function submitFeedback(designId, stage, rating) {
+    feedbackSubmitted.add(`${designId}:${stage}`);
     renderFeedback();
-    // Fire-and-forget — failures here aren't worth interrupting the
-    // user. The server logs the error and the client simply doesn't
-    // re-prompt because we already moved to the thank-you state.
-    socket.send('feedback.submit', { designId, rating });
+    // designs.rate is the canonical command — see server/commands/stl.js.
+    // Fire-and-forget — a failure here isn't worth interrupting the
+    // rider. The server logs it and we already moved the UI to the
+    // thank-you state.
+    socket.request('designs.rate', { designId, stage, rating }).catch(() => {});
   }
 
   // Action buttons
@@ -696,10 +898,15 @@ export function GeneratorPage({ socket }) {
     state.photoName = file.name;
     state.stlReady = false;
     state.stlData = null;
+    state.headStlData = null;
+    state.finalStlData = null;
+    state.finalFailed = false;
+    state.finalErrorMessage = null;
     state.designId = null;
     state.designTriangles = 0;
     renderUploader();
     pushViewer();
+    renderViewerHeader();
     renderActions();
     renderFeedback();
     announce(`Photo "${file.name}" ready. Tap Generate when you're set.`);
@@ -844,6 +1051,10 @@ export function GeneratorPage({ socket }) {
     state.processing = true;
     state.stlReady = false;
     state.stlData = null;
+    state.headStlData = null;
+    state.finalStlData = null;
+    state.finalFailed = false;
+    state.finalErrorMessage = null;
     state.progress = 0;
     state.processingStep = '';
     state.designId = null;
@@ -882,14 +1093,29 @@ export function GeneratorPage({ socket }) {
           }
         },
       });
-      announce(paymentsOff
-        ? 'STL ready. Sign in and tap Download for your free file.'
-        : 'STL ready. Tap Buy STL to download.');
       state.designId = result.designId;
       state.designTriangles = result.triangles || 0;
-      state.stlData = result.stl_b64 || null;
-      state.stlReady = true;
+      // v0.1.42 dual-output. New shape: head_stl_b64 + final_stl_b64
+      // + final_failed. Fall back to result.stl_b64 if the server is
+      // pre-v0.1.42 (the legacy single-STL field is also still set).
+      state.headStlData  = result.head_stl_b64  || null;
+      state.finalStlData = result.final_stl_b64 || (result.stl_b64 && !result.final_failed ? result.stl_b64 : null);
+      state.finalFailed  = !!result.final_failed;
+      state.finalErrorMessage = result.final_error_message || null;
+      state.stlData = state.finalStlData || state.headStlData; // legacy alias
+      state.stlReady = !!(state.headStlData || state.finalStlData);
+      // Tailored success / partial-success copy.
+      if (state.finalFailed && state.headStlData) {
+        announce('Boolean step failed but your head STL is ready — download it from the head panel.', true);
+      } else if (state.finalStlData) {
+        announce(paymentsOff
+          ? 'Both STLs ready. Sign in and tap a Download button.'
+          : 'STL ready. Tap Buy STL to download.');
+      } else if (state.headStlData) {
+        announce('Head STL ready. Tap Download below it.');
+      }
       sessionStorage.setItem('stemdomez.designId', result.designId);
+      renderViewerHeader();
       renderFeedback();
     } catch (err) {
       console.error('stl.generate failed', err);
@@ -980,7 +1206,8 @@ export function GeneratorPage({ socket }) {
   return {
     el: root,
     destroy() {
-      viewer.destroy();
+      headPanel.viewer.destroy?.();
+      finalPanel.viewer.destroy?.();
       if (state.photoUrl) URL.revokeObjectURL(state.photoUrl);
     },
   };

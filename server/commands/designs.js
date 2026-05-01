@@ -67,6 +67,14 @@ export const designsCommands = {
       `SELECT id, filename, photo_name, settings, photo_id, is_public,
               to_char(created_at, 'Mon DD, YYYY') AS date,
               created_at, expires_at, pipeline_version,
+              -- v0.1.42 dual-output flags. has_head_stl is FALSE for
+              -- legacy designs (created pre-migration 008) and the UI
+              -- greycaps the "Head only" button for them. final_failed
+              -- is TRUE when the boolean phase couldn't seat the cap;
+              -- the UI greycaps "Full STL" and shows the apology copy.
+              (head_stl_bytes IS NOT NULL) AS has_head_stl,
+              final_failed,
+              final_error,
               (SELECT EXISTS (
                  SELECT 1 FROM purchases p
                   WHERE p.design_id = generated_designs.id AND p.status = 'paid'

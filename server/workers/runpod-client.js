@@ -363,22 +363,69 @@ async function cancelJob(base, jobId) {
 }
 
 // ── Stream + assemble (the canonical reader loop) ───────────────────
+//
+// v0.1.42 dual-output. Handler now emits two STLs per job:
+//   • kind:"head"  — stage-1.7 watertight head, always present on success.
+//   • kind:"final" — stages 2-6 head+cap, may flip final_failed:true.
+//
+// We multiplex by `kind`: each result_chunk frame is bucketed into a
+// per-kind chunk array, and each result frame closes that bucket. The
+// loop terminates when (a) job status is COMPLETED, OR (b) we've seen
+// the final-result frame (with success or failure marker), whichever
+// comes first.
+//
+// Backwards compat: if a handler at v0.1.41 or earlier replies (no
+// `kind` field on chunks/result), we treat the unkeyed stream as
+// `kind:"final"` and head stays null — same as a finalize-failure.
 
 async function streamAndAssemble({
   socket, commandId, base, jobId, deadline,
   initialFrames = [], initialStatus = 'IN_QUEUE',
 }) {
   const auth = authHeaders();
-  let stlBytes = null;
   let lastStatus = initialStatus;
-  // Chunk reassembly buffer for the v0.1.33+ handler protocol.
-  // RunPod's /job-stream per-frame cap is ~1 MB; the worker splits the
-  // base64 STL into ≤700 KB `result_chunk` frames + a final `result`
-  // frame with metadata. We index by `chunk.index` so order doesn't
-  // matter (frames may arrive across multiple poll batches).
-  const stlChunks = [];
-  let stlChunkTotal = null;
-  let stlBytesLen = null;
+
+  // Per-kind chunk reassembly state. Shape:
+  //   { chunks: [], total: null, bytesLen: null, bytes: null,
+  //     resultSeen: false, finalFailed: false, finalError: null,
+  //     finalErrorMessage: null }
+  const buckets = {
+    head:  newBucket(),
+    final: newBucket(),
+  };
+
+  function newBucket() {
+    return {
+      chunks: [], total: null, bytesLen: null, bytes: null,
+      resultSeen: false, finalFailed: false,
+      finalError: null, finalErrorMessage: null,
+    };
+  }
+
+  function tryAssemble(kind) {
+    const b = buckets[kind];
+    if (b.bytes) return; // already assembled
+    if (b.total == null) return;
+    if (b.chunks.filter(Boolean).length !== b.total) return;
+    if (b.total === 0) return; // zero-chunk result (final_failed case)
+    b.bytes = Buffer.from(b.chunks.join(''), 'base64');
+    if (b.bytesLen != null && b.bytes.length !== b.bytesLen) {
+      logger.warn({
+        msg: 'runpod.stl_size_mismatch', kind,
+        expected: b.bytesLen, actual: b.bytes.length,
+      });
+    }
+  }
+
+  // Have we received enough to call it done?
+  // Done when the final-result frame has been seen AND (final assembled
+  // OR final_failed). Head missing is fine on legacy handlers.
+  function isComplete() {
+    const f = buckets.final;
+    if (!f.resultSeen) return false;
+    if (f.finalFailed) return true;
+    return !!f.bytes;
+  }
 
   const processFrames = (frames) => {
     for (const frame of frames) {
@@ -386,8 +433,6 @@ async function streamAndAssemble({
       if (!out || typeof out !== 'object') continue;
       // P4-018 — drift detection. Worker boot frames or any frame that
       // includes the handler_version string get fed into the ring buffer.
-      // Don't gate on out.type so the next handler revision can ship
-      // boot-style metadata without us missing it.
       if (out.type === 'boot' || typeof out.handler_version === 'string') {
         const v = typeof out.handler_version === 'string' ? out.handler_version : null;
         if (v) recordHandlerVersion(v, jobId);
@@ -399,22 +444,35 @@ async function streamAndAssemble({
           payload: { step: out.step, pct: out.pct },
         });
       } else if (out.type === 'result_chunk') {
+        // Default to "final" if the handler didn't set kind (legacy).
+        const kind = out.kind === 'head' ? 'head' : 'final';
+        const b = buckets[kind];
         if (typeof out.data === 'string' && Number.isInteger(out.index)) {
-          stlChunks[out.index] = out.data;
-          if (Number.isInteger(out.total)) stlChunkTotal = out.total;
+          b.chunks[out.index] = out.data;
+          if (Number.isInteger(out.total)) b.total = out.total;
         }
+        tryAssemble(kind);
       } else if (out.type === 'result') {
-        // Three handler eras live here:
-        //   ≤v0.1.31: stl_b64 inlined (HTTP 400 — never actually arrives).
-        //   v0.1.32:  metadata only, STL via /status (broken — SDK drops it).
-        //   v0.1.33+: metadata only, STL came in via prior result_chunk frames.
+        const kind = out.kind === 'head' ? 'head' : 'final';
+        const b = buckets[kind];
+        b.resultSeen = true;
+        // Legacy inlined stl_b64 path.
         if (typeof out.stl_b64 === 'string') {
-          stlBytes = Buffer.from(out.stl_b64, 'base64');
+          b.bytes = Buffer.from(out.stl_b64, 'base64');
         } else if (Number.isInteger(out.chunks)) {
-          stlChunkTotal = out.chunks;
-          if (Number.isInteger(out.stl_bytes_len)) stlBytesLen = out.stl_bytes_len;
+          b.total = out.chunks;
+          if (Number.isInteger(out.stl_bytes_len)) b.bytesLen = out.stl_bytes_len;
         }
+        if (kind === 'final' && out.final_failed === true) {
+          b.finalFailed = true;
+          b.finalError = typeof out.final_error === 'string' ? out.final_error : 'unknown';
+          b.finalErrorMessage = typeof out.final_error_message === 'string'
+            ? out.final_error_message
+            : null;
+        }
+        tryAssemble(kind);
       } else if (out.type === 'error') {
+        // Hard handler-level error — no STLs of any kind. Surface up.
         throw new Error(`runpod_worker_error:${out.error}`);
       }
     }
@@ -422,53 +480,59 @@ async function streamAndAssemble({
 
   // Drain any frames the race loop already saw before we entered here.
   if (initialFrames.length > 0) processFrames(initialFrames);
-  if (!stlBytes && stlChunkTotal && stlChunks.filter(Boolean).length === stlChunkTotal) {
-    stlBytes = Buffer.from(stlChunks.join(''), 'base64');
-  }
 
-  while (!stlBytes && Date.now() < deadline) {
+  while (!isComplete() && Date.now() < deadline) {
     const chunk = await fetchJson(`${base}/stream/${jobId}`, { headers: auth });
     const frames = Array.isArray(chunk.stream) ? chunk.stream : [];
     processFrames(frames);
 
-    if (!stlBytes && stlChunkTotal && stlChunks.filter(Boolean).length === stlChunkTotal) {
-      stlBytes = Buffer.from(stlChunks.join(''), 'base64');
-      if (stlBytesLen !== null && stlBytes.length !== stlBytesLen) {
-        logger.warn({
-          msg: 'runpod.stl_size_mismatch',
-          expected: stlBytesLen,
-          actual: stlBytes.length,
-        });
-      }
-    }
-
     lastStatus = chunk.status || lastStatus;
-    if (lastStatus === 'COMPLETED') break;
+    if (isComplete()) break;
+    if (lastStatus === 'COMPLETED') {
+      // The job ended but we didn't see the final-result frame. One
+      // last poll picks up any tail frames left in /stream's buffer.
+      const tail = await fetchJson(`${base}/stream/${jobId}`, { headers: auth });
+      processFrames(Array.isArray(tail.stream) ? tail.stream : []);
+      break;
+    }
     if (lastStatus === 'FAILED' || lastStatus === 'CANCELLED' || lastStatus === 'TIMED_OUT') {
       throw new Error(`runpod_job_${lastStatus.toLowerCase()}`);
     }
     await sleep(POLL_INTERVAL_MS);
   }
 
-  if (!stlBytes) {
-    // Final safety net: some handler variants only return via /status.
+  // /status safety net for handlers that only return via /status.
+  if (!buckets.final.bytes && !buckets.final.finalFailed && !buckets.head.bytes) {
     const status = await fetchJson(`${base}/status/${jobId}`, { headers: auth });
     const out = status?.output;
     if (out && typeof out === 'object' && out.stl_b64) {
-      stlBytes = Buffer.from(out.stl_b64, 'base64');
+      buckets.final.bytes = Buffer.from(out.stl_b64, 'base64');
+      buckets.final.resultSeen = true;
     }
   }
 
-  if (!stlBytes) {
+  // We need at least ONE of head or final (or final_failed marker) to
+  // call this a usable result. Pure nothing means the handler died.
+  if (!buckets.head.bytes && !buckets.final.bytes && !buckets.final.finalFailed) {
     throw new Error(`runpod_no_result (last_status=${lastStatus})`);
   }
+
   logger.info({
     msg: 'runpod.job_complete',
     endpoint: base,
     jobId,
-    bytes: stlBytes.length,
+    head_bytes: buckets.head.bytes?.length || 0,
+    final_bytes: buckets.final.bytes?.length || 0,
+    final_failed: buckets.final.finalFailed,
+    final_error: buckets.final.finalError,
   });
-  return stlBytes;
+  return {
+    head: buckets.head.bytes || null,
+    final: buckets.final.bytes || null,
+    finalFailed: buckets.final.finalFailed,
+    finalError: buckets.final.finalError,
+    finalErrorMessage: buckets.final.finalErrorMessage,
+  };
 }
 
 // ── Input builder ───────────────────────────────────────────────────
